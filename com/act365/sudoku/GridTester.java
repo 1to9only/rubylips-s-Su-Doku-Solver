@@ -29,8 +29,8 @@ package com.act365.sudoku;
  * The GridTester class tests the Su Doku solver with some graded examples
  * takes from The Times newspaper.
  * 
- * @see http://www.sudoku.com
- * @see http://www.timesonline.co.uk
+ * @see <a href="http://www.sudoku.com">www.sudoku.com</a>
+ * @see <a href="http://www.timesonline.co.uk">The Times online</a>
  */
 
 public class GridTester {

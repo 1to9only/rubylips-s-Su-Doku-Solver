@@ -28,18 +28,45 @@ package com.act365.sudoku;
 import java.applet.Applet;
 
 /**
- * Creates an applet that displays a Su Doku solver.
+ * Creates an applet that displays a Su Doku solver. The following PARAM names
+ * are supported within the APPLET tag:
+ * <br>ACROSS - the number of boxes to appear across one row of the Su Doku grid - the default is 3.
+ * <br>DOWN - the number of boxes to appear down one column of the Su Doku grid - the default is 3.
  */
 
 public class SuDokuApplet extends Applet {
 
+    int boxesAcross = 3 ,
+        boxesDown = 3 ;
+        
     /**
      * Initiates the applet.
      */
     
     public void init(){
-        GridContainer grid = new GridContainer();
-        add( grid );
-        setSize( grid.getBestSize() );
+    	
+    	String acrossString = getParameter("ACROSS"),
+    	       downString = getParameter("DOWN");
+    	       
+		if( acrossString instanceof String ){
+			try{
+				boxesAcross = Integer.parseInt( acrossString );
+			} catch ( NumberFormatException e ) {
+				System.err.println("Illegal ACROSS vaue: " + acrossString );
+			}
+		}
+		if( downString instanceof String ){
+			try{
+				boxesDown = Integer.parseInt( downString );
+			} catch ( NumberFormatException e ) {
+				System.err.println("Illegal DOWN vaue: " + downString );
+			}
+		}
+    	
+		GridContainer grid = new GridContainer( new Grid( boxesAcross , boxesDown ) );
+		ControlContainer control = new ControlContainer( grid ); 
+		SuDokuContainer suDoku = new SuDokuContainer( grid , control );
+		add( suDoku );
+		setSize( suDoku.getBestSize() );
     }
 }

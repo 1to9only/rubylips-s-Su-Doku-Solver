@@ -33,18 +33,58 @@ import com.act365.awt.Frame;
 
 public class SuDoku extends Frame {
 
-    SuDoku(){
+    SuDoku( int boxesAcross , int boxesDown ){
         super("Su Doku Solver");        
-        GridContainer grid = new GridContainer();
-        add( grid );
-        setSize( grid.getBestSize() );
+        GridContainer grid = new GridContainer( new Grid( boxesAcross , boxesDown ) );
+        ControlContainer control = new ControlContainer( grid ); 
+        SuDokuContainer suDoku = new SuDokuContainer( grid , control );
+        add( suDoku );
+        setSize( suDoku.getBestSize() );
     }
  
     /**
-     * Opens a new window to display a Su Doku grid.
+     * Starts a new app with a Su Doku grid of the given size.
+     * <code>java com.act365.sudoku.SuDoku [-a boxesAcross] [-d boxesDown]</code>
+     * <br><code>boxesAcross</code> is the number of boxes to appear across one row of the Su Doku grid - the default is 3.
+     * <br><code>boxesDown</code> is the number of boxes to appear down one column of the Su Doku grid - the default is 3.
      */
     
 	public static void main(String[] args) {
-        new SuDoku().show();
+		
+		int boxesAcross = 3 ,
+		    boxesDown = 3 ;
+		
+		int i = 0 ;
+		
+		while( i < args.length ){
+			if( args[i].equals("-a") ){
+				++ i ;
+				if( i < args.length ){
+					try {
+						boxesAcross = Integer.parseInt( args[i] );
+					} catch ( NumberFormatException e ) {
+						System.err.println("boxesAcross should be an integer");
+					}
+				} else {
+					System.err.println("-a requires an argument");
+				}
+			} else if( args[i].equals("-d") ){
+				++ i ;
+				if( i < args.length ){
+					try {
+						boxesDown = Integer.parseInt( args[i] );
+					} catch ( NumberFormatException e ) {
+						System.err.println("boxesDown should be an integer");
+					}
+				} else {
+					System.err.println("-d requires an argument");
+				}
+			} else {
+				System.err.println("Option " + args[i] + " has been ignored");
+			}
+			++ i ;
+		}
+		
+        new SuDoku( boxesAcross , boxesDown ).show();
 	}
 }

@@ -26,104 +26,132 @@
 package com.act365.sudoku;
 
 import java.awt.*;
-import java.awt.event.*;
 
 /**
  * The GridContainer class displays a Su Doku grid.
  */
 
-public class GridContainer extends com.act365.awt.Container 
-                           implements ActionListener {
-
-    TextField[][] textFields ;
-    
-    Button solve ,
-           unsolve ,
-           reset ;
+public class GridContainer extends com.act365.awt.Container {
 
     Grid grid ;
+    
+    TextField[][] textFields ;
     
     /**
      * Creates a new GridContainer instance. 
      */
     
-    public GridContainer() {
-    
-        int r , c ;
-        
-        // Set up the underlying grid.
-        grid = new Grid();
-        
-        // Set up the grid of text fields.       
-        textFields = new TextField[9][9];
-        
-        r = 0 ;
-        while( r < 11 ){
-            c = 0 ;
-            while( c < 11 ){
-                if( r % 4 < 3 && c % 4 < 3 ){
-                    textFields[r/4*3+r%4][c/4*3+c%4] = new TextField(1);
-                    addComponent( textFields[r/4*3+r%4][c/4*3+c%4] , c , r , 1 , 1 , 1 , 1 );
-                } else {
-                    addComponent( new Label() , c , r , 1 , 1 , 1 , 1 );
-                }
-                ++ c ;
-            }
-            ++ r ;
-        }
-        
-        // Add the buttons.
-        solve = new Button("Solve");
-        solve.addActionListener( this );
-        addComponent( solve , 0 , 11 , 3 , 1 , 1 , 0 );
-        unsolve = new Button("Unsolve");
-        unsolve.addActionListener( this );
-        addComponent( unsolve , 4 , 11 , 3 , 1 , 1 , 0 );
-        reset = new Button("Reset");
-        reset.addActionListener( this );
-        addComponent( reset , 8 , 11 , 3 , 1 , 1 , 0 );
+    public GridContainer( Grid grid ) {
+        this.grid = grid ;
+        layoutComponents();    
     }
     
     /**
-     * A GridContainer should be displayed at 500x400. 
+     * Lays out the grid of text fields.
+     */
+    
+    void layoutComponents(){
+		
+		textFields = new TextField[grid.cellsInRow][grid.cellsInRow];
+
+		int r , c ;
+        
+		r = 0 ;
+		while( r < grid.cellsInRow + grid.boxesDown - 1 ){
+			c = 0 ;
+			while( c < grid.cellsInRow + grid.boxesAcross - 1 ){
+				if( r % (grid.boxesAcross+1) < grid.boxesAcross && c % (grid.boxesDown+1) < grid.boxesDown ){
+					textFields[r/(grid.boxesAcross+1)*grid.boxesAcross+r%(grid.boxesAcross+1)][c/(grid.boxesDown+1)*grid.boxesDown+c%(grid.boxesDown+1)] = new TextField(1);
+					addComponent( textFields[r/(grid.boxesAcross+1)*grid.boxesAcross+r%(grid.boxesAcross+1)][c/(grid.boxesDown+1)*grid.boxesDown+c%(grid.boxesDown+1)] , c , r , 1 , 1 , 1 , 1 );
+				} else {
+					addComponent( new Label() , c , r , 1 , 1 , 1 , 1 );
+				}
+				++ c ;
+			}
+			++ r ;
+		}
+    }
+    
+    /**
+     * A GridContainer should display each square as 40x40 pixels.
      */
     
     public Dimension getBestSize() {
-        return new Dimension( 500 , 400 );   
+        return new Dimension( 40 *( grid.cellsInRow + grid.boxesDown - 1 ) , 
+                              40 *( grid.cellsInRow + grid.boxesAcross - 1 ) );   
+    }
+
+    /**
+     * Solves the grid.
+     */
+    
+    public void solve(){  
+    	read();
+    	grid.solve();
+    	write();  
     }
     
     /**
-     * Reacts to button presses. 
+     * Unsolves the grid (i.e. reverts its state to that prior to the 
+     * most recent solve.
      */
     
-    public void actionPerformed( ActionEvent evt ){
-        
-        if( evt.getSource() == solve ){
-            read();
-            if( grid.solve() ){
-                paint();
-            }
-        } else if( evt.getSource() == unsolve ) {
-            grid.unsolve();
-            paint();
-        } else if( evt.getSource() == reset ){
-            grid.reset();
-            paint();
-        }
+    public void unsolve(){
+    	grid.unsolve();
+    	write();
     }
-
+    
+    /**
+     * Resets the grid.
+     */
+    
+    public void reset(){
+    	grid.reset();
+    	write();
+    }
+    
+    /**
+     * Resizes the grid.
+     * @param boxesAcross - number of boxes across one row of the Su Doku grid
+     * @param boxesDown - number of boxes down one column of the Su Doku grid
+     */
+    
+    public void setBoxes( int boxesAcross ,
+                          int boxesDown ){
+        grid.resize( boxesAcross , boxesDown );
+        removeAll();
+        layoutComponents();
+        validate();
+    }
+    
+    /** 
+     * Returns number of boxes across one row of the Su Doku grid.
+     */
+    
+    public int getBoxesAcross(){
+    	return grid.boxesAcross ;
+    }
+    
+    /**
+     * Returns number of boxes down one column of the Su Doku grid.
+     */
+    
+    public int getBoxesDown(){
+    	return grid.boxesDown ;
+    }
+    
     /**
      * Fills the text fields with values from the grid.
      */
     
-    void paint(){        
+    void write(){        
         
         int r , c ;
         
         c = 0 ;
-        while( c < 9 ){
+        while( c < grid.cellsInRow ){
             r = 0 ;
-            while( r < 9 ){ 
+            while( r < grid.cellsInRow ){ 
                 if( grid.data[r][c] > 0 ){
                     textFields[r][c].setText( Integer.toString( grid.data[r][c] ) );   
                 } else {
@@ -144,15 +172,15 @@ public class GridContainer extends com.act365.awt.Container
         int r , c ;
         
         c = 0 ;
-        while( c < 9 ){
+        while( c < grid.cellsInRow ){
             r = 0 ;
-            while( r < 9 ){       
+            while( r < grid.cellsInRow ){       
                 try {
                     grid.data[r][c] = Integer.parseInt( textFields[r][c].getText() );
                 } catch ( NumberFormatException e ) {
                     grid.data[r][c] = 0 ;   
                 }
-                if( grid.data[r][c] < 0 || grid.data[r][c] > 9 ){
+                if( grid.data[r][c] < 0 || grid.data[r][c] > grid.cellsInRow ){
                     grid.data[r][c] = 0 ;   
                 }
                 ++ r ;

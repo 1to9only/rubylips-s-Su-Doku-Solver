@@ -31,13 +31,63 @@ package com.act365.sudoku ;
 
 public class Grid {
 
-    public int[][] data = new int[9][9];
+    // Constants that define the grid size. The nomenclature is taken from
+    // the Sudoku XML schema.
+    
+    int cellsInRow ,
+        boxesAcross ,
+        boxesDown ;
+    
+    // Grid data
+    
+    int[][] data ;
 
+    // Thread data
+    
     int x , y ; // Cursor postion
     
-    int[] xMoves = new int[81] , yMoves = new int[81] ; // Stack
+    int[] xMoves , yMoves ; 
     
-    int nMoves = 0 ; // Stack size
+    int nMoves ; // Thread length
+
+    /**
+     * Creates a Su Doku grid with the given number of boxes
+     * (aka subgrids) in each dimension.
+     */
+    
+    public Grid( int boxesAcross ,
+                 int boxesDown ){
+        resize( boxesAcross , boxesDown );
+    }
+
+    /**
+     * Creates a classic Su Doku grid, with the boxes (aka subgrids)
+     * in each dimension.
+     */    
+    
+    public Grid(){
+    	resize( 3 , 3 );
+    }
+    
+    /**
+     * Sets the number of boxes in the Su Doku grid.
+     */
+    
+    public void resize( int boxesAcross ,
+                        int boxesDown ){
+        
+        this.boxesAcross = boxesAcross ;
+        this.boxesDown = boxesDown ;
+        
+	    cellsInRow = boxesAcross * boxesDown ;
+
+	    data = new int[cellsInRow][cellsInRow];
+	  
+	    xMoves = new int[cellsInRow*cellsInRow] ; 
+	    yMoves = new int[cellsInRow*cellsInRow] ;
+		
+	    nMoves = 0 ;                   	
+    }
     
     /**
      * Determines whether a given column in the grid is sound, i.e. whether
@@ -49,11 +99,11 @@ public class Grid {
     
     boolean isColumnSound( int i ){
         
-     boolean[] check = new boolean[9];
+     boolean[] check = new boolean[cellsInRow];
   
      int j = 0 ;
      
-     while( j < 9 ){
+     while( j < cellsInRow ){
       if( data[i][j] > 0 ){
        if( check[data[i][j]-1] ){
         return false ;
@@ -77,11 +127,11 @@ public class Grid {
     
     boolean isRowSound( int j ){
         
-     boolean[] check = new boolean[9];
+     boolean[] check = new boolean[cellsInRow];
   
      int i = 0 ;
      
-     while( i < 9 ){
+     while( i < cellsInRow ){
       if( data[i][j] > 0 ){
        if( check[data[i][j]-1] ){
         return false ;
@@ -106,19 +156,19 @@ public class Grid {
     
     boolean isSubgridSound( int i , int j ){
      
-        boolean[] check = new boolean[9];
+        boolean[] check = new boolean[cellsInRow];
         
         int k = 0 ;
         
-        while( k < 9 ){
-         if( data[3*i+k%3][3*j+k/3] > 0 ){
-            if( check[data[3*i+k%3][3*j+k/3]-1] ){
-                return false ;
-            } else {
-             check[data[3*i+k%3][3*j+k/3]-1] = true ;   
-            }
-         }
-         ++ k ;
+        while( k < cellsInRow ){
+            if( data[i*boxesAcross+k%boxesAcross][j*boxesDown+k/boxesAcross] > 0 ){
+                if( check[data[i*boxesAcross+k%boxesAcross][j*boxesDown+k/boxesAcross]-1] ){
+                    return false ;
+                } else {
+                    check[data[i*boxesAcross+k%boxesAcross][j*boxesDown+k/boxesAcross]-1] = true ;   
+                }
+             }
+             ++ k ;
         }
         
         return true ;    
@@ -135,15 +185,15 @@ public class Grid {
      
         int i = 0 ;
         
-        while( i < 9 ){
-         if( ! isColumnSound( i ) ){
-          return false ;  
-         } else if( ! isRowSound( i ) ) {
-          return false ;  
-         } else if( ! isSubgridSound( i % 3 , i / 3 ) ){
-          return false ;  
-         }
-         ++ i ;
+        while( i < cellsInRow ){
+           if( ! isColumnSound( i ) ){
+               return false ;  
+           } else if( ! isRowSound( i ) ) {
+               return false ;  
+           } else if( ! isSubgridSound( i % boxesDown , i / boxesDown ) ){
+               return false ;  
+           }
+           ++ i ;
         }
         
         return true ;
@@ -156,16 +206,16 @@ public class Grid {
     
     boolean advance(){
 
-        while( x < 9 && data[x][y] > 0 ){
-            while( y < 9 && data[x][y] > 0 ){
+        while( x < cellsInRow && data[x][y] > 0 ){
+            while( y < cellsInRow && data[x][y] > 0 ){
                 ++ y ;    
             }
-            if( y == 9 ){
+            if( y == cellsInRow ){
                 ++ x ;
                 y = 0 ;
             }
         }
-        return x < 9 ;
+        return x < cellsInRow ;
     }
     
     /**
@@ -185,10 +235,10 @@ public class Grid {
         while( true ){
             // Fill the current square with the next valid value.
             ++ data[x][y];
-            while( data[x][y] <= 9 && ! isSound() ){
+            while( data[x][y] <= cellsInRow && ! isSound() ){
                 ++ data[x][y];   
             }
-            if( data[x][y] <= 9 ){
+            if( data[x][y] <= cellsInRow ){
                 // Add current move to the stack.
                 xMoves[nMoves] = x ;
                 yMoves[nMoves] = y ;
@@ -219,9 +269,9 @@ public class Grid {
         int i , j ;
         
         i = 0 ;
-        while( i < 9 ){
+        while( i < cellsInRow ){
             j = 0 ;
-            while( j < 9 ){
+            while( j < cellsInRow ){
                 data[i][j] = 0 ;
                 ++ j ;
             }
@@ -231,7 +281,7 @@ public class Grid {
     
     /**
      * Reverts the grid to its state prior to the last call to solve().
-     * @see solve()
+     * @see Grid#solve()
      */
     
     public void unsolve(){
