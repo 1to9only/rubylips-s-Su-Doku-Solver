@@ -397,6 +397,7 @@ public abstract class StrategyBase {
             ++ i ;
         }
         sb.append('\n');
+        sb.append( state.toString() );
         return sb.toString(); 
     }  
 }

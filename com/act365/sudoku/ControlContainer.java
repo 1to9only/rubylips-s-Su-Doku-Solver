@@ -48,6 +48,8 @@ public class ControlContainer extends com.act365.awt.Container
 		boxesDown ,
 		minFilledCellsValue ;
     
+    boolean isApplet ;
+    
     GridContainer grid ;
         
 	TextField across ,
@@ -76,19 +78,24 @@ public class ControlContainer extends com.act365.awt.Container
           
     Choice strategy ;
     
+    SuDokuClipboard clipboard ;
+    
     /**
      * Creates a new ControlContainer to control the given
      * GridContainer.
      */
     
-    public ControlContainer( GridContainer grid ){
+    public ControlContainer( GridContainer grid , boolean isApplet ){
         
         // Set state variables.
         this.grid = grid ;
+        if( ( this.isApplet = isApplet ) ){
+            clipboard = new SuDokuClipboard();    
+        }
         boxesAcross = grid.getBoxesAcross();
         boxesDown = grid.getBoxesDown();
         minFilledCellsValue = defaultMinFilledCellsValue ;
-            
+        
         // Add the Solve controls.
         solve = new Button("Solve");
         solve.addActionListener( this );
@@ -219,12 +226,30 @@ public class ControlContainer extends com.act365.awt.Container
 			grid.reset();
             time.setText("0.0s");
         } else if( evt.getSource() == copy ) {
-            getToolkit().getSystemClipboard().setContents( new StringSelection( grid.toString() ) , this );
+            if( isApplet ){
+                clipboard.show();
+                clipboard.setText( grid.toString() );
+            } else {
+                getToolkit().getSystemClipboard().setContents( new StringSelection( grid.toString() ) , this );
+            }
         } else if( evt.getSource() == paste ){
-            Transferable transferable = getToolkit().getSystemClipboard().getContents( this );
-            if( transferable != null ){
+            String pasteText = null ;
+            if( isApplet ){
+                if( clipboard instanceof SuDokuClipboard ){
+                    pasteText = clipboard.getText();
+                }
+            } else {
+                Transferable transferable = getToolkit().getSystemClipboard().getContents( this );
+                if( transferable instanceof Transferable ){
+                    try {
+                        pasteText = (String) transferable.getTransferData( DataFlavor.stringFlavor );
+                    } catch( Exception e ) {
+                    }
+                }
+            }
+            if( pasteText instanceof String ){
                 try {
-                    grid.paste( (String) transferable.getTransferData( DataFlavor.stringFlavor ) );
+                    grid.paste( pasteText );
                     boxesAcross = grid.getBoxesAcross();
                     boxesDown = grid.getBoxesDown();
                     write();

@@ -38,7 +38,7 @@ public class SuDoku extends Frame {
     SuDoku( Grid grid ){
         super("Su Doku Solver");        
         GridContainer gc = new GridContainer( grid );
-        ControlContainer control = new ControlContainer( gc ); 
+        ControlContainer control = new ControlContainer( gc , false ); 
         SuDokuContainer suDoku = new SuDokuContainer( gc , control );
         add( suDoku );
         setSize( suDoku.getBestSize() );

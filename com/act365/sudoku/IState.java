@@ -64,4 +64,10 @@ public interface IState {
      */
 
     public void eliminateMove( int x , int y , int v );
+    
+    /**
+     * Produces a string representation of the state grid.
+     */
+    
+    public String toString();
 }

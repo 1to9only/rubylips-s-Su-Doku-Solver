@@ -104,7 +104,8 @@ public class LeastCandidatesHybrid extends StrategyBase implements IStrategy {
         
         // When no indisputable candidate exists, look for linked values
         // or restricted candidate regions in order to eliminate moves.
-        if( better.getScore() > 1 ){
+        // The code is only executed for Least Candidates Hybrid II. 
+        if( state instanceof IState && better.getScore() > 1 ){
             movesEliminated = true ;
             while( movesEliminated ){
                 // Look for linked values.
@@ -333,7 +334,9 @@ public class LeastCandidatesHybrid extends StrategyBase implements IStrategy {
                         ++ s ;
                     }
                     while( s < 3 * grid.cellsInRow ){
-                        if( numberState.nEliminated[value][s] == grid.cellsInRow - 1 ){
+                        if( numberState.nEliminated[value][s] == grid.cellsInRow ){
+                            return ( nCandidates = 0 );
+                        } else if( numberState.nEliminated[value][s] == grid.cellsInRow - 1 ){
                             ++ s ;
                             continue ;
                         }

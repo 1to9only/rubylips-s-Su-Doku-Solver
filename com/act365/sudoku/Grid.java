@@ -236,11 +236,15 @@ public class Grid implements Cloneable , Serializable {
         StringBuffer sb = new StringBuffer();
         
         int i , j , k ;        
+        int number = cellsInRow , fieldWidth = 1 , numberWidth ;
+        while( ( number /= 10 ) >= 1 ){
+            ++ fieldWidth ;
+        }
         i = 0 ;
         while( i < cellsInRow ){
             if( i > 0 && i % boxesAcross == 0 ){
                 k = 0 ;
-                while( k < ( cellsInRow / 10 + 2 )* cellsInRow + ( boxesAcross - 1 )* 2 ){
+                while( k < ( fieldWidth + 1 )* cellsInRow + ( boxesAcross - 1 )* 2 ){
                     sb.append('*');
                     ++ k ;
                 }
@@ -253,14 +257,19 @@ public class Grid implements Cloneable , Serializable {
                 }
                 k = 0 ;
                 if( data[i][j] > 0 ){
-                    while( k < cellsInRow / 10 - data[i][j] / 10 + 1 ){
+                    numberWidth = 1 ;
+                    number = data[i][j];
+                    while( ( number /= 10 ) >= 1 ){
+                        ++ numberWidth ;
+                    }
+                    while( k < fieldWidth - numberWidth + 1 ){
                         sb.append(' ');
                         ++ k ;
                     }
                     sb.append( data[i][j] );
                 } else {
                     sb.append(' ');
-                    while( k < cellsInRow / 10 + 1 ){
+                    while( k < fieldWidth ){
                         sb.append('.');
                         ++ k ;
                     }

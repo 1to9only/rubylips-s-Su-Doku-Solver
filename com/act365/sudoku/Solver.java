@@ -214,7 +214,11 @@ public class Solver extends Thread {
         } else {
             firstDisputableMove = 0 ;
         }
-        strategy.setup( grid );
+        try {
+            strategy.setup( grid );
+        } catch ( Exception e ) {
+            return 0 ;
+        }
         // Solve the grid.
         solveGrid:
         while( ! isInterrupted() ){
@@ -232,10 +236,6 @@ public class Solver extends Thread {
                 }                
                 count = grid.countFilledCells();
                 if( composeSolver instanceof IStrategy && count >= composeSolverThreshold ){
-//                    System.err.println( grid );
-                    if( strategy.getScore() == 1 ){
-                        throw new Exception("Most Candidates score is one");
-                    }
                     nComposeSolns = solve( composeSolver , null , 0 , 2 , false , 0 , 0 );
                     if( nComposeSolns == 0 ){
                         nComposeSolns = 2 ;

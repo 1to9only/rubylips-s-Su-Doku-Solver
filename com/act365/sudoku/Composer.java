@@ -127,7 +127,7 @@ public class Composer extends Thread {
         solverMasks = new boolean[nSolvers][cellsInRow][cellsInRow];
         solverGrids = new Grid[nSolvers];
         puzzles = new Vector();
-        lch = new LeastCandidatesHybrid( false , leastCandidatesHybridFilter , false );
+        lch = new LeastCandidatesHybrid( false , true , true );
             
         int i = 0 ;
         while( i < nSolvers ){
@@ -191,6 +191,12 @@ public class Composer extends Thread {
                     debug.println( "Cumulative Composer Complexity = " + solvers[solverIndex].complexity );
                     debug.println( "Cumulative Composer Unwinds = " + solvers[solverIndex].nUnwinds );
                     debug.println( "Time = " + new DecimalFormat("#0.000").format( t ) + "s\n" );
+                    puzzle.solve( lch , 1 );
+                    int i = 0 ;
+                    while( i < lch.getThreadLength() ){
+                        debug.println( ( 1 + i ) + ". " + lch.getReason(i) + '\n');
+                        ++ i ;
+                    }
                 }
                 lch.reset();
                 if( debug instanceof PrintWriter ){

@@ -371,4 +371,66 @@ public class InvulnerableState implements IState {
             return false ;
         }
     }
+
+    /**
+     * Produces a string representation of the state grid.
+     */
+    
+    public String toString() {
+        
+        StringBuffer sb = new StringBuffer();
+        
+        int i , j , k , v ;
+        int number = maxScore , fieldWidth = 1 , numberWidth ;
+        while( ( number /= 10 ) >= 1 ){
+            ++ fieldWidth ;
+        }
+        v = 0 ;
+        while( v < cellsInRow ){
+            sb.append( v + 1 );
+            sb.append(".\n");
+            i = 0 ;
+            while( i < cellsInRow ){
+                if( i > 0 && i % boxesAcross == 0 ){
+                    k = 0 ;
+                    while( k < ( fieldWidth + 1 )* cellsInRow + ( boxesAcross - 1 )* 2 ){
+                        sb.append('*');
+                        ++ k ;
+                    }
+                    sb.append(" \n");
+                }
+                j = 0 ;
+                while( j < cellsInRow ){
+                    if( j > 0 && j % boxesDown == 0 ){
+                        sb.append(" *");
+                    }
+                    k = 0 ;
+                    if( nInvulnerable[i][j][v] > 0 ){
+                        numberWidth = 1 ;
+                        number = nInvulnerable[i][j][v];
+                        while( ( number /= 10 ) >= 1 ){
+                            ++ numberWidth ;
+                        }
+                        while( k < 1 + fieldWidth - numberWidth ){
+                            sb.append(' ');
+                            ++ k ;
+                        }
+                        sb.append( nInvulnerable[i][j][v] );
+                    } else {
+                        sb.append(' ');
+                        while( k < fieldWidth ){
+                            sb.append('.');
+                            ++ k ;
+                        }
+                    }
+                    ++ j ;
+                }
+                sb.append(" \n");
+                ++ i ;
+            }
+            ++ v ;        
+        }
+        
+        return sb.toString();
+    }
 }

@@ -64,7 +64,7 @@ public class SuDokuApplet extends Applet {
 		}
     	
 		GridContainer grid = new GridContainer( new Grid( boxesAcross , boxesDown ) );
-		ControlContainer control = new ControlContainer( grid ); 
+		ControlContainer control = new ControlContainer( grid , true ); 
 		SuDokuContainer suDoku = new SuDokuContainer( grid , control );
 		add( suDoku );
 		setSize( suDoku.getBestSize() );
