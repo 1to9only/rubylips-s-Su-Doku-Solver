@@ -153,7 +153,7 @@ public class NumberState implements IState {
      * @see com.act365.sudoku.IState#addMove(int, int, int)
      */
 
-	public boolean addMove(int x, int y, int value ) {
+	public void addMove(int x, int y, int value ) throws Exception {
         int i , j ;
         int boxSector = 2 * cellsInRow + x / boxesAcross * boxesAcross + y / boxesDown ,
             boxPosition = x % boxesAcross * boxesDown + y % boxesDown ;
@@ -161,7 +161,7 @@ public class NumberState implements IState {
         if( eliminated[value][x][y] || 
             eliminated[value][cellsInRow+y][x] || 
             eliminated[value][boxSector][boxPosition] ){
-                return false ;
+                throw new Exception("The move (" + ( 1 + x ) + "," + ( 1 + y ) + "):=" + ( 1 + value ) + " has already been eliminated");
         }
         // Note which sectors have been filled.
         isFilled[value][x] = true ;
@@ -190,7 +190,7 @@ public class NumberState implements IState {
             }
         }
         if( nEliminated[value][x] != cellsInRow - 1 ){
-            return false ;
+            throw new Exception("Couldn't eliminate in Row " + ( 1 + x ) );
         }
         // ... column (i,y) 
         i = -1 ;
@@ -214,7 +214,7 @@ public class NumberState implements IState {
             }
         }
         if( nEliminated[value][cellsInRow+y] != cellsInRow - 1 ){
-            return false ;
+            throw new Exception("Couldn't eliminate in Column " + ( 1 + y ) );
         }
         // ... subgrid
         i = x / boxesAcross * boxesAcross - 1 ;
@@ -247,7 +247,7 @@ public class NumberState implements IState {
             }
         }
         if( nEliminated[value][boxSector] != cellsInRow - 1 ){
-            return false ;
+            throw new Exception("Couldn't eliminate in Box [" + ( 1 + boxSector / boxesAcross ) + "," + ( 1 + boxSector % boxesAcross ) + "]");
         }
         // Eliminate other values as candidates for the current row.
         i = -1 ;
@@ -273,8 +273,6 @@ public class NumberState implements IState {
                 ++ nEliminated[i][boxSector];
             }
         }
-                
-        return true ;
 	}
 
     /**
@@ -283,7 +281,7 @@ public class NumberState implements IState {
      * @see com.act365.sudoku.IState#eliminateMove(int, int, int)
      */
      
-	public boolean eliminateMove(int x, int y, int value ) {
+	public void eliminateMove(int x, int y, int value ) {
         final int boxSector = 2 * cellsInRow + x / boxesAcross * boxesAcross + y / boxesDown ;
         eliminated[value][x][y] = true ;
         ++ nEliminated[value][x];
@@ -294,6 +292,5 @@ public class NumberState implements IState {
         isFilled[value][x] = false ;
         isFilled[value][cellsInRow+y] = false ;
         isFilled[value][boxSector] = false ;
-        return true ;
 	}
 }

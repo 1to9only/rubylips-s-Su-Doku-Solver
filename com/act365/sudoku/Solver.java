@@ -53,7 +53,8 @@ public class Solver extends Thread {
     
     transient int nUnwinds ,
                   nSolns ,
-                  complexity ;
+                  complexity ,
+                  firstDisputableMove ;
     
     /**
      * Creates a Solver instance.
@@ -147,7 +148,14 @@ public class Solver extends Thread {
             }
             nSolns = _solve( (MostCandidates) strategy , (LeastCandidatesHybrid) composeSolver , composeSolverThreshold , maxSolns , true , maxUnwinds , maxComplexity );
         } else {
-            nSolns = solve( strategy , composeSolver , composeSolverThreshold , maxSolns , true , maxUnwinds , maxComplexity );
+            try {
+                nSolns = solve( strategy , composeSolver , composeSolverThreshold , maxSolns , true , maxUnwinds , maxComplexity );
+            } catch ( Exception e ) {
+                e.printStackTrace();
+                System.err.println( grid );
+                System.err.println( strategy );
+                nSolns = 0 ;
+            }
         }
         if( composer instanceof Composer ){
             composer.solverFinished( index );
@@ -198,25 +206,36 @@ public class Solver extends Thread {
                int maxSolns ,
                boolean countUnwinds ,
                int maxUnwinds ,
-               int maxComplexity ){
+               int maxComplexity ) throws Exception {
         int nSolns = 0 , nComposeSolns = 2 , count , lastWrittenMove ;
+        boolean stillIndisputable = true ;
         if( countUnwinds ){
             nUnwinds = complexity = 0 ;
+        } else {
+            firstDisputableMove = 0 ;
         }
-        if( ! strategy.setup( grid ) ){
-            return nSolns ;
-        }
+        strategy.setup( grid );
         // Solve the grid.
+        solveGrid:
         while( ! isInterrupted() ){
             // Try to find a valid move.
             if( strategy.findCandidates() > 0 ){
                 strategy.selectCandidate();
                 strategy.setCandidate();
-                if( ! strategy.updateState( strategy.getBestX() , strategy.getBestY() , strategy.getBestValue() , strategy.getBestReason() , strategy.getScore() > 1 ) ){
-                    return nSolns ;
-                }
+                strategy.updateState( strategy.getBestX() , strategy.getBestY() , strategy.getBestValue() , strategy.getBestReason() , strategy.getScore() > 1 );
+                if( stillIndisputable && ! countUnwinds ){
+                    if( strategy.getScore() == 1 ){
+                        ++ firstDisputableMove ;   
+                    } else {
+                        stillIndisputable = false ;
+                    }
+                }                
                 count = grid.countFilledCells();
                 if( composeSolver instanceof IStrategy && count >= composeSolverThreshold ){
+//                    System.err.println( grid );
+                    if( strategy.getScore() == 1 ){
+                        throw new Exception("Most Candidates score is one");
+                    }
                     nComposeSolns = solve( composeSolver , null , 0 , 2 , false , 0 , 0 );
                     if( nComposeSolns == 0 ){
                         nComposeSolns = 2 ;
@@ -227,6 +246,7 @@ public class Solver extends Thread {
                         if( countUnwinds && ( ++ nUnwinds == maxUnwinds || complexity >= maxComplexity ) || ! strategy.unwind( lastWrittenMove , true ) ){
                             return nSolns ;
                         }
+                        continue ;
                     }
                 }
                 if( count == grid.cellsInRow * grid.cellsInRow || nComposeSolns == 1 ){
@@ -249,7 +269,25 @@ public class Solver extends Thread {
                         return nSolns ;
                     }
                 } else if( composeSolver instanceof IStrategy  && count >= composeSolverThreshold ){
-                    composeSolver.reset();
+                    try {
+                        int i = 0 ;
+                        while( i < firstDisputableMove ){
+                            strategy.updateState( composeSolver.getThreadX( i ) , 
+                                                  composeSolver.getThreadY( i ) , 
+                                                  grid.data[composeSolver.getThreadX( i )][composeSolver.getThreadY( i )] , 
+                                                  null , 
+                                                  false );
+                            ++ i ;
+                        }
+                        composeSolver.reset( firstDisputableMove );
+                    } catch ( Exception e ) {
+                        composeSolver.reset();
+                        lastWrittenMove = strategy.getLastWrittenMove();
+                        complexity += strategy.getThreadLength() - lastWrittenMove ;
+                        if( countUnwinds && ( ++ nUnwinds == maxUnwinds || complexity >= maxComplexity ) || ! strategy.unwind( lastWrittenMove , true ) ){
+                            return nSolns ;
+                        }
+                    }
                 }
             } else {
                 // Stuck

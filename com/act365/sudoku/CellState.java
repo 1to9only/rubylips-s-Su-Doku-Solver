@@ -141,11 +141,11 @@ public class CellState implements IState {
 	 * @see com.act365.sudoku.IState#addMove(int, int, int)
 	 */
 	
-    public boolean addMove(int x, int y, int value ) {
+    public void addMove(int x, int y, int value ) throws Exception {
         int i , j ;
         // Check that it's a valid candidate.
         if( eliminated[x][y][value] ){
-            return false ;
+            throw new Exception("The move (" + ( 1 + x ) + "," + ( 1 + y ) + "):=" + ( 1 + value ) + " has already been eliminated");
         }
         // Eliminate other candidates for the current cell.
         i = 0 ;
@@ -157,7 +157,7 @@ public class CellState implements IState {
             ++ i ;
         }
         if( nEliminated[x][y] != cellsInRow - 1 ){
-            return false ;
+            throw new Exception("Couldn't eliminate at cell (" + ( 1 + x ) + "," + ( 1 + y ) + ")" );
         }
         // Eliminate other candidates for the current row.
         j = 0 ;
@@ -194,8 +194,6 @@ public class CellState implements IState {
                 }
             }
         }
-                
-        return true ;
 	}
 
 	/**
@@ -204,9 +202,8 @@ public class CellState implements IState {
 	 * @see com.act365.sudoku.IState#eliminateMove(int, int, int)
 	 */
      
-	public boolean eliminateMove(int x, int y, int value ) {
+	public void eliminateMove(int x, int y, int value ) {
         eliminated[x][y][value] = true ;
         ++ nEliminated[x][y];
-        return true ;
 	}
 }

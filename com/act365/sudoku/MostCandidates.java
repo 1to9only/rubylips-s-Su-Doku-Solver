@@ -52,8 +52,8 @@ public class MostCandidates extends StrategyBase implements IStrategy {
      * Sets the state variables.
      */
     
-    public boolean setup( Grid grid ){
-        return super.setup( grid );
+    public void setup( Grid grid ) throws Exception {
+        super.setup( grid );
     }
 
 	/**
@@ -120,28 +120,6 @@ public class MostCandidates extends StrategyBase implements IStrategy {
         
         return nCandidates ;
 	}
-
-    /**
-     * Updates state variables. MostCandidates always writes
-     * its state to the stack.
-     * @see com.act365.sudoku.IStrategy#updateState(int,int,int,String,boolean)
-     */    
-    
-    public boolean updateState( int x , int y , int value , String reason , boolean writeState ){
-        // Store current state variables on thread.
-        state.pushState( nMoves );
-        stateWrite[nMoves] = true ;
-        // Store move to thread
-        xMoves[nMoves] = x ;
-        yMoves[nMoves] = y ;
-        ++ nMoves ;
-        // Update state variables
-        if( ! state.addMove( x , y , value - 1 ) ){
-            return false ;
-        } else {
-            return true ;
-        }        
-    }
 
     /**
      * Unwinds the the thread and reinstates state variables.

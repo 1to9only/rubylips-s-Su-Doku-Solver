@@ -56,12 +56,12 @@ public interface IState {
      * Updates the state grid to account for the move (x,y):=v.
      */
     
-    public boolean addMove( int x , int y , int v );
+    public void addMove( int x , int y , int v ) throws Exception ;
     
     /**
      * Updates the state grid to account for the fact that the 
      * move (x,y):=v has been eliminated as a possibility.
      */
 
-    public boolean eliminateMove( int x , int y , int v );
+    public void eliminateMove( int x , int y , int v );
 }

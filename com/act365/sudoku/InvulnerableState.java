@@ -36,7 +36,8 @@ public class InvulnerableState implements IState {
     
     int boxesAcross ,
         boxesDown ,
-        cellsInRow ;
+        cellsInRow ,
+        maxScore ;
         
     // State variables
     
@@ -49,6 +50,11 @@ public class InvulnerableState implements IState {
     boolean[][][][] threadEliminated ;
     
     int[][][][] threadNInvulnerable ;
+    
+    // Temporary vars used to store partially-calculated 
+    // values for efficiency reasons.
+    
+    transient int lowerX , upperX , lowerY , upperY ;
     
     /**
      * Sets the state grid to the appropriate size.
@@ -63,6 +69,7 @@ public class InvulnerableState implements IState {
         final boolean resize = cellsInRow != boxesAcross * boxesDown ;
 
         cellsInRow = boxesAcross * boxesDown ;
+        maxScore = 2 * cellsInRow + boxesAcross * boxesDown - boxesAcross - boxesDown ;
         
         int i , j , k ;
         if( resize ){
@@ -141,17 +148,21 @@ public class InvulnerableState implements IState {
      * @see com.act365.sudoku.IState#addMove(int, int, int)
      */
 
-	public boolean addMove(int x, int y, int value ) {
+	public void addMove(int x, int y, int value ) throws Exception {
         int i , j , v , cx , cy ;
         // Check that it's a valid candidate.
         if( eliminated[x][y][value] ){
-            return false ;
+            throw new Exception("The move (" + ( 1 + x ) + "," + ( 1 + y ) + "):=" + ( 1 + value ) + " has already been eliminated");
         }
+        // Calc temp values.
+        lowerX = ( x / boxesAcross )* boxesAcross ;
+        upperX = ( x / boxesAcross + 1 )* boxesAcross ;
+        lowerY = ( y / boxesDown )* boxesDown ;
+        upperY = ( y / boxesDown + 1 )* boxesDown ;
         // Update nInvulnerable for (x,y).
         v = 0 ;
         while( v < cellsInRow ){
-            nInvulnerable[x][y][v] = 2 * cellsInRow 
-             + boxesAcross * boxesDown - boxesAcross - boxesDown ;
+            nInvulnerable[x][y][v] = maxScore ;
             ++ v ; 
         }
         // Update nInvulnerable for the domain of (x,y).
@@ -168,8 +179,7 @@ public class InvulnerableState implements IState {
                     continue ;
                 }
                 if( v == value ){
-                    nInvulnerable[i][y][v] = 2 * cellsInRow 
-                                            + boxesAcross * boxesDown - boxesAcross - boxesDown ;
+                    nInvulnerable[i][y][v] = maxScore ;
                 } else {
                     ++ nInvulnerable[i][y][v];
                 }
@@ -181,26 +191,24 @@ public class InvulnerableState implements IState {
                     continue ;
                 }
                 if( v == value ){
-                    nInvulnerable[x][j][v] = 2 * cellsInRow 
-                                            + boxesAcross * boxesDown - boxesAcross - boxesDown ;
+                    nInvulnerable[x][j][v] = maxScore ;
                 } else {
                     ++ nInvulnerable[x][j][v];
                 }
             }
             // Shared subgrid
-            i = x / boxesAcross * boxesAcross - 1 ;
-            while( ++ i < ( x / boxesAcross + 1 )* boxesAcross ){
+            i = lowerX - 1 ;
+            while( ++ i < upperX ){
                 if( i == x ){
                     continue ;
                 }
-                j = y / boxesDown * boxesDown - 1 ;
-                while( ++ j < ( y / boxesDown + 1 )* boxesDown ){
+                j = lowerY - 1 ;
+                while( ++ j < upperY ){
                     if( j == y || eliminated[i][j][v] ){
                         continue ;
                     }
                     if( v == value ){
-                        nInvulnerable[i][j][v] = 2 * cellsInRow 
-                                                + boxesAcross * boxesDown - boxesAcross - boxesDown ;
+                        nInvulnerable[i][j][v] = maxScore ;
                     } else {
                         ++ nInvulnerable[i][j][v];
                     }
@@ -209,27 +217,56 @@ public class InvulnerableState implements IState {
             ++ v ;
         }
         // Update nInvulnerable for the entire grid.
-        i = 0 ;
-        while( i < cellsInRow ){
-            j = 0 ;
-            while( j < cellsInRow ){
-                if( ! eliminated[i][j][value] && inDomain( x , y , i , j ) ){
-                    cx= 0 ;
-                    while( cx < cellsInRow ){
-                        cy = 0 ;
-                        while( cy < cellsInRow ){
-                            if( ! eliminated[cx][cy][value] && ! inDomain( x , y , cx , cy ) && inDomain( cx , cy , i , j ) ){
-                                ++ nInvulnerable[cx][cy][value];
-                            }
-                            ++ cy ;
-                        }
-                        ++ cx ;
-                    }
-                }
-                ++ j ;
+        int lowerCX , upperCX , lowerCY , upperCY ;
+        cx = 0 ;
+        while( cx < cellsInRow ){
+            if( cx == x ){
+                ++ cx ;
+                continue ;
             }
-            ++ i ;
-        } 
+            cy = 0 ;
+            while( cy < cellsInRow ){
+                if( eliminated[cx][cy][value] || cy == y || lowerX <= cx && cx < upperX && lowerY <= cy && cy < upperY ){
+                    ++ cy ;
+                    continue ;
+                }
+                lowerCX = cx / boxesAcross * boxesAcross ;
+                upperCX = ( cx / boxesAcross + 1 )* boxesAcross ;
+                lowerCY = cy / boxesDown * boxesDown ;
+                upperCY = ( cy / boxesDown + 1 )* boxesDown ;
+                i = 0 ;
+                while( i < cellsInRow ){
+                    if( i == x ){
+                        j = 0 ;
+                        while( j < cellsInRow ){
+                            if( ! eliminated[i][j][value] ){
+                                if( i == cx || j == cy || lowerCX <= i && i < upperCX && lowerCY <= j && j < upperCY ){
+                                    ++ nInvulnerable[cx][cy][value];
+                                }
+                            }
+                            ++ j ;
+                        }
+                    } else if( lowerX <= i && i < upperX ){
+                        j = lowerY ;
+                        while( j < upperY ){
+                            if( ! eliminated[i][j][value] ){
+                                if( i == cx || j == cy || lowerCX <= i && i < upperCX && lowerCY <= j && j < upperCY ){
+                                    ++ nInvulnerable[cx][cy][value];
+                                }
+                            }
+                            ++ j ;
+                        }
+                    } else if( ! eliminated[i][y][value] ){
+                        if( i == cx || y == cy || lowerCX <= i && i < upperCX && lowerCY <= y && y < upperCY ){
+                            ++ nInvulnerable[cx][cy][value];
+                        }
+                    }
+                    ++ i ;
+                }                
+                ++ cy ;
+            }
+            ++ cx ;
+        }
         // Update eliminated.        
         // Eliminate other candidates for the current cell.
         i = 0 ;
@@ -256,13 +293,13 @@ public class InvulnerableState implements IState {
             ++ i ;
         }
         // Eliminate other candidates for the current subgrid.
-        i = x / boxesAcross * boxesAcross - 1 ;
-        while( ++ i < ( x / boxesAcross + 1 )* boxesAcross ){
+        i = lowerX - 1 ;
+        while( ++ i < upperX ){
             if( i == x ){
                 continue ;
             }
-            j = y / boxesDown * boxesDown - 1 ;
-            while( ++ j < ( y / boxesDown + 1 )* boxesDown ){
+            j = lowerY - 1 ;
+            while( ++ j < upperY ){
                 if( j == y ){
                     continue ;
                 }
@@ -271,7 +308,6 @@ public class InvulnerableState implements IState {
                 }
             }
         }
-		return true;
 	}
 
     /**
@@ -280,39 +316,58 @@ public class InvulnerableState implements IState {
      * @see com.act365.sudoku.IState#eliminateMove(int, int, int)
      */
      
-	public boolean eliminateMove(int x, int y, int value ) {
-        int i , j ;
+	public void eliminateMove(int x, int y, int value ) {
+        int i , j , partial ;
+        // Calc temp values.
+        lowerX = ( x / boxesAcross )* boxesAcross ;
+        upperX = ( x / boxesAcross + 1 )* boxesAcross ;
+        lowerY = ( y / boxesDown )* boxesDown ;
+        upperY = ( y / boxesDown + 1 )* boxesDown ;
         i = 0 ;
         while ( i < cellsInRow ){
+            partial = inDomainPartial( x , i );
             j = 0 ;
             while( j < cellsInRow ){
                 if( i == x && j == y ){
                     eliminated[x][y][value] = true ;
-                    nInvulnerable[i][j][value] = 2 * cellsInRow + boxesAcross * boxesDown - boxesAcross - boxesDown ;
-                } else if( ! eliminated[i][j][value] && inDomain( x , y , i , j ) ){
+                    nInvulnerable[i][j][value] = maxScore ;
+                } else if( ! eliminated[i][j][value] && inDomain( partial , y , j ) ){
                     ++ nInvulnerable[i][j][value];
                 }
                 ++ j ;
             }
             ++ i ;
         }
-        return true ;
 	}
     
-    /**
-     * Calculates whether (p,q) is in the domain of (x,y), 
-     * i.e. whether it shares a column, row or subgrid.
-     */
+    /** 
+     * The next two functions split inDomain(), which calculates whether 
+     * (p,q) is in the domain of (x,y), i.e. whether it shares a column, 
+     * row or subgrid, in order to allow more efficient calculation.
+     */ 
     
-    boolean inDomain( int x , int y , int p , int q ){
-        if( x == p || y == q ){
-            return true ;
-        } else if( p >= x / boxesAcross * boxesAcross &&
-                   p < ( x / boxesAcross + 1 )* boxesAcross &&
-                   q >= y / boxesDown * boxesDown && 
-                   q < ( y / boxesDown + 1 )* boxesDown ){                   
-            return true ;
+    int inDomainPartial( int x , int p ){
+        if( x == p ){
+            return 2 ;
+        } else if( p >= lowerX && p < upperX ) {
+            return 1 ;
         } else {
+            return 0 ;
+        }
+    }
+    
+    boolean inDomain( int partial , int y , int q ){
+        switch( partial ){
+            case 2 :
+            return true ;
+
+            case 1 :
+            return q >= lowerY && q < upperY ;
+            
+            case 0 :
+            return q == y ;
+            
+            default:
             return false ;
         }
     }

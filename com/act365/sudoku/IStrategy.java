@@ -40,10 +40,9 @@ public interface IStrategy {
 	/**
 	 * Sets up the strategy state variables to solve the given grid.
      * @param grid grid to be solved
-	 * @return whether the variables could be set up
 	 */
 	
-	public boolean setup( Grid grid );
+	public void setup( Grid grid ) throws Exception ;
 	
 	/**
 	 * Finds a set of candidates for the next move. The candidates 
@@ -90,16 +89,15 @@ public interface IStrategy {
      * Tells the strategy to update its internal state variables to account
      * for the move (x,y):= value. 
      * @param writeState whether the updated state should be written to the stack 
-     * @return whether the update has been successful
      */
 
-    public boolean updateState( int x , int y , int value , String reason , boolean writeState );
+    public void updateState( int x , int y , int value , String reason , boolean writeState ) throws Exception ;
     
     /**
      * Unwinds the most recent move and reverts the state grids.
      * @param newNMoves the point to which the stack should unwind
      * @param reset whether to erase intervening moves from the grid
-     * @return whether the new state grids are valid 
+     * @return whether moves remain to be unwound further
      */
     
     public boolean unwind( int newNMoves , boolean reset );	
@@ -109,6 +107,12 @@ public interface IStrategy {
      */
     
     public void reset();
+    
+    /**
+     * Resets the grid to its state before the given move.
+     */
+    
+    public void reset( int move );
     
     /**
      * Returns the x-coordinate of the best candidate move.

@@ -106,7 +106,7 @@ public abstract class StrategyBase {
      * Sets up the thread.
      */
     
-    protected boolean setup( Grid grid ){
+    protected void setup( Grid grid ) throws Exception {
     
         resize = this.grid == null || grid.cellsInRow != size ;
             
@@ -140,17 +140,13 @@ public abstract class StrategyBase {
                 j = 0 ;
                 while( j < grid.cellsInRow ){
                     if( grid.data[i][j] > 0 ){
-                        if( ! state.addMove( i , j , grid.data[i][j] - 1 ) ){
-                            return false ;
-                        }
+                        state.addMove( i , j , grid.data[i][j] - 1 );
                     }
                     ++ j ;
                 }
                 ++ i ;
             }
         }
-
-        return true ;
     }
     
     /**
@@ -182,7 +178,7 @@ public abstract class StrategyBase {
      * @see com.act365.sudoku.IStrategy#updateState(int,int,int,String,boolean)
      */    
     
-    public boolean updateState( int x , int y , int value , String reason , boolean writeState ){
+    public void updateState( int x , int y , int value , String reason , boolean writeState ) throws Exception {
         // Store current state variables on thread.
         if( writeState ){
             state.pushState( nMoves );
@@ -198,11 +194,7 @@ public abstract class StrategyBase {
         }
         ++ nMoves ;
         // Update state variables
-        if( ! state.addMove( x , y , value - 1 ) ){
-            return false ;
-        } else {
-            return true;
-        }
+        state.addMove( x , y , value - 1 );
     }
 
     /**
@@ -233,11 +225,21 @@ public abstract class StrategyBase {
      */
     
     public void reset() {
-        while( -- nMoves >= 0 ){
+        reset( 0 ); 
+    }
+    
+    /**
+     * Resets each cell that appears on the thread after the given move.
+     * @see com.act365.sudoku.IStrategy#reset(int)
+     */
+    
+    public void reset( int move ) {
+        while( -- nMoves >= move ){
             grid.data[xMoves[nMoves]][yMoves[nMoves]] = 0 ;   
         }       
     }
 
+   
     /**
      * Returns the x-coordinate of the best candidate move.
      * @see com.act365.sudoku.IStrategy#getBestX()

@@ -240,7 +240,8 @@ public class GridContainer extends com.act365.awt.Container {
                                      Composer.defaultThreads , 
                                      0 , 
                                      null ,
-                                     false );
+                                     false ,
+                                     grid.cellsInRow >= 12 );
             composer.start();
         } catch ( Exception e ) {
         }

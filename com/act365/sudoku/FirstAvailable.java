@@ -53,7 +53,7 @@ public class FirstAvailable extends StrategyBase implements IStrategy {
      * Prepares the strategy to solve the given grid..
      */
     
-    public boolean setup( Grid grid ){
+    public void setup( Grid grid ) throws Exception {
 
         super.setup( grid );
 
@@ -70,8 +70,6 @@ public class FirstAvailable extends StrategyBase implements IStrategy {
         bestX = 0 ;
         bestY = 0 ;
         bestValue = 0 ;
-
-        return true ;
     }
     
     /**
@@ -127,14 +125,13 @@ public class FirstAvailable extends StrategyBase implements IStrategy {
      * @param writeState is ignored
      */    
     
-    public boolean updateState( int x , int y , int value , String reason , boolean writeState ){
+    public void updateState( int x , int y , int value , String reason , boolean writeState ){
         lastMoveSuccessful = true ;
         // Store move to thread
         xMoves[nMoves] = x ;
         yMoves[nMoves] = y ;
         stateWrite[nMoves] = true ;
         ++ nMoves ;
-        return true ;
     }
     
     /**

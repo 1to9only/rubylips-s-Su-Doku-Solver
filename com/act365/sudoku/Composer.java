@@ -107,7 +107,8 @@ public class Composer extends Thread {
                      int nSolvers ,
                      int composeSolverThreshold ,
                      PrintStream debug ,
-                     boolean useNative ) throws Exception {
+                     boolean useNative ,
+                     boolean leastCandidatesHybridFilter ) throws Exception {
         this.gridContainer = gridContainer ;                       
         this.maxSolns = maxSolns ;
         this.maxMasks = maxMasks ;
@@ -126,11 +127,11 @@ public class Composer extends Thread {
         solverMasks = new boolean[nSolvers][cellsInRow][cellsInRow];
         solverGrids = new Grid[nSolvers];
         puzzles = new Vector();
-        lch = new LeastCandidatesHybrid( false , false , false );
+        lch = new LeastCandidatesHybrid( false , leastCandidatesHybridFilter , false );
             
         int i = 0 ;
         while( i < nSolvers ){
-            composeSolvers[i] = new LeastCandidatesHybrid( false , false , false );
+            composeSolvers[i] = new LeastCandidatesHybrid( false , leastCandidatesHybridFilter , false );
             solverGrids[i] = new Grid( boxesAcross , cellsInRow / boxesAcross );
             ++ i ;
         }
@@ -150,7 +151,7 @@ public class Composer extends Thread {
         // in which case only certain cells should be read from the
         // solver grid.
         Grid solution = (Grid) solverGrids[solverIndex].clone();
-        if( solverGrids[solverIndex].countFilledCells() < maskSize ){
+        if( solverGrids[solverIndex].countFilledCells() != maskSize ){
             int r , c ;
             solverGrids[solverIndex].solve( lch , 1 );
             r = 0 ;
@@ -159,6 +160,8 @@ public class Composer extends Thread {
                 while( c < cellsInRow ){
                     if( solverMasks[solverIndex][r][c] ){
                         solution.data[r][c] = solverGrids[solverIndex].data[r][c] ;
+                    } else {
+                        solution.data[r][c] = 0 ;
                     }
                     ++ c ;
                 }
@@ -328,12 +331,13 @@ public class Composer extends Thread {
      * <br><code>[-r]</code> stipulates whether a random initial mask should be used. The default is no.
      * <br><code>[-v]</code> stipualtes whether the Composer should run in verbose mode. The default is no.
      * <br><code>[-n]</code> stipulates that the native library should be loaded
+     * <br><code>[-f]</code> stipulates that the output from the Least Candidates Hybrid compose solver should be filter, i.e. that LCH II should be used.
      * <br><code>-i</code> stipulates that the initial mask should be read from standard input.
      * <br><code>#cells</code> stipulates the number of initially-filled cells to appear in the puzzles.   
      */
 
     public static void main( String[] args ){
-        final String usage = "Usage: Composer [-a across] [-d down] [-ms max solns|-mm max masks] [-mu max unwinds] [-mc max complexity] [-s solvers] [-c threshold] [-r] [-v] [-n] -i|#cells";
+        final String usage = "Usage: Composer [-a across] [-d down] [-ms max solns|-mm max masks] [-mu max unwinds] [-mc max complexity] [-s solvers] [-c threshold] [-r] [-v] [-n] [-f] -i|#cells";
         
         int boxesAcross = 3 ,
             boxesDown = 3 ,
@@ -348,7 +352,8 @@ public class Composer extends Thread {
         boolean randomize = false ,
                 trace = false ,
                 standardInput = false ,
-                useNative = false ;
+                useNative = false ,
+                leastCandidatesHybridFilter = false ;
         
         // Process command-line args.
         if( args.length == 0 ){
@@ -417,6 +422,8 @@ public class Composer extends Thread {
                 randomize = true ;
             } else if( args[i].equals("-v") ){
                 trace = true ;
+            } else if( args[i].equals("-f") ){
+                leastCandidatesHybridFilter = true ;
             } else if( args[i].equals("-n") ){
                 try {
                     System.loadLibrary("SuDoku");
@@ -483,7 +490,8 @@ public class Composer extends Thread {
                           nSolvers , 
                           composeSolverThreshold , 
                           trace ? System.out : null ,
-                          useNative ).start();  
+                          useNative ,
+                          leastCandidatesHybridFilter ).start();  
         } catch ( Exception e ) {
             System.out.println( e.getMessage() );
             System.exit( 3 );

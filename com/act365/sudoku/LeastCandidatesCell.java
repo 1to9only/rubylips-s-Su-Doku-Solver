@@ -66,8 +66,8 @@ public class LeastCandidatesCell extends StrategyBase implements IStrategy {
      * Sets the state variables.
      */
     
-    public boolean setup( Grid grid ){
-        return super.setup( grid );
+    public void setup( Grid grid ) throws Exception {
+        super.setup( grid );
     }
     
 	/** 
@@ -134,7 +134,7 @@ public class LeastCandidatesCell extends StrategyBase implements IStrategy {
                                 sb.append( i + 1 );
                                 sb.append(",");
                                 sb.append( j + 1 );
-                                sb.append(")");
+                                sb.append(").");
                                 reasonCandidates[nCandidates] = sb.toString();
                             }
                             ++ nCandidates ;
