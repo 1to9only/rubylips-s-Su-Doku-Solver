@@ -155,18 +155,22 @@ public class NumberState implements IState {
 
 	public boolean addMove(int x, int y, int value ) {
         int i , j ;
+        int boxSector = 2 * cellsInRow + x / boxesAcross * boxesAcross + y / boxesDown ,
+            boxPosition = x % boxesAcross * boxesDown + y % boxesDown ;
         // Check that it's a valid candidate.
         if( eliminated[value][x][y] || 
             eliminated[value][cellsInRow+y][x] || 
-            eliminated[value][2*cellsInRow+x/boxesAcross*boxesAcross+y/boxesDown][x%boxesAcross*boxesDown+y%boxesDown] ){
+            eliminated[value][boxSector][boxPosition] ){
                 return false ;
         }
         // Note which sectors have been filled.
         isFilled[value][x] = true ;
         isFilled[value][cellsInRow+y] = true ;
-        isFilled[value][2*cellsInRow+x/boxesAcross*boxesAcross+y/boxesDown] = true ;
+        isFilled[value][boxSector] = true ;
         // Eliminate the current value from other cells in its 
         // ... row (x,i)
+        boxSector = 2 * cellsInRow + x / boxesAcross * boxesAcross ;
+        boxPosition = x % boxesAcross * boxesDown ;
         i = -1 ;
         while( ++ i < cellsInRow ){
             if( i == y ){
@@ -180,9 +184,9 @@ public class NumberState implements IState {
                 eliminated[value][cellsInRow+i][x] = true ;
                 ++ nEliminated[value][cellsInRow+i];
             }
-            if( ! eliminated[value][2*cellsInRow+x/boxesAcross*boxesAcross+i/boxesDown][x%boxesAcross*boxesDown+i%boxesDown] ){
-                eliminated[value][2*cellsInRow+x/boxesAcross*boxesAcross+i/boxesDown][x%boxesAcross*boxesDown+i%boxesDown] = true ;
-                ++ nEliminated[value][2*cellsInRow+x/boxesAcross*boxesAcross+i/boxesDown];
+            if( ! eliminated[value][boxSector+i/boxesDown][boxPosition+i%boxesDown] ){
+                eliminated[value][boxSector+i/boxesDown][boxPosition+i%boxesDown] = true ;
+                ++ nEliminated[value][boxSector+i/boxesDown];
             }
         }
         if( nEliminated[value][x] != cellsInRow - 1 ){
@@ -190,6 +194,8 @@ public class NumberState implements IState {
         }
         // ... column (i,y) 
         i = -1 ;
+        boxSector = 2 * cellsInRow + y / boxesDown ;
+        boxPosition = y % boxesDown ;
         while( ++ i < cellsInRow ){
             if( i == x ){
                 continue ;
@@ -202,9 +208,9 @@ public class NumberState implements IState {
                 eliminated[value][cellsInRow+y][i] = true ;
                 ++ nEliminated[value][cellsInRow+y];
             }
-            if( ! eliminated[value][2*cellsInRow+i/boxesAcross*boxesAcross+y/boxesDown][i%boxesAcross*boxesDown+y%boxesDown] ){
-                eliminated[value][2*cellsInRow+i/boxesAcross*boxesAcross+y/boxesDown][i%boxesAcross*boxesDown+y%boxesDown] = true ;
-                ++ nEliminated[value][2*cellsInRow+i/boxesAcross*boxesAcross+y/boxesDown];
+            if( ! eliminated[value][boxSector+i/boxesAcross*boxesAcross][boxPosition+i%boxesAcross*boxesDown] ){
+                eliminated[value][boxSector+i/boxesAcross*boxesAcross][boxPosition+i%boxesAcross*boxesDown] = true ;
+                ++ nEliminated[value][boxSector+i/boxesAcross*boxesAcross];
             }
         }
         if( nEliminated[value][cellsInRow+y] != cellsInRow - 1 ){
@@ -229,16 +235,18 @@ public class NumberState implements IState {
             }
         }
         i = -1 ;
+        boxSector = 2 * cellsInRow + x / boxesAcross * boxesAcross + y / boxesDown ;
+        boxPosition = x % boxesAcross * boxesDown + y % boxesDown ;
         while( ++ i < cellsInRow ){
             if( i == x % boxesAcross * boxesDown + y % boxesDown ){
                 continue ;    
             }
-            if( ! eliminated[value][2*cellsInRow+x/boxesAcross*boxesAcross+y/boxesDown][i] ){
-                eliminated[value][2*cellsInRow+x/boxesAcross*boxesAcross+y/boxesDown][i] = true ;
-                ++ nEliminated[value][2*cellsInRow+x/boxesAcross*boxesAcross+y/boxesDown];
+            if( ! eliminated[value][boxSector][i] ){
+                eliminated[value][boxSector][i] = true ;
+                ++ nEliminated[value][boxSector];
             }
         }
-        if( nEliminated[value][2*cellsInRow+x/boxesAcross*boxesAcross+y/boxesDown] != cellsInRow - 1 ){
+        if( nEliminated[value][boxSector] != cellsInRow - 1 ){
             return false ;
         }
         // Eliminate other values as candidates for the current row.
@@ -260,9 +268,9 @@ public class NumberState implements IState {
         // Eliminate other values as candidates for the current subgrid.
         i = -1 ;
         while( ++ i < cellsInRow ){
-            if( i != value && ! eliminated[i][2*cellsInRow+x/boxesAcross*boxesAcross+y/boxesDown][x%boxesAcross*boxesDown+y%boxesDown] ){
-                eliminated[i][2*cellsInRow+x/boxesAcross*boxesAcross+y/boxesDown][x%boxesAcross*boxesDown+y%boxesDown] = true ;
-                ++ nEliminated[i][2*cellsInRow+x/boxesAcross*boxesAcross+y/boxesDown];
+            if( i != value && ! eliminated[i][boxSector][boxPosition] ){
+                eliminated[i][boxSector][boxPosition] = true ;
+                ++ nEliminated[i][boxSector];
             }
         }
                 
@@ -276,15 +284,16 @@ public class NumberState implements IState {
      */
      
 	public boolean eliminateMove(int x, int y, int value ) {
+        final int boxSector = 2 * cellsInRow + x / boxesAcross * boxesAcross + y / boxesDown ;
         eliminated[value][x][y] = true ;
         ++ nEliminated[value][x];
         eliminated[value][cellsInRow+y][x] = true ;
         ++ nEliminated[value][cellsInRow+y];
-        eliminated[value][2*cellsInRow+x/boxesAcross*boxesAcross+y/boxesDown][x%boxesAcross*boxesDown+y%boxesDown] = true ;
-        ++ nEliminated[value][2*cellsInRow+x/boxesAcross*boxesAcross+y/boxesDown];
+        eliminated[value][boxSector][x%boxesAcross*boxesDown+y%boxesDown] = true ;
+        ++ nEliminated[value][boxSector];
         isFilled[value][x] = false ;
         isFilled[value][cellsInRow+y] = false ;
-        isFilled[value][2*cellsInRow+x/boxesAcross*boxesAcross+y/boxesDown] = false ;
+        isFilled[value][boxSector] = false ;
         return true ;
 	}
 }

@@ -82,6 +82,7 @@ public class LeastCandidatesCell extends StrategyBase implements IStrategy {
         StringBuffer sb ;
         nCandidates = 0 ;
 		i = 0 ;
+        findMaxEliminated:
 		while( i < grid.cellsInRow ){
 			j = 0 ;
 			while( j < grid.cellsInRow ){
@@ -89,6 +90,10 @@ public class LeastCandidatesCell extends StrategyBase implements IStrategy {
                     score = 0 ;
                     return ( nCandidates = 0 );
                 } else if( grid.data[i][j] > 0 ){
+                } else if( ! findMany && cellState.nEliminated[i][j] == grid.cellsInRow - 1 ){
+                    nCandidates = 1 ;
+                    maxEliminated = grid.cellsInRow - 1 ;
+                    break findMaxEliminated ;
 				} else if( cellState.nEliminated[i][j] > maxEliminated ){
 					nCandidates = 1 ;
 					maxEliminated = cellState.nEliminated[i][j];

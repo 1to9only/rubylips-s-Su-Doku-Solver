@@ -688,7 +688,7 @@ public class Grid implements Cloneable , Serializable {
         int[] substitute = new int[cellsInRow];
         while( size > 0 ){
             i = -1 ;
-            pick = generator.nextInt( size );
+            pick = Math.abs( generator.nextInt() % size );
             while( pick -- >= 0 ){
                 while( substitute[++i] > 0 );
             }
@@ -706,7 +706,7 @@ public class Grid implements Cloneable , Serializable {
             ++ i ;
         }
         // Rotate
-        pick = generator.nextInt( 4 );
+        pick = Math.abs( generator.nextInt() % 4 );
         switch( pick ){
             case 0 :
             break;
@@ -724,7 +724,7 @@ public class Grid implements Cloneable , Serializable {
             break;
         }
         // Reflect
-        pick = generator.nextInt( 16 );
+        pick = Math.abs( generator.nextInt() % 16 );
         if( ( pick & 1 ) == 1 ){
             reflectLeftRight(); 
         }

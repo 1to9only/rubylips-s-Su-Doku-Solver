@@ -42,8 +42,7 @@ public class ControlContainer extends com.act365.awt.Container
                                          ClipboardOwner {
 
     final static int defaultStrategy = Strategy.LEAST_CANDIDATES_HYBRID_II ,
-                     defaultMinFilledCellsValue = 32 ,
-                     reasoningAreaColumns = 50 ;
+                     defaultMinFilledCellsValue = 32 ;
      
 	int boxesAcross ,
 		boxesDown ,
@@ -145,7 +144,6 @@ public class ControlContainer extends com.act365.awt.Container
     
         // Add the Reasoning area
         reasoningArea = new TextArea();
-        reasoningArea.setColumns( reasoningAreaColumns );
         reasoningArea.setEditable( false );
                     
         // Lay out the components.
@@ -213,12 +211,7 @@ public class ControlContainer extends com.act365.awt.Container
                     reasoningArea.append( ( 1 + i ) + ". " + grid.getStrategy().getReason(i) + '\n');
                     ++ i ;
                 }
-                i = 0 ;
-                while( i < reasoningArea.getColumns() ){
-                    reasoningArea.append("#");
-                    ++ i ;
-                }
-                reasoningArea.append("\n");
+                reasoningArea.append("##################################################\n"); // 50 chars
             }
 		} else if( evt.getSource() == unsolve ) {
 			grid.unsolve();

@@ -77,6 +77,9 @@ public class LeastCandidatesHybrid extends StrategyBase implements IStrategy {
     
 	/**
      * Finds candidates for the next move.
+     * The LeastCandidatesCell search is performed before the LeastCandidatesNumber
+     * search because it will find a result much quicker in the very common case
+     * that very few candidates exist.  
 	 * @see com.act365.sudoku.IStrategy#findCandidates()
 	 */
      
@@ -84,12 +87,12 @@ public class LeastCandidatesHybrid extends StrategyBase implements IStrategy {
         
         IStrategy better ;
         
-        if( lcc.findCandidates() == 0 || lcn.findCandidates() == 0 ){
+        if( lcc.findCandidates() == 0 || lcc.getScore() > 1 && lcn.findCandidates() == 0 ){
             score = 0 ;
             return ( nCandidates = 0 );
         }
         
-        if( lcc.getScore() < lcn.getScore() ){
+        if( lcc.getScore() == 1 || lcc.getScore() < lcn.getScore() ){
             better = lcc ;
         } else {
             better = lcn ;

@@ -721,7 +721,7 @@ public class MaskFactory implements Enumeration {
         i = 0 ;
         while( i < nSlots - nBalls ){
             if( randomize ){
-                ++ g[ random.nextInt( nBalls + 1 ) ];
+                ++ g[Math.abs(random.nextInt()%(nBalls+1))];
             } else {
                 ++ g[ i %( nBalls + 1 ) ];
             }
