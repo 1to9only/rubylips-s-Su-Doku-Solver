@@ -34,72 +34,126 @@ package com.act365.sudoku;
 
 public class FirstAvailable extends StrategyBase implements IStrategy {
 
+    boolean lastMoveSuccessful ;
+    
+    // Cursor position
+    
+    int x , y , value ;
+    
     /**
-     * The strategy has no state variables.
+     * Creates a new FirstAvailable instance.
      */
     
-    public boolean setup( Grid grid ){        
-        return super.setup( grid );
+    public FirstAvailable() {
+        lastMoveSuccessful = true ;
     }
     
     /**
-     * Advances the cursor to the next empty cell.
+     * Prepares the strategy to solve the given grid..
+     */
+    
+    public boolean setup( Grid grid ){
+
+        super.setup( grid );
+
+        xCandidates = new int[1];
+        yCandidates = new int[1];
+        valueCandidates = new int[1];
+
+        x = 0 ;
+        y = 0 ;
+        value = 0 ;
+        
+        lastMoveSuccessful = true ;
+        
+        bestX = 0 ;
+        bestY = 0 ;
+        bestValue = 0 ;
+
+        return true ;
+    }
+    
+    /**
+     * Locates the nearest empty cell, finds its lowest valid value
+     * and stores the result.
      * @see com.act365.sudoku.IStrategy#findCandidates()
      */
     
-	public boolean findCandidates() {
-		while( grid.x < grid.cellsInRow && grid.data[grid.x][grid.y] > 0 ){
-			while( grid.y < grid.cellsInRow && grid.data[grid.x][grid.y] > 0 ){
-				++ grid.y ;    
-			}
-			if( grid.y == grid.cellsInRow ){
-				++ grid.x ;
-				grid.y = 0 ;
-			}
-		}
-		return grid.x < grid.cellsInRow ;
+	public int findCandidates() {
+        if( lastMoveSuccessful ){        
+            // Find the next empty cell.
+            while( x < grid.cellsInRow && grid.data[x][y] > 0 ){
+                ++ y ;
+                while( y < grid.cellsInRow && grid.data[x][y] > 0 ){
+                    ++ y ;
+                }
+                if( y == grid.cellsInRow ){
+                    ++ x ;
+                    y = 0 ;
+                }
+            }
+        }
+        // Find the smallest valid increase in value for the cell.
+        int originalValue = grid.data[x][y] ;
+        while( ( value = ++ grid.data[x][y] ) <= grid.cellsInRow && ! isSound() );
+        grid.data[x][y] = originalValue ;
+        if( value <= grid.cellsInRow ){
+            xCandidates[0] = x ;
+            yCandidates[0] = y ;
+            valueCandidates[0] = value ;
+            score = 1 ;
+            return ( nCandidates = 1 );
+        } else {
+            score = 0 ;
+            return ( nCandidates = 0 );
+        }
 	}
 
     /**
-     * Increases the value of the current cell until a 
-     * suitable value has been found, whereupon
-     * the cell coordinates are stored on the thread.
-     * @see com.act365.sudoku.IStrategy#selectCandidate()
+     * Selects the single available candidate.
+     * @see com.act365.sudoku#selectCandidate()
      */
     
-	public boolean selectCandidate() {
-		++ grid.data[grid.x][grid.y];
-		while( grid.data[grid.x][grid.y] <= grid.cellsInRow && ! isSound() ){
-			++ grid.data[grid.x][grid.y];   
-		}
-		if( grid.data[grid.x][grid.y] <= grid.cellsInRow ){
-			xMoves[nMoves] = grid.x ;
-			yMoves[nMoves] = grid.y ;
-			++ nMoves ;
-			return true ;
-		} else {
-			return false ;
-		}
-	}
-
+    public void selectCandidate(){
+        bestX = xCandidates[0];
+        bestY = yCandidates[0];
+        bestValue = valueCandidates[0];
+    }
+    
     /**
-     * Removes the current cell coordinates from the thread
-     * and moves back to the previous cell.
+     * Updates state variables.
+     * @see com.act365.sudoku.IStrategy#updateState(int,int,int)
+     */    
+    
+    public boolean updateState( int x , int y , int value ){
+        lastMoveSuccessful = true ;
+        // Store move to thread
+        xMoves[nMoves] = x ;
+        yMoves[nMoves] = y ;
+        ++ nMoves ;
+        return true ;
+    }
+    
+    /**
+     * Removes the current cell coordinates from the thread.
      * @see com.act365.sudoku.IStrategy#unwind(boolean)
      */
     
 	public boolean unwind( boolean resetCurrent ) {
-		if( resetCurrent ){
-			grid.data[grid.x][grid.y] = 0 ;
-		}
-		if( nMoves > 0 ){
-			-- nMoves ;
-			grid.x = xMoves[nMoves];
-			grid.y = yMoves[nMoves];
-			return true;
-		} else {
-			return false ;
-		}
+        if( nMoves == 0 ){
+            return false ;
+        } 
+        -- nMoves ;
+        lastMoveSuccessful = false ;
+        if( grid.countFilledCells() == grid.cellsInRow * grid.cellsInRow ){
+            return true ;
+        }
+        if( resetCurrent ){
+            grid.data[x][y] = 0 ; 
+        }
+        x = xMoves[nMoves];
+        y = yMoves[nMoves];
+		return true;
 	}
 	
 	/**
@@ -211,5 +265,4 @@ public class FirstAvailable extends StrategyBase implements IStrategy {
         
 		return true ;
 	}
-
 }

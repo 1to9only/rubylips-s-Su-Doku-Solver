@@ -38,6 +38,8 @@ public class LeastCandidatesNumber extends StrategyBase implements IStrategy {
 
     boolean randomize ;
 
+    boolean[][][] considered ;
+    
     Random generator ;
         
     // State variables
@@ -46,14 +48,15 @@ public class LeastCandidatesNumber extends StrategyBase implements IStrategy {
     
     int[][] nEliminated ;
     
+    boolean[][] isFilled ;
+    
     // Thread
     
     boolean[][][][] threadEliminated ;
     
     int[][][] threadNEliminated ;
     
-    int chosenValue ,
-        chosenSector ;
+    boolean[][][] threadIsFilled ;
     
     /**
      * Creates a new LeastCandidatesNumber instance to solve the given grid.
@@ -74,17 +77,46 @@ public class LeastCandidatesNumber extends StrategyBase implements IStrategy {
     public boolean setup( Grid grid ){
 
         super.setup( grid );
-        
-        eliminated = new boolean[grid.cellsInRow][3*grid.cellsInRow][grid.cellsInRow];
-        nEliminated = new int[grid.cellsInRow][3*grid.cellsInRow];
-    
-        threadEliminated = new boolean[grid.cellsInRow][3*grid.cellsInRow][grid.cellsInRow][grid.cellsInRow*grid.cellsInRow];
-        threadNEliminated = new int[grid.cellsInRow][3*grid.cellsInRow][grid.cellsInRow*grid.cellsInRow];
-        
-        chosenValue = grid.cellsInRow ;
-        chosenSector = grid.cellsInRow ;
 
-        int i , j ;
+        if( resize ){        
+            xCandidates = new int[3*grid.cellsInRow*grid.cellsInRow*grid.cellsInRow];
+            yCandidates = new int[3*grid.cellsInRow*grid.cellsInRow*grid.cellsInRow];
+            valueCandidates = new int[3*grid.cellsInRow*grid.cellsInRow*grid.cellsInRow];
+
+            eliminated = new boolean[grid.cellsInRow][3*grid.cellsInRow][grid.cellsInRow];
+            nEliminated = new int[grid.cellsInRow][3*grid.cellsInRow];
+            isFilled = new boolean[grid.cellsInRow][3*grid.cellsInRow];
+        
+            threadEliminated = new boolean[grid.cellsInRow][3*grid.cellsInRow][grid.cellsInRow][grid.cellsInRow*grid.cellsInRow];
+            threadNEliminated = new int[grid.cellsInRow][3*grid.cellsInRow][grid.cellsInRow*grid.cellsInRow];
+            threadIsFilled = new boolean[grid.cellsInRow][3*grid.cellsInRow][grid.cellsInRow*grid.cellsInRow];
+    
+            considered = new boolean[grid.cellsInRow][grid.cellsInRow][grid.cellsInRow];
+        }
+
+        int i , j , k ;
+        if( ! resize ){
+            i = 0 ;
+            while( i < grid.cellsInRow ){
+                j = 0 ;
+                while( j < 3 * grid.cellsInRow ){
+                    nEliminated[i][j] = 0 ;
+                    isFilled[i][j] = false ;
+                    k = 0 ;
+                    while( k < grid.cellsInRow ){
+                        eliminated[i][j][k] = false ;
+                        if( j < grid.cellsInRow ){
+                            considered[i][j][k] = false ;
+                        }
+                        ++ k ;
+                    }
+                    ++ j ;
+                }
+                
+                ++ i ;
+            }
+        }
+        
         i = 0 ;
         while( i < grid.cellsInRow ){
             j = 0 ;
@@ -102,122 +134,109 @@ public class LeastCandidatesNumber extends StrategyBase implements IStrategy {
     }
     
     /** 
-     * Chooses from those values and sectors that have the least number of candidates. 
+     * Find the values and sectors that have the least number of candidates.
+     * As the code stands, there might well be duplicates. 
      * @see com.act365.sudoku.IStrategy#findCandidates()
      */
     
-    public boolean findCandidates() {
+    public int findCandidates() {
         // Find the unpopulated cells with the smallest number of candidates.       
-        int i , j , k , bestValue = grid.cellsInRow , bestSector = grid.cellsInRow , countBest = 0 , maxEliminated = -1 , nFilled = 0 ;
+        int i , j , k , x , y , maxEliminated = -1 ;
+        nCandidates = 0 ;
         i = 0 ;
         while( i < grid.cellsInRow ){
             j = 0 ;
             while( j < 3 * grid.cellsInRow ){
-                if( nEliminated[i][j] == grid.cellsInRow - 1 ){
-                    k = -1 ;
-                    while( eliminated[i][j][++k] );
-                    if( j < grid.cellsInRow ){
-                        grid.x = j ;
-                        grid.y = k ;
-                    } else if( j < 2 * grid.cellsInRow ){
-                        grid.x = k ;
-                        grid.y = j - grid.cellsInRow ;
-                    } else {
-                        grid.x = ( j - 2 * grid.cellsInRow )/ grid.boxesAcross * grid.boxesAcross + k / grid.boxesDown ;
-                        grid.y = ( j - 2 * grid.cellsInRow )% grid.boxesAcross * grid.boxesDown + k % grid.boxesDown ;
-                    }
-                    if( grid.data[grid.x][grid.y] > 0 ){
-                        if( j < grid.cellsInRow ){
-                            ++ nFilled ;
-                        }
-                    } else if( maxEliminated < grid.cellsInRow - 1 ){
-                        countBest = 1 ;
-                        bestValue = i ;
-                        bestSector = j ;
-                        maxEliminated = grid.cellsInRow - 1 ;                    
-                    }
+                if( nEliminated[i][j] == grid.cellsInRow ){
+                    score = 0 ;
+                    return ( nCandidates = 0 );
+                } else if( isFilled[i][j] ){
                 } else if( nEliminated[i][j] > maxEliminated ){
-                    countBest = 1 ;
-                    bestValue = i ;
-                    bestSector = j ;
+                    nCandidates = 1 ;
                     maxEliminated = nEliminated[i][j];
-                } else if( randomize && nEliminated[i][j] == maxEliminated ) {
-                    ++ countBest ;
                 }
                 ++ j ;
             }
             ++ i ;
         }
-        // Test whether the grid is complete.
-        if( nFilled == grid.cellsInRow * grid.cellsInRow ){
-            return false ;
+        if( nCandidates == 0 ){
+            return 0 ;
         }
-        // Select from the candidates.
-        if( ! randomize || countBest == 1 ){
-            chosenValue = bestValue ;
-            chosenSector = bestSector ;
-            return true ;
-        } else {
-            int pick = Math.abs( generator.nextInt() % countBest );
-            i = 0 ;
-            while( i < grid.cellsInRow ){
-                j = 0 ;
-                while( j < 3 * grid.cellsInRow ){
-                    if( nEliminated[i][j] == maxEliminated && -- pick < 0 ){
-                        chosenValue = i ;
-                        chosenSector = j ;
-                        return true ;
-                    }
-                    ++ j ;
+        score = maxEliminated ;
+        nCandidates = 0 ;
+        // Blank out the grid of considered values.
+        i = 0 ;
+        while( i < grid.cellsInRow ){
+            j = 0 ;
+            while( j < grid.cellsInRow ){
+                k = 0 ;
+                while( k < grid.cellsInRow ){
+                    considered[i][j][k] = false ;
+                    ++ k ;
                 }
-                ++ i ;  
-            }           
-        }
-        // Shouldn't reach here.
-        return false;
-    }
-
-    /**
-     * Chooses a value for the current cell from the available candidates.
-     * @see com.act365.sudoku.IStrategy#selectCandidate()
-     */
-
-    public boolean selectCandidate() {
-        int i = 0 ;
-        final int score = grid.cellsInRow - nEliminated[chosenValue][chosenSector];
-        // Ascertain the value to write.
-        if( score == 0 ){
-            return false ;
-        } else if( ! randomize || score == 1 ){
-            while( i < grid.cellsInRow ){
-                if( ! eliminated[chosenValue][chosenSector][i] ){
-                    break ;
-                }
-                ++ i ;
-            }           
-        } else {
-            int pick = Math.abs( generator.nextInt() % score );
-            while( i < grid.cellsInRow ){
-                if( ! eliminated[chosenValue][chosenSector][i] && -- pick < 0 ){
-                    break;
-                }
-                ++ i ;
+                ++ j ;
             }
+            ++ i ;
         }
-        // Write to the grid.
-        if( chosenSector < grid.cellsInRow ){
-            grid.x = chosenSector ;
-            grid.y = i ;
-        } else if( chosenSector < 2 * grid.cellsInRow ){
-            grid.x = i ;
-            grid.y = chosenSector - grid.cellsInRow ;
-        } else {
-            grid.x = ( chosenSector - 2 * grid.cellsInRow )/ grid.boxesAcross * grid.boxesAcross + i / grid.boxesDown ;
-            grid.y = ( chosenSector - 2 * grid.cellsInRow )% grid.boxesAcross * grid.boxesDown + i % grid.boxesDown ;
+        // Convert into standard x,y:=value coordinate system
+        i = 0 ;
+        while( i < grid.cellsInRow ){
+            j = 0 ;
+            while( j < 3 * grid.cellsInRow ){
+                if( ! isFilled[i][j] && nEliminated[i][j] == maxEliminated ){
+                    k = 0 ;
+                    while( k < grid.cellsInRow ){
+                        if( ! eliminated[i][j][k] ){
+                            if( j < grid.cellsInRow ){
+                                x = j ;
+                                y = k ;
+                            } else if( j < 2 * grid.cellsInRow ){
+                                x = k ;
+                                y = j - grid.cellsInRow ;
+                            } else {
+                                x = ( j - 2 * grid.cellsInRow )/ grid.boxesAcross * grid.boxesAcross + k / grid.boxesDown ;
+                                y = ( j - 2 * grid.cellsInRow )% grid.boxesAcross * grid.boxesDown + k % grid.boxesDown ;
+                            }
+                            if( considered[x][y][i] ){
+                                ++ k ;
+                                continue;
+                            }
+                            considered[x][y][i] = true ;
+                            xCandidates[nCandidates] = x ;
+                            yCandidates[nCandidates] = y ;
+                            valueCandidates[nCandidates] = i + 1 ;
+                            ++ nCandidates ;
+                        }
+                        ++ k ;
+                    }
+                }
+                ++ j ;
+            }
+            ++ i ;  
         }
-        grid.data[grid.x][grid.y] = chosenValue + 1 ;
-        // Store state variables.
-        int j , k ;
+        
+        return nCandidates ;
+    }
+               
+    /**
+     * Selects a single candidate from the available list.
+     */
+    
+    public void selectCandidate() {
+        int pick = randomize && nCandidates > 1 ? Math.abs( generator.nextInt() % nCandidates ) : 0 ;
+        bestX = xCandidates[pick];
+        bestY = yCandidates[pick];
+        bestValue = valueCandidates[pick];     
+    }
+    
+    /**
+     * Updates state variables.
+     * @see com.act365.sudoku.IStrategy#updateState(int,int,int)
+     */    
+    
+    public boolean updateState( int x , int y , int value ){
+        // Store current state variables on thread.
+        int i, j , k ;
         i = 0 ;
         while( i < grid.cellsInRow ){
             j = 0 ;
@@ -228,64 +247,67 @@ public class LeastCandidatesNumber extends StrategyBase implements IStrategy {
                     ++ k ;
                 }
                 threadNEliminated[i][j][nMoves] = nEliminated[i][j];
+                threadIsFilled[i][j][nMoves] = isFilled[i][j];
                 ++ j ;
             }
             ++ i ;
         }
-        xMoves[nMoves] = grid.x ;
-        yMoves[nMoves] = grid.y ;
-        // Update state variables.
-        if( ! fillCell( grid.x , grid.y , grid.data[grid.x][grid.y] - 1 ) ){
+        // Update state variables
+        if( ! fillCell( x , y , value - 1 ) ){
             return false ;
         }
+        // Store move to thread
+        xMoves[nMoves] = x ;
+        yMoves[nMoves] = y ;
         ++ nMoves ;
         
         return true;
     }
-
 
     /**
      * Unwinds the the thread and reinstates state variables.
      * @see com.act365.sudoku.IStrategy#unwind(boolean)
      */
     
-    public boolean unwind(boolean resetCurrent) {
+    public boolean unwind( boolean resetCurrent ) {
+        
+        if( nMoves == 0 ){
+            return false ;
+        }
         // Unwind thread.
-        if( nMoves > 0 ){
-            -- nMoves ;
-            // Reinstate state variables.
-            int i , j , k ;
-            i = 0 ;
-            while( i < grid.cellsInRow ){
-                j = 0 ;
-                while( j < 3 * grid.cellsInRow ){
-                    k = 0 ;
-                    while( k < grid.cellsInRow ){
-                        eliminated[i][j][k] = threadEliminated[i][j][k][nMoves];
-                        ++ k ;
-                    }
-                    nEliminated[i][j] = threadNEliminated[i][j][nMoves];
-                    ++ j ;
+        -- nMoves ;
+        // Reinstate state variables.
+        int i , j , k ;
+        i = 0 ;
+        while( i < grid.cellsInRow ){
+            j = 0 ;
+            while( j < 3 * grid.cellsInRow ){
+                k = 0 ;
+                while( k < grid.cellsInRow ){
+                    eliminated[i][j][k] = threadEliminated[i][j][k][nMoves];
+                    ++ k ;
                 }
-                ++ i ;
+                nEliminated[i][j] = threadNEliminated[i][j][nMoves];
+                isFilled[i][j] = threadIsFilled[i][j][nMoves];
+                ++ j ;
             }
-            // Reset cursor.
-            grid.x = xMoves[nMoves];
-            grid.y = yMoves[nMoves];
-            // Current value is no longer a candidate.
-            eliminated[grid.data[grid.x][grid.y]-1][grid.x][grid.y] = true ;
-            ++ nEliminated[grid.data[grid.x][grid.y]-1][grid.x];
-            eliminated[grid.data[grid.x][grid.y]-1][grid.cellsInRow+grid.y][grid.x] = true ;
-            ++ nEliminated[grid.data[grid.x][grid.y]-1][grid.cellsInRow+grid.y];
-            eliminated[grid.data[grid.x][grid.y]-1][2*grid.cellsInRow+grid.x/grid.boxesAcross*grid.boxesAcross+grid.y/grid.boxesDown][grid.x%grid.boxesAcross*grid.boxesDown+grid.y%grid.boxesDown] = true ;
-            ++ nEliminated[grid.data[grid.x][grid.y]-1][2*grid.cellsInRow+grid.x/grid.boxesAcross*grid.boxesAcross+grid.y/grid.boxesDown];
-        } else {
-            return false ;      
+            ++ i ;
         }
+        // Current value is no longer a candidate.
+        eliminated[grid.data[xMoves[nMoves]][yMoves[nMoves]]-1][xMoves[nMoves]][yMoves[nMoves]] = true ;
+        ++ nEliminated[grid.data[xMoves[nMoves]][yMoves[nMoves]]-1][xMoves[nMoves]];
+        eliminated[grid.data[xMoves[nMoves]][yMoves[nMoves]]-1][grid.cellsInRow+yMoves[nMoves]][xMoves[nMoves]] = true ;
+        ++ nEliminated[grid.data[xMoves[nMoves]][yMoves[nMoves]]-1][grid.cellsInRow+yMoves[nMoves]];
+        eliminated[grid.data[xMoves[nMoves]][yMoves[nMoves]]-1][2*grid.cellsInRow+xMoves[nMoves]/grid.boxesAcross*grid.boxesAcross+yMoves[nMoves]/grid.boxesDown][xMoves[nMoves]%grid.boxesAcross*grid.boxesDown+yMoves[nMoves]%grid.boxesDown] = true ;
+        ++ nEliminated[grid.data[xMoves[nMoves]][yMoves[nMoves]]-1][2*grid.cellsInRow+xMoves[nMoves]/grid.boxesAcross*grid.boxesAcross+yMoves[nMoves]/grid.boxesDown];
+        isFilled[grid.data[xMoves[nMoves]][yMoves[nMoves]]-1][xMoves[nMoves]] = false ;
+        isFilled[grid.data[xMoves[nMoves]][yMoves[nMoves]]-1][grid.cellsInRow+yMoves[nMoves]] = false ;
+        isFilled[grid.data[xMoves[nMoves]][yMoves[nMoves]]-1][2*grid.cellsInRow+xMoves[nMoves]/grid.boxesAcross*grid.boxesAcross+yMoves[nMoves]/grid.boxesDown] = false ;
+        // Remove the most recent move from the grid.
         if( resetCurrent ){
-            // Remove it from the grid.
-            grid.data[grid.x][grid.y] = 0 ;
+            grid.data[xMoves[nMoves]][yMoves[nMoves]] = 0 ;
         }
+
         return true ;
     }
 
@@ -302,6 +324,10 @@ public class LeastCandidatesNumber extends StrategyBase implements IStrategy {
             eliminated[value][2*grid.cellsInRow+x/grid.boxesAcross*grid.boxesAcross+y/grid.boxesDown][x%grid.boxesAcross*grid.boxesDown+y%grid.boxesDown] ){
                 return false ;
         }
+        // Note which sectors have been filled.
+        isFilled[value][x] = true ;
+        isFilled[value][grid.cellsInRow+y] = true ;
+        isFilled[value][2*grid.cellsInRow+x/grid.boxesAcross*grid.boxesAcross+y/grid.boxesDown] = true ;
         // Eliminate the current value from other cells in its 
         // ... row (x,i)
         i = -1 ;

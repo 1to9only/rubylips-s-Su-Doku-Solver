@@ -26,7 +26,9 @@
 package com.act365.sudoku;
 
 import java.awt.* ;
+import java.awt.datatransfer.* ;
 import java.awt.event.* ;
+import java.text.DecimalFormat ;
 
 /**
  * A ControlContainer instance contains the various buttons and text
@@ -36,11 +38,12 @@ import java.awt.event.* ;
 
 public class ControlContainer extends com.act365.awt.Container 
                               implements ActionListener ,
-                                         ItemListener {
+                                         ItemListener ,
+                                         ClipboardOwner {
     //
     
-    final static int defaultStrategy = Strategy.LEAST_CANDIDATES_NUMBER ,
-                     defaultMinFilledCellsValue = 2 ;
+    final static int defaultStrategy = Strategy.RANDOM_LEAST_CANDIDATES_HYBRID ,
+                     defaultMinFilledCellsValue = 32 ;
      
     //
     
@@ -60,7 +63,11 @@ public class ControlContainer extends com.act365.awt.Container
            hint ,
 		   resize ,
 		   evaluate ,
-		   compose ;
+		   compose ,
+           interrupt ,
+           copy ,
+           paste ,
+           shuffle ;
 
     Label solns ,
           complexity ,
@@ -91,6 +98,14 @@ public class ControlContainer extends com.act365.awt.Container
         reset = new Button("Reset");
         reset.addActionListener( this );
     
+        // Add the Copy/Paste controls.
+        copy = new Button("Copy");
+        copy.addActionListener( this );
+        paste = new Button("Paste");
+        paste.addActionListener( this );
+        shuffle = new Button("Shuffle");
+        shuffle.addActionListener( this );
+        
         // Add the Hint controls.
         hint = new Button("Hint");
         hint.addActionListener( this );
@@ -125,39 +140,46 @@ public class ControlContainer extends com.act365.awt.Container
         compose = new Button("Compose");
         compose.addActionListener( this );
         minFilledCells = new TextField( 2 );
+        interrupt = new Button("Break");
+        interrupt.addActionListener( this );
                 
         // Lay out the components.
 		addComponent( solve , 0 , 0 , 3 , 1 , 1 , 0 );
 		addComponent( unsolve , 4 , 0 , 3 , 1 , 1 , 0 );
 		addComponent( reset , 8 , 0 , 3 , 1 , 1 , 0 );
 
-        addComponent( hint , 0 , 1 , 3 , 1 , 1 , 0 );
-        addComponent( new Label("Cell") , 4 , 1 , 2 , 1 , 1 , 0 );
-        addComponent( cell , 6 , 1 , 1 , 1 , 1 , 0 );
-        addComponent( new Label("Value") , 8 , 1 , 2 , 1 , 1 , 0 );
-        addComponent( value , 10 , 1 , 1 , 1 , 1 , 0 );
+        addComponent( copy , 0 , 1 , 3 , 1 , 1 , 0 );
+        addComponent( paste , 4 , 1 , 3 , 1 , 1 , 0 );
+        addComponent( shuffle , 8 , 1 , 3 , 1 , 1 , 0 );
         
-        addComponent( new Label("Strategy") , 0 , 2 , 2 , 1 , 1 , 0 );
-        addComponent( strategy , 4 , 2 , 3 , 1 , 1 , 0 );
-        addComponent( new Label("Time") , 8 , 2 , 2 , 1 , 1 , 0 );
-        addComponent( time , 10 , 2 , 1 , 1 , 1 , 0 );
+        addComponent( hint , 0 , 2 , 3 , 1 , 1 , 0 );
+        addComponent( new Label("Cell") , 4 , 2 , 2 , 1 , 1 , 0 );
+        addComponent( cell , 6 , 2 , 1 , 1 , 1 , 0 );
+        addComponent( new Label("Value") , 8 , 2 , 2 , 1 , 1 , 0 );
+        addComponent( value , 10 , 2 , 1 , 1 , 1 , 0 );
         
-		addComponent( resize , 0 , 3 , 3 , 1 , 1 , 0 );
-		addComponent( new Label("Across") , 4 , 3 , 2 , 1 , 1 , 0 );
-		addComponent( across , 6 , 3 , 1 , 1 , 1 , 0 );
-		addComponent( new Label("Down") , 8 , 3 , 2 , 1 , 1 , 0 );
-		addComponent( down , 10 , 3 , 1 , 1 , 1 , 0 );	
+        addComponent( new Label("Strategy") , 0 , 3 , 2 , 1 , 1 , 0 );
+        addComponent( strategy , 4 , 3 , 3 , 1 , 1 , 0 );
+        addComponent( new Label("Time") , 8 , 3 , 2 , 1 , 1 , 0 );
+        addComponent( time , 10 , 3 , 1 , 1 , 1 , 0 );
+        
+		addComponent( resize , 0 , 4 , 3 , 1 , 1 , 0 );
+		addComponent( new Label("Across") , 4 , 4 , 2 , 1 , 1 , 0 );
+		addComponent( across , 6 , 4 , 1 , 1 , 1 , 0 );
+		addComponent( new Label("Down") , 8 , 4 , 2 , 1 , 1 , 0 );
+		addComponent( down , 10 , 4 , 1 , 1 , 1 , 0 );	
 
-		addComponent( evaluate , 0 , 4 , 3 , 1 , 1 , 0 );
-		addComponent( new Label("Solutions") , 4 , 4 , 2 , 1 , 1 , 0 );
-		addComponent( solns , 6 , 4 , 1 , 1 , 1 , 0 );
-		addComponent( new Label("Complexity") , 8 , 4 , 2 , 1 , 1 , 0 );
-		addComponent( complexity , 10 , 4 , 1 , 1 , 1 , 0 );
+		addComponent( evaluate , 0 , 5 , 3 , 1 , 1 , 0 );
+		addComponent( new Label("Solutions") , 4 , 5 , 2 , 1 , 1 , 0 );
+		addComponent( solns , 6 , 5 , 1 , 1 , 1 , 0 );
+		addComponent( new Label("Complexity") , 8 , 5 , 2 , 1 , 1 , 0 );
+		addComponent( complexity , 10 , 5 , 1 , 1 , 1 , 0 );
 		
-        addComponent( compose , 0 , 5 , 3 , 1 , 1 , 0 );
-        addComponent( new Label("Min Filled Cells") , 4 , 5 , 2 , 1 , 1 , 0 );
-        addComponent( minFilledCells , 6 , 5 , 1 , 1 , 1 , 0 );
-
+        addComponent( compose , 0 , 6 , 3 , 1 , 1 , 0 );
+        addComponent( new Label("Filled Cells") , 4 , 6 , 2 , 1 , 1 , 0 );
+        addComponent( minFilledCells , 6 , 6 , 1 , 1 , 1 , 0 );
+        addComponent( interrupt , 8 , 6 , 3 , 1 , 1 , 0 );
+          
 		write();	
     }    
 
@@ -176,12 +198,28 @@ public class ControlContainer extends com.act365.awt.Container
         
 		if( evt.getSource() == solve ){
 			grid.solve();
-            time.setText( Long.toString( grid.getSolveTime() / 1000 ) + "." + Long.toString( grid.getSolveTime() % 1000 ) + "s");
+            time.setText( new DecimalFormat("#0.000").format( grid.getSolveTime() )+ "s");
 		} else if( evt.getSource() == unsolve ) {
 			grid.unsolve();
 		} else if( evt.getSource() == reset ){
 			grid.reset();
             time.setText("0.0s");
+        } else if( evt.getSource() == copy ) {
+            getToolkit().getSystemClipboard().setContents( new StringSelection( grid.toString() ) , this );
+        } else if( evt.getSource() == paste ){
+            Transferable transferable = getToolkit().getSystemClipboard().getContents( this );
+            if( transferable != null ){
+                try {
+                    grid.paste( (String) transferable.getTransferData( DataFlavor.stringFlavor ) );
+                    boxesAcross = grid.getBoxesAcross();
+                    boxesDown = grid.getBoxesDown();
+                    write();
+                } catch ( Exception e ) { 
+                    grid.reset();
+                }
+            }
+        } else if( evt.getSource() == shuffle ){
+            grid.shuffle();
 		} else if( evt.getSource() == resize ){
 			read();
 			grid.setBoxes( boxesAcross , boxesDown );
@@ -207,8 +245,10 @@ public class ControlContainer extends com.act365.awt.Container
 			}
 		} else if( evt.getSource() == compose ) {
 			read();
-			grid.compose( minFilledCellsValue );
+			grid.startComposer( minFilledCellsValue );
 			write();
+        } else if( evt.getSource() == interrupt ) {
+            grid.stopComposer();
 		} else if( evt.getSource() == hint ){
             read();
             if( grid.hint() ){
@@ -256,4 +296,11 @@ public class ControlContainer extends com.act365.awt.Container
 		down.setText( Integer.toString( boxesDown ) );
 		minFilledCells.setText( Integer.toString( minFilledCellsValue ));
 	}
+    
+    /**
+     * Nothing happens if ownership of the clipboard contents is lost.
+     */
+    
+    public void lostOwnership( Clipboard clipboard , Transferable transferable ){
+    }
 }

@@ -31,27 +31,78 @@ package com.act365.sudoku;
  * @see IStrategy
  */
 
-public class StrategyBase {
+public abstract class StrategyBase {
 
     protected Grid grid ;
+    
+    // Thread variables
     
     protected int[] xMoves ,
                     yMoves ;
           
     protected int nMoves ;
     
+    // Candidates selected by findCandidates()
+    
+    protected int[] xCandidates ,
+                    yCandidates ,
+                    valueCandidates ;
+                    
+    protected int nCandidates ;
+    
+    // Score
+    
+    protected int score ;
+    
+    // Best candidate selected by selectCandidate()
+    
+    protected int bestX ,
+                  bestY ,
+                  bestValue ;
+    
+    // Whether the underlying grid has been resized.
+    
+    transient protected boolean resize ;
+                  
     /**
      * Sets up the thread.
      */
     
     protected boolean setup( Grid grid ){
+    
+        resize = this.grid == null || this.grid.cellsInRow != grid.cellsInRow ;
+            
         this.grid = grid ;
         
-        xMoves = new int[grid.cellsInRow*grid.cellsInRow];
-        yMoves = new int[grid.cellsInRow*grid.cellsInRow];
+        if( resize ){
+            xMoves = new int[grid.cellsInRow*grid.cellsInRow];
+            yMoves = new int[grid.cellsInRow*grid.cellsInRow];
+        }
         nMoves = 0 ;
+
+        if( resize ){
+            xCandidates = new int[grid.cellsInRow*grid.cellsInRow];
+            yCandidates = new int[grid.cellsInRow*grid.cellsInRow];
+            valueCandidates = new int[grid.cellsInRow*grid.cellsInRow];
+        }
+        nCandidates = 0 ;
+    
+        score = 0 ;
+            
+        bestX = grid.cellsInRow ; 
+        bestY = grid.cellsInRow ;
+        bestValue = grid.cellsInRow ;
         
         return true ;
+    }
+    
+    /**
+     * Sets the value chosen by findCandidates().
+     * @see com.act365.sudoku.IStrategy#setCandidate()
+     */
+
+    public void setCandidate() {
+        grid.data[bestX][bestY] = bestValue ;
     }
     
     /**
@@ -66,6 +117,65 @@ public class StrategyBase {
         }       
     }
 
+    /**
+     * Returns the x-coordinate of the best candidate move.
+     * @see com.act365.sudoku.IStrategy#getBestX()
+     */
+    
+    public int getBestX(){
+        return bestX ;
+    }
+    
+    /**
+     * Returns the y-coordinate of the best candidate move.
+     * @see com.act365.sudoku.IStrategy#getBestY()
+     */
+    
+    public int getBestY(){
+        return bestY ;
+    }
+    
+    /**
+     * Returns the value of the best candidate move.
+     * @see com.act365.sudoku.IStrategy#getBestValue()
+     */
+    
+    public int getBestValue(){
+        return bestValue ;
+    }
+    
+    /**
+     * Returns the x-coordinate of the given candidate.
+     */
+    
+    public int getXCandidate( int index ){
+        return xCandidates[ index ];    
+    }
+
+    /**
+     * Returns the y-coordinate of the given candidate.
+     */
+    
+    public int getYCandidate( int index ){
+        return yCandidates[ index ];    
+    }
+
+    /**
+     * Returns the value-coordinate of the given candidate.
+     */
+    
+    public int getValueCandidate( int index ){
+        return valueCandidates[ index ];    
+    }
+
+    /**
+     * Returns the umber of candidates.
+     */    
+    
+    public int getNumberOfCandidates(){
+        return nCandidates ;
+    }
+    
     /**
      * Returns thread length.
      * @see com.act365.sudoku.IStrategy#getThreadLength()
@@ -94,15 +204,27 @@ public class StrategyBase {
     }
     
     /**
+     * Returns a measure of the confidence the strategy holds
+     * in its candidates.
+     * @see IStrategy#getScore()
+     */
+    
+    public int getScore(){
+        return score ;
+    }
+    
+    /**
      * Dumps the thread to the given output stream.
      */
     
-    public void dump( java.io.PrintStream out ){
+    public String toString(){
+        StringBuffer sb = new StringBuffer();
         int i = 0 ;
         while( i < nMoves ){
-            out.println( i + ". (" + xMoves[i] + "," + yMoves[i] + ")");
+            sb.append( ( 1 + i ) + ". (" + ( 1 + xMoves[i] ) + "," + ( 1 + yMoves[i] ) + "):=" + grid.data[xMoves[i]][yMoves[i]] + "\n");
             ++ i ;
         }
-        out.println();
-    }        
+        sb.append('\n');
+        return sb.toString(); 
+    }  
 }

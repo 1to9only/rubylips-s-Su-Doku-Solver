@@ -27,26 +27,29 @@ package com.act365.sudoku;
 
 import com.act365.awt.Frame;
 
+import java.io.* ;
+
 /**
  * The SuDoku app displays a Su Doku solver in a new window.
  */
 
 public class SuDoku extends Frame {
 
-    SuDoku( int boxesAcross , int boxesDown ){
+    SuDoku( Grid grid ){
         super("Su Doku Solver");        
-        GridContainer grid = new GridContainer( new Grid( boxesAcross , boxesDown ) );
-        ControlContainer control = new ControlContainer( grid ); 
-        SuDokuContainer suDoku = new SuDokuContainer( grid , control );
+        GridContainer gc = new GridContainer( grid );
+        ControlContainer control = new ControlContainer( gc ); 
+        SuDokuContainer suDoku = new SuDokuContainer( gc , control );
         add( suDoku );
         setSize( suDoku.getBestSize() );
     }
  
     /**
      * Starts a new app with a Su Doku grid of the given size.
-     * <code>java com.act365.sudoku.SuDoku [-a boxesAcross] [-d boxesDown]</code>
+     * <code>java com.act365.sudoku.SuDoku [-a boxesAcross] [-d boxesDown] [-i]</code>
      * <br><code>boxesAcross</code> is the number of boxes to appear across one row of the Su Doku grid - the default is 3.
      * <br><code>boxesDown</code> is the number of boxes to appear down one column of the Su Doku grid - the default is 3.
+     * <br>The -i option indicates that an initial grid should be read from standard input
      */
     
 	public static void main(String[] args) {
@@ -54,6 +57,8 @@ public class SuDoku extends Frame {
 		int boxesAcross = 3 ,
 		    boxesDown = 3 ;
 		
+        boolean standardInput = false ;
+        
 		int i = 0 ;
 		
 		while( i < args.length ){
@@ -64,9 +69,11 @@ public class SuDoku extends Frame {
 						boxesAcross = Integer.parseInt( args[i] );
 					} catch ( NumberFormatException e ) {
 						System.err.println("boxesAcross should be an integer");
+                        System.exit( 1 );
 					}
 				} else {
 					System.err.println("-a requires an argument");
+                    System.exit( 1 );
 				}
 			} else if( args[i].equals("-d") ){
 				++ i ;
@@ -75,16 +82,44 @@ public class SuDoku extends Frame {
 						boxesDown = Integer.parseInt( args[i] );
 					} catch ( NumberFormatException e ) {
 						System.err.println("boxesDown should be an integer");
+                        System.exit( 1 );
 					}
 				} else {
 					System.err.println("-d requires an argument");
+                    System.exit( 1 );
 				}
+            } else if( args[i].equals("-i") ){
+                standardInput = true ;
 			} else {
 				System.err.println("Usage: SuDoku [-a boxesAcross] [-d boxesDown]");
+                System.exit( 1 );
 			}
 			++ i ;
 		}
-		
-        new SuDoku( boxesAcross , boxesDown ).show();
+        // Read a grid from standard input.
+        Grid grid = null ;
+        if( standardInput ){
+            String text ;
+            StringBuffer gridText = new StringBuffer();
+            BufferedReader standardInputReader = new BufferedReader( new InputStreamReader( System.in ) );
+            try {
+                while( ( text = standardInputReader.readLine() ) != null ){
+                    if( text.length() == 0 ){
+                        break ;
+                    }
+                    gridText.append( text );
+                    gridText.append('\n');
+                }
+                grid = new Grid();
+                grid.populate( gridText.toString() );
+            } catch ( IOException e ) {
+                System.err.println( e.getMessage() );
+                System.exit( 2 );               
+            }            
+        } else {
+            grid = new Grid( boxesAcross , boxesDown );
+        }
+        // 
+        new SuDoku( grid ).show();
 	}
 }

@@ -34,25 +34,32 @@ import java.util.Date ;
 
 public class GridContainer extends com.act365.awt.Container {
 
+    // Members
+    
     Grid grid ;
     
     IStrategy strategy ;
     
     TextField[][] textFields ;
     
-    long solveTime ;
+    double solveTime ;
     
     int hintX , 
         hintY ,
         hintValue ;
-        
+    
+    Composer composer ;
+    
     /**
      * Creates a new GridContainer instance. 
      */
     
     public GridContainer( Grid grid ) {
         this.grid = grid ;
-        layoutComponents();    
+        removeAll();
+        layoutComponents();
+        validate();
+        write();
     }
     
     /**
@@ -98,7 +105,7 @@ public class GridContainer extends com.act365.awt.Container {
     	read();
         long now = new Date().getTime();
     	grid.solve( strategy , 1 );
-        solveTime = new Date().getTime() - now ;
+        solveTime = ( new Date().getTime() - now )/ 1000. ;
     	write();  
     }
 
@@ -155,6 +162,32 @@ public class GridContainer extends com.act365.awt.Container {
     }
     
     /**
+     * Shuffles the grid.
+     */
+    
+    public void shuffle(){
+        grid.shuffle();
+        write();
+    }
+    
+    /**
+     * Sets the underlying grid to be a clone of the given grid.   
+     * @param grid new grid
+     */
+
+    public synchronized void setGrid( Grid grid ){
+        final boolean redraw = this.grid.boxesAcross != grid.boxesAcross || 
+                               this.grid.boxesDown != grid.boxesDown ;
+        this.grid = (Grid) grid.clone();
+        if( redraw ){
+            removeAll();
+            layoutComponents();
+            validate();
+        }
+        write();
+    }
+
+    /**
      * Resizes the grid.
      * @param boxesAcross - number of boxes across one row of the Su Doku grid
      * @param boxesDown - number of boxes down one column of the Su Doku grid
@@ -162,25 +195,66 @@ public class GridContainer extends com.act365.awt.Container {
     
     public void setBoxes( int boxesAcross ,
                           int boxesDown ){
+        final boolean redraw = boxesAcross != grid.boxesAcross || boxesDown != grid.boxesDown ;
         grid.resize( boxesAcross , boxesDown );
-        removeAll();
-        layoutComponents();
-        validate();
+        if( redraw ){
+            removeAll();
+            layoutComponents();
+            validate();
+        }
+    }
+    
+    /**
+     * Pastes data onto the grid.
+     * @param s data to be pasted, which should be in the form created by Copy
+     */
+    
+    public void paste( String s ){
+        int oldBoxesAcross = grid.boxesAcross ,
+            oldBoxesDown = grid.boxesDown ;            
+        grid.populate( s );
+        if( grid.boxesAcross != oldBoxesAcross || grid.boxesDown != oldBoxesDown ){
+            removeAll();
+            layoutComponents();
+            validate();                
+        }
+        write();
     }
     
     /**
      * Composes a puzzle, with rotational symmetry and a unique solution,
      * based upon the initial values in the grid.
-     * @param minFilledCells - minimum number of filled cells to appear in the puzzle
+     * @param filledCells - number of filled cells to appear in the puzzle
      */
     
-    public void compose( int minFilledCells ){
+    public synchronized void startComposer( int filledCells ){
         read();
-        strategy.setup( grid );
-        grid.compose( strategy , minFilledCells );
-        write();
+        try {
+            composer = new Composer( this , 
+                                     grid.boxesAcross , 
+                                     1 , 
+                                     0 ,
+                                     0 ,
+                                     new MaskFactory( grid.cellsInRow , filledCells , true ) ,
+                                     Composer.defaultThreads , 
+                                     0 , 
+                                     null );
+            composer.start();
+        } catch ( Exception e ) {
+        }
     }
+
+    /**
+     * Interrupts any ComposerThread that might have been started 
+     * by startComposer().
+     */
     
+    public void stopComposer(){
+        if( composer instanceof Composer ){
+            composer.interrupt();
+        }
+    }
+
     /** 
      * Returns number of boxes across one row of the Su Doku grid.
      */
@@ -210,7 +284,7 @@ public class GridContainer extends com.act365.awt.Container {
      * Returns the time (in milliseconds) taken to complete the most recent solve.
      */
     
-    public long getSolveTime(){
+    public double getSolveTime(){
         return solveTime ;
     }
     
@@ -296,5 +370,14 @@ public class GridContainer extends com.act365.awt.Container {
             }
             ++ c ;
         }
+    }
+    
+    /**
+     * A GridContainer returns a string representation of the 
+     * underlying grid.
+     */
+    
+    public String toString(){
+        return grid.toString();
     }
 }

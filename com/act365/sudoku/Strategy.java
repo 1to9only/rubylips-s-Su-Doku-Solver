@@ -35,13 +35,21 @@ public class Strategy {
                             LEAST_CANDIDATES_CELL = 1,
                             RANDOM_LEAST_CANDIDATES_CELL = 2,
                             LEAST_CANDIDATES_NUMBER = 3 ,
-                            RANDOM_LEAST_CANDIDATES_NUMBER = 4 ;
+                            RANDOM_LEAST_CANDIDATES_NUMBER = 4 ,
+                            LEAST_CANDIDATES_HYBRID = 5 ,
+                            RANDOM_LEAST_CANDIDATES_HYBRID = 6 ,
+                            MOST_CANDIDATES = 7 ,
+                            RANDOM_MOST_CANDIDATES = 8 ;
 
 	public final static String[] strategyNames = new String[] { "First Available", 
                                                                 "Least Candidates Cell" ,
                                                                 "Random Least Candidates Cell" ,
                                                                 "Least Candidates Number" ,
-                                                                "Random Least Candidates Number" };
+                                                                "Random Least Candidates Number" ,
+                                                                "Least Candidates Hybrid" ,
+                                                                "Random Least Candidates Hybrid" ,
+                                                                "Most Candidates" ,
+                                                                "Random Most Candidates" };
     
     /**
      * Creates a new strategy instance to solve the given grid.
@@ -65,8 +73,31 @@ public class Strategy {
             case RANDOM_LEAST_CANDIDATES_NUMBER :
             return new LeastCandidatesNumber( true );
             
+            case LEAST_CANDIDATES_HYBRID:
+            return new LeastCandidatesHybrid( false );
+            
+            case RANDOM_LEAST_CANDIDATES_HYBRID :
+            return new LeastCandidatesHybrid( true );
+            
+            case MOST_CANDIDATES :
+            return new MostCandidates( null , false );
+            
+            case RANDOM_MOST_CANDIDATES :
+            return new MostCandidates( null , true );
+                      
             default:
             return null ;
         }
+    }
+    
+    public static IStrategy create( String strategy ){
+        int i = 0 ;
+        while( i < strategyNames.length ){
+            if( strategy.equalsIgnoreCase( strategyNames[i] ) ){
+                return create( i );
+            }
+            ++ i ;
+        }
+        return null ;
     }
 }

@@ -25,13 +25,14 @@
 
 package com.act365.sudoku ;
 
-import java.util.Random ;
+import java.io.* ;
+import java.util.* ;
 
 /**
  * A Grid object represents a partially-filled Su Doku grid.
  */
 
-public class Grid implements Cloneable {
+public class Grid implements Cloneable , Serializable {
 
     // Constants that define the grid size. The nomenclature is taken from
     // the Sudoku XML schema.
@@ -44,13 +45,12 @@ public class Grid implements Cloneable {
     
     int[][] data ;
 
-    // Thread data
+    // Transient data
     
-    transient int x , y ; // Cursor postion
-    
-    transient int nUnwinds , // How many times the thread has been unwound
-                  minThreadLength ; // Minimum thread length observed during solve
+    transient int nUnwinds ; // How many times the thread has been unwound
 
+    transient Solver solver ;
+                      
     /**
      * Creates a Su Doku grid with the given number of boxes
      * (aka subgrids) in each dimension.
@@ -61,12 +61,11 @@ public class Grid implements Cloneable {
     }
 
     /**
-     * Creates a classic Su Doku grid, with the boxes (aka subgrids)
-     * in each dimension.
+     * Creates a dimensionless Su Doku grid. The grid will have to be
+     * redimensioned before it stores a puzzle.
      */    
     
     public Grid(){
-    	resize( 3 , 3 );
     }
     
     /**
@@ -106,6 +105,53 @@ public class Grid implements Cloneable {
 	    data = new int[cellsInRow][cellsInRow];
 	  
 	    nUnwinds = 0 ;                	
+    }    
+    
+    /**
+     * Populates the grid from a string.
+     * @param s string in the format created by <code>toString()</code>
+     */
+    
+    public void populate( String s ){
+
+        StringTokenizer st = new StringTokenizer( s , " ");
+        
+        // Determine the dimensions of the grid.
+        
+        int boxesDown = 0 ,
+            boxesAcross = 1 ;
+        
+        String token ;
+            
+        while( ! ( token = st.nextToken() ).equals("\n") ){
+            if( token.equals("*") ){
+                ++ boxesAcross ;
+            } else if( boxesAcross == 1 ){
+                ++ boxesDown ;
+            }
+        }
+        
+        resize( boxesAcross , boxesDown );
+        
+        // Populate the grid.
+        
+        int i , j ;
+
+        st = new StringTokenizer( s , " \t\n\r*");
+
+        i = 0 ;
+        while( i < cellsInRow ){
+            j = 0 ;
+            while( j < cellsInRow ){
+                try {
+                    data[i][j] = Integer.parseInt( st.nextToken() );
+                } catch( NumberFormatException e ) {
+                    data[i][j] = 0 ;
+                }
+                ++ j ;  
+            }
+            ++ i ;
+        }
     }
     
     /**
@@ -128,145 +174,34 @@ public class Grid implements Cloneable {
         
         return count ;
     }
-    
-    /**
-     * Attempts to solve the current grid. When the requested number of 
-     * solutions has been found, the function will exit.
-     * @param maxSolns maximum number of solution to find (0 for no limit)  
-     * @return - number of solutions found 
-     */
-    
-    public int solve( IStrategy strategy , int maxSolns ) {
-        return solve( strategy , maxSolns , true );
-    }
-    
-    int solve( IStrategy strategy , int maxSolns , boolean firstPass ) {
-    	int i , j , nSolns = 0 ;
-        minThreadLength = strategy.getThreadLength();
-        // Reset values if it's the first time through.
-        if( firstPass ){
-            x = y = nUnwinds = 0 ;
-            if( ! strategy.setup( this ) || ! strategy.findCandidates() ){
-                return 0 ;
-            }
-        }            
-        // Move the cursor onto the first blank cell.
-        while( true ){
-            // Try to fill the current cell with a valid value.
-            if( strategy.selectCandidate() ){
-                if( ! strategy.findCandidates() ){
-                    // Grid has been solved.
-                    if( ++ nSolns == maxSolns || ! strategy.unwind( false ) ){
-                    	return nSolns ;
-                    }
-                }
-            } else {
-				++ nUnwinds ;
-            	if( ! strategy.unwind( true ) ){
-            		return nSolns ;
-            	}
-                if( strategy.getThreadLength() < minThreadLength ){
-                    minThreadLength = strategy.getThreadLength();
-                }
-            }
-        }
-    }
 
     /**
-     * Attempts to build the grid into a puzzle that has rotational 
-     * symmetry, a unique solution and at least the specified number 
-     * of filled cells.
-     * @param strategy the strategy to  be used
-     * @param minFilledCells the minimum number of cells to appear in the composed puzzle
-     * @return whether a suitable puzzle has been composed
+     * Solves the grid.
+     * @param strategy strategy to be used
+     * @param maxSolns the maximum number of solutions to be sought
+     * @return number of solutions found
      */
-    
-    public boolean compose( IStrategy strategy ,
-                            int minFilledCells ){
-                            
-        int i , j , nSolns , nFilledCells ;
-        Grid solution ;        
-		// Solve the grid.
-        strategy.setup( this );
-		nSolns = solve( strategy , 1 );
-        solution = (Grid) clone();
-		strategy.reset();
-		if( nSolns == 0 ){
-			return false ;
-		}
-        // Count the number of filled cells.
-        nFilledCells = 0 ;
-        i = 0 ;
-        while( i < cellsInRow ){
-        	j = 0 ;
-        	while( j < cellsInRow ){
-        		if( data[i][j] > 0 ){
-        			++ nFilledCells ;
-        		}
-        		++ j ;
-        	}
-        	++ i ;
+        
+    public int solve( IStrategy strategy ,
+                      int maxSolns ){
+        return solve( strategy , null , maxSolns );
+    }
+                      
+    synchronized int solve( IStrategy strategy ,
+                            IStrategy composeSolver ,
+                            int maxSolns ){
+
+        solver = new Solver( this , strategy , composeSolver , 0 , maxSolns , null );        
+        solver.start();  
+        int nSolns ;
+        try {
+            solver.join();            
+            nUnwinds = solver.getNumberOfUnwinds();
+            nSolns = solver.getNumberOfSolutions();                      
+        } catch( InterruptedException e ) {
+            nSolns = nUnwinds = 0 ;
         }
-        // Calculate cells to be filled in order to enforce rotational symmetry.
-        i = 0 ;
-        while( i < cellsInRow ){
-        	j = 0 ;
-        	while( j < cellsInRow ){
-        		if( data[i][j] > 0 && data[cellsInRow-1-i][cellsInRow-1-j] == 0 ){
-        			data[cellsInRow-1-i][cellsInRow-1-j] = solution.data[cellsInRow-1-i][cellsInRow-1-j];
-        			++ nFilledCells ;
-        		}
-        		++ j ;
-        	}
-        	++ i ;
-        } 
-        // Ensure that at least the minimum number of cells is in place.
-        Random generator = null ;
-        if( nFilledCells < minFilledCells ){
-            generator = new Random();
-        }
-        while( nFilledCells < minFilledCells ){
-            i = Math.abs( generator.nextInt() % cellsInRow );
-            j = Math.abs( generator.nextInt() % cellsInRow );
-            if( data[i][j] > 0 ){
-                continue;
-            }
-            data[i][j] = solution.data[i][j];
-            ++ nFilledCells ;
-            if( cellsInRow % 2 == 0 ||
-                i != ( cellsInRow - 1 )/ 2 ||
-                j != ( cellsInRow - 1 )/ 2 ){
-                    data[cellsInRow-1-i][cellsInRow-1-j]=solution.data[cellsInRow-1-i][cellsInRow-1-j];
-                    ++ nFilledCells ;
-            }
-        }
-        // Add cells until the grid has a unique solution.
-        int bestX , bestY ;
-        while( true ) {
-            if( ( nSolns = solve( strategy , 1 ) ) == 0 || ! strategy.unwind( false ) ){
-                return false ;
-            }
-            solution = (Grid) clone();
-            // Place a new cell where the first and second solutions diverge.
-            solve( strategy , 1 , false );
-            if( strategy.getThreadLength() > 0 ){
-                bestX = strategy.getThreadX( minThreadLength );
-                bestY = strategy.getThreadY( minThreadLength );
-                strategy.reset();
-            } else {
-                return true ;
-            }
-            // Add cells to grid.
-            strategy.reset();
-            data[bestX][bestY] = solution.data[bestX][bestY];
-            ++ nFilledCells ;
-            if( cellsInRow % 2 == 0 ||
-                bestX != ( cellsInRow - 1 )/ 2 ||
-                bestY != ( cellsInRow - 1 )/ 2 ){
-                    data[cellsInRow-1-bestX][cellsInRow-1-bestY]=solution.data[cellsInRow-1-bestX][cellsInRow-1-bestY];
-                    ++ nFilledCells ;
-            }
-        }
+        return nSolns ;
     }
     
     /**
@@ -289,21 +224,516 @@ public class Grid implements Cloneable {
     }
     
     /**
-     * Dumps grid to an output stream.
+     * Produces a string representation of the grid.
      */
     
-    public void dump( java.io.PrintStream out ){
+    public String toString() {
+        
+        StringBuffer sb = new StringBuffer();
+        
+        int i , j , k ;        
+        i = 0 ;
+        while( i < cellsInRow ){
+            if( i > 0 && i % boxesAcross == 0 ){
+                k = 0 ;
+                while( k < ( cellsInRow / 10 + 2 )* cellsInRow + ( boxesAcross - 1 )* 2 ){
+                    sb.append('*');
+                    ++ k ;
+                }
+                sb.append(" \n");
+            }
+            j = 0 ;
+            while( j < cellsInRow ){
+                if( j > 0 && j % boxesDown == 0 ){
+                    sb.append(" *");
+                }
+                k = 0 ;
+                if( data[i][j] > 0 ){
+                    while( k < cellsInRow / 10 - data[i][j] / 10 + 1 ){
+                        sb.append(' ');
+                        ++ k ;
+                    }
+                    sb.append( data[i][j] );
+                } else {
+                    sb.append(' ');
+                    while( k < cellsInRow / 10 + 1 ){
+                        sb.append('.');
+                        ++ k ;
+                    }
+                }
+                ++ j ;
+            }
+            sb.append(" \n");
+            ++ i ;
+        }
+        
+        return sb.toString();
+    }
+    
+    /**
+     * Tests for equality.
+     */
+    
+    public boolean equals( Object obj ){
+        if( !( obj instanceof Grid ) ){
+            return false ;
+        }
+        Grid grid = (Grid) obj ;
+        if( boxesAcross != grid.boxesAcross || boxesDown != grid.boxesDown ){
+            return false ;
+        }
+        int r , c ;
+        r = 0 ;
+        while( r < cellsInRow ){
+            c = 0 ;
+            while( c < cellsInRow ){
+                if( data[r][c] != grid.data[r][c] ){
+                    return false ;
+                }
+                ++ c ;
+            }
+            ++ r ;
+        }
+        return true ;
+    }
+    
+    /**
+     * Determines whether this grid precedes the given grid. The
+     * value true will be returned if the two grids match.
+     */
+
+    boolean precedes( Grid grid ){
+        if( boxesAcross != grid.boxesAcross || boxesDown != grid.boxesDown ){
+            return false ;
+        }
         int i ,j ;
-		i = 0 ;
-		while( i < cellsInRow ){
-			j = 0 ;
-			while( j < cellsInRow ){
-				out.print( data[i][j] + " " );
-				++ j ;
-			}
-			out.println();
-			++ i ;
-		}
-		out.println();
+        i = 0 ;
+        while( i < cellsInRow ){
+            j = 0 ;
+            while( j < cellsInRow ){
+                if( grid.data[i][j] < data[i][j] ){
+                    return false ;
+                } else if( grid.data[i][j] > data[i][j] ){
+                    return true ;
+                }
+                ++ j ;
+            }
+            ++ i ;
+        }
+        return true ;
+    }
+
+    /**
+     * Rotates the grid through a half-turn.
+     */    
+    
+    Grid halfRotate(){
+        int i , j , tmp ;
+        i = 0 ;
+        while( i < cellsInRow / 2 ){
+            j = 0 ;
+            while( j < cellsInRow ){
+                tmp = data[cellsInRow-1-i][cellsInRow-1-j];
+                data[cellsInRow-1-i][cellsInRow-1-j] = data[i][j];
+                data[i][j] = tmp ;
+                ++ j ;
+            }
+            ++ i ;
+        }
+        if( cellsInRow % 2 == 1 ){
+            j = 0 ;
+            while( j < cellsInRow / 2 ){
+                tmp = data[cellsInRow-1-i][cellsInRow-1-j];
+                data[cellsInRow-1-i][cellsInRow-1-j] = data[i][j];
+                data[i][j] = tmp ;
+                ++ j ;
+            }
+        }
+        return this ;
+    }
+    
+    /**
+     * Rotates the grid through a quarter-turn anticlockwise.
+     * Nothing happens if the number of boxes across the grid
+     * does not match the number of boxes down.
+     */
+
+    Grid quarterRotate(){
+        if( boxesAcross != boxesDown ){
+            return this ;
+        }
+        int i , j , tmp ;
+        final int jMax = cellsInRow / 2 + ( cellsInRow % 2 == 1 ? 1 : 0 ); 
+        i = 0 ;
+        while( i < cellsInRow / 2 ){
+            j = 0 ;
+            while( j < jMax ){
+                tmp = data[i][j];
+                data[i][j] = data[j][cellsInRow-1-i];
+                data[j][cellsInRow-1-i] = data[cellsInRow-1-i][cellsInRow-1-j];
+                data[cellsInRow-1-i][cellsInRow-1-j] = data[cellsInRow-1-j][i];
+                data[cellsInRow-1-j][i] = tmp ;
+                ++ j ;
+            }
+            ++ i ;
+        }
+        return this ;
+    }
+    
+    /**
+     * Reflects the grid data in the line that runs from
+     * the left centre of the grid to the right centre.
+     */
+
+    Grid reflectLeftRight(){
+        int i , j , tmp ;
+        i = 0 ;
+        while( i < cellsInRow / 2 ){
+            j = 0 ;
+            while( j < cellsInRow ){
+                tmp = data[cellsInRow-1-i][j];
+                data[cellsInRow-1-i][j] = data[i][j];
+                data[i][j] = tmp ;
+                ++ j ;
+            }
+            ++ i ;
+        }
+        if( cellsInRow % 2 == 1 ){
+            j = 0 ;
+            while( j < cellsInRow / 2 ){
+                tmp = data[cellsInRow-1-i][j];
+                data[cellsInRow-1-i][j] = data[i][j];
+                data[i][j] = tmp ;
+                ++ j ;
+            }
+        }
+        return this ;
+    }
+    
+    /**
+     * Reflects the grid data in the line that runs from
+     * the top centre of the grid to the bottom centre.
+     */
+
+    Grid reflectTopBottom(){
+        int i , j , tmp ;
+        j = 0 ;
+        while( j < cellsInRow / 2 ){
+            i = 0 ;
+            while( i < cellsInRow ){
+                tmp = data[i][cellsInRow-1-j];
+                data[i][cellsInRow-1-j] = data[i][j];
+                data[i][j] = tmp ;
+                ++ i ;
+            }
+            ++ j ;
+        }
+        if( cellsInRow % 2 == 1 ){
+            i = 0 ;
+            while( i < cellsInRow / 2 ){
+                tmp = data[i][cellsInRow-1-j];
+                data[i][cellsInRow-1-j] = data[i][j];
+                data[i][j] = tmp ;
+                ++ i ;
+            }
+        }
+        return this ;
+    }
+    
+    /**
+     * Reflects the grid data in the diagonal that runs from
+     * the top-left corner of the grid to the bottom-right.
+     * Nothing happens if the number of boxes across the grid
+     * does not match the number of boxes down.
+     */
+    
+    Grid reflectTopLeftBottomRight(){
+        if( boxesAcross != boxesDown ){
+            return this ;
+        }
+        int i , j , tmp ;
+        i = 0 ;
+        while( i < cellsInRow ){
+            j = i + 1 ;
+            while( j < cellsInRow ){
+                tmp = data[j][i];
+                data[j][i] = data[i][j];
+                data[i][j] = tmp ;
+                ++ j ;
+            }
+            ++ i ;
+        }
+        return this ;
+    }
+    
+    /**
+     * Reflects the grid data in the diagonal that runs from
+     * the top-right corner of the grid to the bottom-left.
+     * Nothing happens if the number of boxes across the grid
+     * does not match the number of boxes down.
+     */
+    
+    Grid reflectTopRightBottomLeft(){
+        if( boxesAcross != boxesDown ){
+            return this ;
+        }
+        int i , j , tmp ;
+        i = 0 ;
+        while( i < cellsInRow ){
+            j = 0 ;
+            while( j < cellsInRow - 1 - i ){
+                tmp = data[cellsInRow-1-j][cellsInRow-1-i];
+                data[cellsInRow-1-j][cellsInRow-1-i] = data[i][j];
+                data[i][j] = tmp ;
+                ++ j ;
+            }
+            ++ i ;
+        }
+        return this ;
+    }
+    
+    /**
+     * Reflects, rotates and rearranges the grid as necessary in order
+     * to reduce it to its lowest form.
+     */
+    
+    public Grid rectify( boolean[][] mask ){
+        int i , j ;
+        boolean precedesGrid ;
+        rearrangeData();
+        Grid grid = (Grid) clone();
+        grid.halfRotate().rearrangeData();
+        precedesGrid = precedes( grid );        
+        i = 0 ;
+        while( i < grid.cellsInRow ){
+            j = 0 ;
+            while( j < grid.cellsInRow ){
+                if( precedesGrid ){
+                    grid.data[i][j] = data[i][j];
+                } else {
+                    data[i][j] = grid.data[i][j];
+                }
+                ++ j ;
+            }
+            ++ i ;
+        }            
+        if( MaskFactory.isSymmetricLeftRight( mask ) ){
+            grid.reflectLeftRight().rearrangeData();
+            precedesGrid = precedes( grid );        
+            i = 0 ;
+            while( i < grid.cellsInRow ){
+                j = 0 ;
+                while( j < grid.cellsInRow ){
+                    if( precedesGrid ){
+                        grid.data[i][j] = data[i][j];
+                    } else {
+                        data[i][j] = grid.data[i][j];
+                    }
+                    ++ j ;
+                }
+                ++ i ;
+            }            
+        }
+        if( MaskFactory.isSymmetricTopBottom( mask ) ){
+            grid.reflectTopBottom().rearrangeData();
+            precedesGrid = precedes( grid );        
+            i = 0 ;
+            while( i < grid.cellsInRow ){
+                j = 0 ;
+                while( j < grid.cellsInRow ){
+                    if( precedesGrid ){
+                        grid.data[i][j] = data[i][j];
+                    } else {
+                        data[i][j] = grid.data[i][j];
+                    }
+                    ++ j ;
+                }
+                ++ i ;
+            }            
+        }
+        if( MaskFactory.isSymmetricTopLeftBottomRight( mask ) ){
+            grid.reflectTopLeftBottomRight().rearrangeData();
+            precedesGrid = precedes( grid );        
+            i = 0 ;
+            while( i < grid.cellsInRow ){
+                j = 0 ;
+                while( j < grid.cellsInRow ){
+                    if( precedesGrid ){
+                        grid.data[i][j] = data[i][j];
+                    } else {
+                        data[i][j] = grid.data[i][j];
+                    }
+                    ++ j ;
+                }
+                ++ i ;
+            }            
+        }
+        if( MaskFactory.isSymmetricTopRightBottomLeft( mask ) ){
+            grid.reflectTopRightBottomLeft().rearrangeData();
+            precedesGrid = precedes( grid );        
+            i = 0 ;
+            while( i < grid.cellsInRow ){
+                j = 0 ;
+                while( j < grid.cellsInRow ){
+                    if( precedesGrid ){
+                        grid.data[i][j] = data[i][j];
+                    } else {
+                        data[i][j] = grid.data[i][j];
+                    }
+                    ++ j ;
+                }
+                ++ i ;
+            }            
+        }
+        if( MaskFactory.isSymmetricOrder4( mask ) ){
+            // Anticlockwise
+            grid.quarterRotate().rearrangeData();
+            precedesGrid = precedes( grid );        
+            i = 0 ;
+            while( i < grid.cellsInRow ){
+                j = 0 ;
+                while( j < grid.cellsInRow ){
+                    if( precedesGrid ){
+                        grid.data[i][j] = data[i][j];
+                    } else {
+                        data[i][j] = grid.data[i][j];
+                    }
+                    ++ j ;
+                }
+                ++ i ;
+            }            
+            // Clockwise
+            grid.halfRotate().rearrangeData();
+            precedesGrid = precedes( grid );        
+            i = 0 ;
+            while( i < grid.cellsInRow ){
+                j = 0 ;
+                while( j < grid.cellsInRow ){
+                    if( precedesGrid ){
+                        grid.data[i][j] = data[i][j];
+                    } else {
+                        data[i][j] = grid.data[i][j];
+                    }
+                    ++ j ;
+                }
+                ++ i ;
+            }            
+        }
+        return this ;
+    }
+    
+    /**
+     * Sets the contents of the given grid to be a rearranged form of
+     * this grid such that, when read from left-to-right and
+     * top-to-bottom, the numbers appear in increasing order. 
+     */
+    
+    Grid rearrangeData(){
+        int i , r , c , subSize = 0 ;
+        int[] substitute = new int[cellsInRow];
+        r = 0 ;
+        while( r < cellsInRow ){
+            c = 0 ;
+            while( c < cellsInRow ){
+                if( data[r][c] > 0 ){
+                    i = 0 ;
+                    while( i < subSize ){
+                        if( data[r][c] == substitute[i] ){
+                            break ;
+                        }
+                        ++ i ;
+                    }
+                    if( i == subSize ){
+                        substitute[subSize++] = data[r][c];
+                    }
+                }
+                ++ c ;
+            }
+            ++ r ;
+        }
+        r = 0 ;
+        while( r < cellsInRow ){
+            c = 0 ;
+            while( c < cellsInRow ){
+                if( data[r][c] > 0 ){
+                    i = 0 ;
+                    while( i < subSize ){
+                        if( data[r][c] == substitute[i] ){
+                            data[r][c] = i + 1 ;
+                            break ;
+                        }
+                        ++ i ;
+                    }
+                }
+                ++ c ;
+            }
+            ++ r ;
+        }
+        return this ;        
+    }
+    
+    /**
+     * Randomly shuffles the current grid. 
+     */
+    
+    public Grid shuffle(){
+        int pick ;
+        Random generator = new Random();
+        // Rearrange the data within the grid.
+        int i , j , size = cellsInRow ;
+        int[] substitute = new int[cellsInRow];
+        while( size > 0 ){
+            i = -1 ;
+            pick = generator.nextInt( size );
+            while( pick -- >= 0 ){
+                while( substitute[++i] > 0 );
+            }
+            substitute[i] = size -- ;
+        }
+        i = 0 ;
+        while( i < cellsInRow ){
+            j = 0 ;
+            while( j < cellsInRow ){
+                if( data[i][j] > 0 ){
+                    data[i][j] = substitute[data[i][j]-1]; 
+                }
+                ++ j ;
+            }
+            ++ i ;
+        }
+        // Rotate
+        pick = generator.nextInt( 4 );
+        switch( pick ){
+            case 0 :
+            break;
+            
+            case 1:
+            quarterRotate();
+            break;
+            
+            case 2:
+            halfRotate();
+            break;
+            
+            case 3:
+            halfRotate().quarterRotate();
+            break;
+        }
+        // Reflect
+        pick = generator.nextInt( 16 );
+        if( ( pick & 1 ) == 1 ){
+            reflectLeftRight(); 
+        }
+        if( ( pick & 2 ) == 2 ){
+            reflectTopBottom(); 
+        }
+        if( ( pick & 4 ) == 4 ){
+            reflectTopLeftBottomRight(); 
+        }
+        if( ( pick & 8 ) == 8 ){
+            reflectTopRightBottomLeft(); 
+        }
+        //
+        return this ;
     }
 }
