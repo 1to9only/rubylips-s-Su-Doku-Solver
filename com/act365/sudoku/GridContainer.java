@@ -26,6 +26,7 @@
 package com.act365.sudoku;
 
 import java.awt.*;
+import java.util.Date ;
 
 /**
  * The GridContainer class displays a Su Doku grid.
@@ -35,8 +36,16 @@ public class GridContainer extends com.act365.awt.Container {
 
     Grid grid ;
     
+    IStrategy strategy ;
+    
     TextField[][] textFields ;
     
+    long solveTime ;
+    
+    int hintX , 
+        hintY ,
+        hintValue ;
+        
     /**
      * Creates a new GridContainer instance. 
      */
@@ -87,17 +96,51 @@ public class GridContainer extends com.act365.awt.Container {
     
     public void solve(){  
     	read();
-    	grid.solve();
+        long now = new Date().getTime();
+    	grid.solve( strategy , 1 );
+        solveTime = new Date().getTime() - now ;
     	write();  
+    }
+
+    /**
+     * Evaluates the complexity of the grid. Establishes that just a single
+     * solution exists and, if so, calculates the number of thread unwinds
+     * used to solve the problem.
+     * @return number of solutions 
+     */
+        
+    public int evaluate(){
+    	read();
+    	int nSolns = grid.solve( strategy , 2 );
+    	strategy.reset();
+    	
+    	return nSolns ;
     }
     
     /**
-     * Unsolves the grid (i.e. reverts its state to that prior to the 
-     * most recent solve.
+     * Solves the grid and returns the first step of the solution.
+     * @return whether a solution could be found
+     */
+    
+    public boolean hint(){
+        read();
+        if( grid.solve( strategy , 1 ) == 1 ){
+            hintX = strategy.getThreadX( 0 );
+            hintY = strategy.getThreadY( 0 );
+            hintValue = grid.data[hintX][hintY];
+            strategy.reset();
+            return true ;
+        }
+        return false ;
+    }
+    
+    /**
+     * Unsolves the grid (reverts its state to that prior to the 
+     * most recent solve).
      */
     
     public void unsolve(){
-    	grid.unsolve();
+    	strategy.reset();
     	write();
     }
     
@@ -107,6 +150,7 @@ public class GridContainer extends com.act365.awt.Container {
     
     public void reset(){
     	grid.reset();
+        solveTime = 0 ;
     	write();
     }
     
@@ -124,6 +168,19 @@ public class GridContainer extends com.act365.awt.Container {
         validate();
     }
     
+    /**
+     * Composes a puzzle, with rotational symmetry and a unique solution,
+     * based upon the initial values in the grid.
+     * @param minFilledCells - minimum number of filled cells to appear in the puzzle
+     */
+    
+    public void compose( int minFilledCells ){
+        read();
+        strategy.setup( grid );
+        grid.compose( strategy , minFilledCells );
+        write();
+    }
+    
     /** 
      * Returns number of boxes across one row of the Su Doku grid.
      */
@@ -138,6 +195,58 @@ public class GridContainer extends com.act365.awt.Container {
     
     public int getBoxesDown(){
     	return grid.boxesDown ;
+    }
+    
+    /**
+     * Returns the number of unwinds used to solve the grid
+     * as a measure of its complexity.
+     */
+    
+    public int getComplexity(){
+    	return grid.nUnwinds ;
+    }
+    
+    /**
+     * Returns the time (in milliseconds) taken to complete the most recent solve.
+     */
+    
+    public long getSolveTime(){
+        return solveTime ;
+    }
+    
+    /**
+     * Returns hint x-coordinate in the range [1,cellsInRow]. 
+     */
+    
+    public int getHintX(){
+        return hintX + 1 ;
+    }
+    
+    /**
+     * Returns hint y-coordinate in the range [1,cellsInRow]. 
+     */
+    
+    public int getHintY(){
+        return hintY + 1 ;
+    }
+    
+    /**
+     * Returns hint value in the range [1,cellsInRow]. 
+     */
+    
+    public int getHintValue(){
+        return hintValue ;
+    }
+    
+    /**
+     * Sets the strategy to be used to solve the grid.
+     * @see Strategy
+     * @param strategyCode - strategy code as defined in Strategy class
+     * 
+     */
+    
+    public void setStrategy( int strategyCode ){
+        strategy = Strategy.create( strategyCode );
     }
     
     /**

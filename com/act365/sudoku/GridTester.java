@@ -43,20 +43,11 @@ public class GridTester {
      */
     
     static void print( Grid testGrid ){
+
+        IStrategy strategy = Strategy.create( Strategy.FIRST_AVAILABLE );
         
-        int i , j ;
-        
-        if( testGrid.solve() ){
-            i = 0 ;
-            while( i < 9 ){
-                j = 0 ;
-                while( j < 9 ){
-                    System.out.print( testGrid.data[i][j] + " " );
-                    ++ j ;
-                }
-                System.out.println();
-                ++ i ;
-            }
+        if( testGrid.solve( strategy , 1 ) == 1 ){
+        	testGrid.dump( System.out );
         } else {
             System.out.println("No solution found");
         }        
@@ -69,7 +60,7 @@ public class GridTester {
 	public static void main(String[] args) {
         
         Grid testGrid = new Grid();
-        
+
         System.out.println("EASY");
         
         testGrid.data = new int[][]{ { 0 , 2 , 0 , 8 , 1 , 0 , 7 , 4 , 0 } ,
@@ -98,5 +89,23 @@ public class GridTester {
                                      { 0 , 3 , 4 , 0 , 9 , 0 , 7 , 1 , 0  } };
 
         print( testGrid );
+        
+        // Compose a tough puzzle.
+        
+        int bestComplexity = 0 ;
+        
+        IStrategy strategy = Strategy.create( Strategy.LEAST_CANDIDATES_NUMBER );
+        
+        while(true){
+			testGrid = new Grid();
+            strategy.setup( testGrid );
+        	testGrid.compose( strategy , 2 );
+        	if( testGrid.nUnwinds > bestComplexity ){
+        		bestComplexity = testGrid.nUnwinds ;
+        		System.out.println("Complexity: " + bestComplexity );
+        		System.out.println("Filled cells: " + testGrid.countFilledCells() );
+        		testGrid.dump( System.out );
+        	}
+        }
 	}
 }

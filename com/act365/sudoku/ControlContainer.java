@@ -35,21 +35,41 @@ import java.awt.event.* ;
  */
 
 public class ControlContainer extends com.act365.awt.Container 
-                              implements ActionListener {
-
+                              implements ActionListener ,
+                                         ItemListener {
+    //
+    
+    final static int defaultStrategy = Strategy.LEAST_CANDIDATES_NUMBER ,
+                     defaultMinFilledCellsValue = 2 ;
+     
+    //
+    
 	int boxesAcross ,
-		boxesDown ;
+		boxesDown ,
+		minFilledCellsValue ;
     
     GridContainer grid ;
         
 	TextField across ,
-			  down ;
+			  down ,
+			  minFilledCells ;
               
 	Button solve ,
 		   unsolve ,
 		   reset ,
-		   resize ;
+           hint ,
+		   resize ,
+		   evaluate ,
+		   compose ;
 
+    Label solns ,
+          complexity ,
+          time ,
+          cell ,
+          value ;
+          
+    Choice strategy ;
+    
     /**
      * Creates a new ControlContainer to control the given
      * GridContainer.
@@ -61,7 +81,8 @@ public class ControlContainer extends com.act365.awt.Container
         this.grid = grid ;
         boxesAcross = grid.getBoxesAcross();
         boxesDown = grid.getBoxesDown();
-        
+        minFilledCellsValue = defaultMinFilledCellsValue ;
+            
         // Add the Solve controls.
         solve = new Button("Solve");
         solve.addActionListener( this );
@@ -69,31 +90,82 @@ public class ControlContainer extends com.act365.awt.Container
         unsolve.addActionListener( this );
         reset = new Button("Reset");
         reset.addActionListener( this );
+    
+        // Add the Hint controls.
+        hint = new Button("Hint");
+        hint.addActionListener( this );
+        cell = new Label();
+        value = new Label();
         
+        // Add the Strategy controls.
+        strategy = new Choice();
+        int i = 0 ;
+        while( i < Strategy.strategyNames.length ){
+            strategy.add( Strategy.strategyNames[i] ); 
+            ++ i ;   
+        }
+        strategy.select( defaultStrategy );
+        grid.setStrategy( defaultStrategy );
+        strategy.addItemListener( this );
+        time = new Label("0.0s");
+            
         // Add the Resize controls.
         resize = new Button("Resize");
         resize.addActionListener( this );
         across = new TextField(1);
         down = new TextField(1);
         
-        // Lay the components out.
+        // Add the Evaluate controls
+        evaluate = new Button("Evaluate");
+        evaluate.addActionListener( this );
+        solns = new Label();
+        complexity = new Label();
+            
+        // Add the Compose controls
+        compose = new Button("Compose");
+        compose.addActionListener( this );
+        minFilledCells = new TextField( 2 );
+                
+        // Lay out the components.
 		addComponent( solve , 0 , 0 , 3 , 1 , 1 , 0 );
 		addComponent( unsolve , 4 , 0 , 3 , 1 , 1 , 0 );
 		addComponent( reset , 8 , 0 , 3 , 1 , 1 , 0 );
-		addComponent( resize , 0 , 1 , 3 , 1 , 1 , 0 );
-		addComponent( new Label("Across") , 4 , 1 , 2 , 1 , 1 , 0 );
-		addComponent( across , 6 , 1 , 1 , 1 , 1 , 0 );
-		addComponent( new Label("Down") , 8 , 1 , 2 , 1 , 1 , 0 );
-		addComponent( down , 10 , 1 , 1 , 1 , 1 , 0 );	
+
+        addComponent( hint , 0 , 1 , 3 , 1 , 1 , 0 );
+        addComponent( new Label("Cell") , 4 , 1 , 2 , 1 , 1 , 0 );
+        addComponent( cell , 6 , 1 , 1 , 1 , 1 , 0 );
+        addComponent( new Label("Value") , 8 , 1 , 2 , 1 , 1 , 0 );
+        addComponent( value , 10 , 1 , 1 , 1 , 1 , 0 );
+        
+        addComponent( new Label("Strategy") , 0 , 2 , 2 , 1 , 1 , 0 );
+        addComponent( strategy , 4 , 2 , 3 , 1 , 1 , 0 );
+        addComponent( new Label("Time") , 8 , 2 , 2 , 1 , 1 , 0 );
+        addComponent( time , 10 , 2 , 1 , 1 , 1 , 0 );
+        
+		addComponent( resize , 0 , 3 , 3 , 1 , 1 , 0 );
+		addComponent( new Label("Across") , 4 , 3 , 2 , 1 , 1 , 0 );
+		addComponent( across , 6 , 3 , 1 , 1 , 1 , 0 );
+		addComponent( new Label("Down") , 8 , 3 , 2 , 1 , 1 , 0 );
+		addComponent( down , 10 , 3 , 1 , 1 , 1 , 0 );	
+
+		addComponent( evaluate , 0 , 4 , 3 , 1 , 1 , 0 );
+		addComponent( new Label("Solutions") , 4 , 4 , 2 , 1 , 1 , 0 );
+		addComponent( solns , 6 , 4 , 1 , 1 , 1 , 0 );
+		addComponent( new Label("Complexity") , 8 , 4 , 2 , 1 , 1 , 0 );
+		addComponent( complexity , 10 , 4 , 1 , 1 , 1 , 0 );
 		
+        addComponent( compose , 0 , 5 , 3 , 1 , 1 , 0 );
+        addComponent( new Label("Min Filled Cells") , 4 , 5 , 2 , 1 , 1 , 0 );
+        addComponent( minFilledCells , 6 , 5 , 1 , 1 , 1 , 0 );
+
 		write();	
     }    
 
     /**
-     * The ControlContainer looks best at 300x100.
+     * The ControlContainer looks best at 300x300.
      */
 	public Dimension getBestSize() {
-		return new Dimension( 300 , 100 );
+		return new Dimension( 300 , 300 );
 	}
 
 	/**
@@ -104,17 +176,58 @@ public class ControlContainer extends com.act365.awt.Container
         
 		if( evt.getSource() == solve ){
 			grid.solve();
+            time.setText( Long.toString( grid.getSolveTime() / 1000 ) + "." + Long.toString( grid.getSolveTime() % 1000 ) + "s");
 		} else if( evt.getSource() == unsolve ) {
 			grid.unsolve();
 		} else if( evt.getSource() == reset ){
 			grid.reset();
+            time.setText("0.0s");
 		} else if( evt.getSource() == resize ){
 			read();
 			grid.setBoxes( boxesAcross , boxesDown );
 			write();
+		} else if( evt.getSource() == evaluate ){
+			switch( grid.evaluate() ){
+				case 0 :
+				    solns.setText("None");
+				    complexity.setText("");
+				    break;
+				case 1 :
+				    solns.setText("Unique");
+				    complexity.setText( Integer.toString( grid.getComplexity() ) );
+				    break;
+				case 2 :
+				    solns.setText("Multiple");
+				    complexity.setText("");
+				    break;
+				default:
+				    solns.setText("Error");
+				    complexity.setText("");
+				    break;	    
+			}
+		} else if( evt.getSource() == compose ) {
+			read();
+			grid.compose( minFilledCellsValue );
+			write();
+		} else if( evt.getSource() == hint ){
+            read();
+            if( grid.hint() ){
+                cell.setText( "(" + grid.getHintX() + "," + grid.getHintY() + ")" );
+                value.setText( Integer.toString( grid.getHintValue() ) );
+            }
 		}
 	}
 	
+    /**
+     * Reacts to changes to the strategy list.
+     */
+
+    public void itemStateChanged( ItemEvent evt ){
+        if( evt.getSource() == strategy ){
+            grid.setStrategy( strategy.getSelectedIndex() );
+        }
+    }
+    
 	/**
 	 * Reads data from the GUI to the state variables.
 	 */
@@ -124,9 +237,12 @@ public class ControlContainer extends com.act365.awt.Container
 			boxesAcross = Integer.parseInt( across.getText() );
 		} catch ( NumberFormatException e ) {        	
 		}
-
 		try {
 			boxesDown = Integer.parseInt( down.getText() );
+		} catch ( NumberFormatException e ) {        	
+		}		
+		try {
+			minFilledCellsValue = Integer.parseInt( minFilledCells.getText() );
 		} catch ( NumberFormatException e ) {        	
 		}		
 	}
@@ -137,6 +253,7 @@ public class ControlContainer extends com.act365.awt.Container
 	
 	void write(){
 		across.setText( Integer.toString( boxesAcross ) );
-		down.setText( Integer.toString( boxesDown ) );		
+		down.setText( Integer.toString( boxesDown ) );
+		minFilledCells.setText( Integer.toString( minFilledCellsValue ));
 	}
 }

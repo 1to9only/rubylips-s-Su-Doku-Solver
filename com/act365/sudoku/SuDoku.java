@@ -80,7 +80,7 @@ public class SuDoku extends Frame {
 					System.err.println("-d requires an argument");
 				}
 			} else {
-				System.err.println("Option " + args[i] + " has been ignored");
+				System.err.println("Usage: SuDoku [-a boxesAcross] [-d boxesDown]");
 			}
 			++ i ;
 		}
