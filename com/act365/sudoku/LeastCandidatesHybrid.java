@@ -479,10 +479,132 @@ public class LeastCandidatesHybrid extends StrategyBase implements IStrategy {
                         break;
                     }
                 }        
-                // Check whether any candidate moves would lead to impossible
-                // situations for the remaining values on the grid.
+                // Look for rectangles formed from possible candidate moves. (X Wings)
                 movesEliminated = false ;
-                int v , r , c , nCandidates ;
+                int v , p0 , p1 , q0 , q1 , r0 , r1 , c0 ,c1 ;
+                v = 0 ;
+                considerXWingsValue:
+                while( v < grid.cellsInRow ){
+                    s = 0 ;
+                    p0 = p1 = q0 = q1 = -1 ;
+                    while( s < 2 * grid.cellsInRow ){
+                        if( s == grid.cellsInRow ){
+                            // Reset as columns are now considered.
+                            p0 = p1 = q0 = q1 = -1 ;
+                        }
+                        if(  numberState.nEliminated[v][s] != grid.cellsInRow - 2 ){
+                            ++ s ;
+                            continue ;
+                        }
+                        if( p0 == -1 ){
+                            p0 = s % grid.cellsInRow ;
+                            i = 0 ;
+                            while( i < grid.cellsInRow ){
+                                if( numberState.eliminated[v][s][i] ){
+                                    ++ i ;
+                                    continue ;
+                                }
+                                if( q0 == -1 ){
+                                    q0 = i ;
+                                } else {
+                                    q1 = i ;
+                                    break ;
+                                }
+                                ++ i ;
+                            }
+                            ++ s ;
+                            continue ;
+                        } else if( numberState.eliminated[v][s][q0] || numberState.eliminated[v][s][q1] ){
+                            ++ s ;
+                            continue ;
+                        }
+                        p1 = s % grid.cellsInRow ;
+                        anyMoveEliminated = false ;
+                        i = p0 + 1 ;
+                        while( i < p1 ){
+                            if( s < grid.cellsInRow ){
+                                r0 = r1 = i ;
+                                c0 = q0 ;
+                                c1 = q1 ;
+                            } else {
+                                c0 = c1 = i ;
+                                r0 = q0 ;
+                                r1 = q1 ;
+                            }
+                            if( ! cellState.eliminated[r0][c0][v] ){
+                                numberState.eliminateMove( r0 , c0 , v );
+                                cellState.eliminateMove( r0 , c0 , v );
+                                state.eliminateMove( r0 , c0 , v );
+                                anyMoveEliminated = movesEliminated = true ;
+                            }
+                            if( ! cellState.eliminated[r1][c1][v] ){
+                                numberState.eliminateMove( r1 , c1 , v );
+                                cellState.eliminateMove( r1 , c1 , v );
+                                state.eliminateMove( r1 , c1 , v );
+                                anyMoveEliminated = movesEliminated = true ;
+                            }
+                            ++ i ;
+                        }
+                        if( anyMoveEliminated ){
+                            if( explain ){
+                                if( s < grid.cellsInRow ){
+                                    r0 = p0 ;
+                                    r1 = p1 ;
+                                    c0 = q0 ;
+                                    c1 = q1 ;
+                                } else {
+                                    c0 = p0 ;
+                                    c1 = p1 ;
+                                    r0 = q0 ;
+                                    r1 = q1 ;
+                                }
+                                sb.append( 1 + v );
+                                sb.append("s must appear in the cells (");
+                                sb.append( 1 + r0 );
+                                sb.append(",");
+                                sb.append( 1 + c0 );
+                                sb.append(") and (");
+                                sb.append( 1 + r1 );
+                                sb.append(",");
+                                sb.append( 1 + c1 );
+                                sb.append(") or the cells (");
+                                sb.append( 1 + r0 );
+                                sb.append(",");
+                                sb.append( 1 + c1 );
+                                sb.append(") and (");
+                                sb.append( 1 + r1 );
+                                sb.append(",");
+                                sb.append( 1 + c0 );
+                                sb.append(").\n");
+                            }
+                            ++ v ;
+                            continue considerXWingsValue ;
+                        }
+                        ++ s ;
+                    }
+                    ++ v ;
+                }
+                // Repeat candidate search if restricted positions have been found.
+                if( movesEliminated ){
+                    if( lcc.findCandidates() == 0 || lcc.getScore() > 1 && lcn.findCandidates() == 0 ){
+                        score = 0 ;
+                        return ( nCandidates = 0 );
+                    }
+        
+                    if( lcc.getScore() == 1 || lcc.getScore() < lcn.getScore() ){
+                        better = lcc ;
+                    } else {
+                        better = lcn ;
+                    }
+                    
+                    if( better.getScore() == 1 ){
+                        break;
+                    }
+                }        
+                // Check whether any candidate moves would lead to impossible
+                // situations for the remaining values on the grid - Nishio.
+                movesEliminated = false ;
+                int r , c , nCandidates ;
                 boolean candidateNominated ;
                 v = 0 ;
                 while( v < grid.cellsInRow ){
