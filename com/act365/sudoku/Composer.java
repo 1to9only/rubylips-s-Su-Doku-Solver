@@ -194,7 +194,7 @@ public class Composer extends Thread {
                     puzzle.solve( lch , 1 );
                     int i = 0 ;
                     while( i < lch.getThreadLength() ){
-                        debug.println( ( 1 + i ) + ". " + lch.getReason(i) + '\n');
+                        debug.print( ( 1 + i ) + ". " + lch.getReason(i) );
                         ++ i ;
                     }
                 }
@@ -478,7 +478,7 @@ public class Composer extends Thread {
                 }
                 maskFactory = new MaskFactory( maskText.toString() );                                
             } else {
-                maskFactory = new MaskFactory( boxesAcross * boxesDown , filledCells , randomize );
+                maskFactory = new MaskFactory( boxesAcross * boxesDown , filledCells , boxesAcross );
             }
         } catch ( Exception e ) {
             System.err.println( e.getMessage() );

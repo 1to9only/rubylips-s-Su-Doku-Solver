@@ -215,7 +215,7 @@ public class ControlContainer extends com.act365.awt.Container
             if( grid.getStrategy().explainsReasoning() ){
                 int i = 0 ;
                 while( i < grid.getStrategy().getThreadLength() ){
-                    reasoningArea.append( ( 1 + i ) + ". " + grid.getStrategy().getReason(i) + '\n');
+                    reasoningArea.append( ( 1 + i ) + ". " + grid.getStrategy().getReason( i ) );
                     ++ i ;
                 }
                 reasoningArea.append("##################################################\n"); // 50 chars

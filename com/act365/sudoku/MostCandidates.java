@@ -76,9 +76,9 @@ public class MostCandidates extends StrategyBase implements IStrategy {
                 } 
                 v = 0 ;
                 while( v < grid.cellsInRow ){
-                    if( ! invulnerableState.eliminated[i][j][v] && invulnerableState.nInvulnerable[i][j][v] < minEliminated ){
+                    if( ! invulnerableState.eliminated[v][i][j] && invulnerableState.nInvulnerable[v][i][j] < minEliminated ){
                         nCandidates = 1 ;
-                        minEliminated = invulnerableState.nInvulnerable[i][j][v];
+                        minEliminated = invulnerableState.nInvulnerable[v][i][j];
                     }
                     ++ v ;
                 }
@@ -89,8 +89,7 @@ public class MostCandidates extends StrategyBase implements IStrategy {
         if( nCandidates == 0 ){
             return 0 ;
         }
-        score = 2 * grid.cellsInRow + grid.boxesAcross * grid.boxesDown 
-                 - grid.boxesAcross - grid.boxesDown - minEliminated ;
+        score = 3 * grid.cellsInRow - grid.boxesAcross - grid.boxesDown - minEliminated ;
         nCandidates = 0 ;
         i = 0 ;
         while( i < grid.cellsInRow ){
@@ -102,7 +101,7 @@ public class MostCandidates extends StrategyBase implements IStrategy {
                 }
                 v = 0 ;
                 while( v < grid.cellsInRow ){
-                    if( ! invulnerableState.eliminated[i][j][v] && invulnerableState.nInvulnerable[i][j][v] == minEliminated ){
+                    if( ! invulnerableState.eliminated[v][i][j] && invulnerableState.nInvulnerable[v][i][j] == minEliminated ){
                         xCandidates[nCandidates] = i ;
                         yCandidates[nCandidates] = j ;
                         valueCandidates[nCandidates] = v + 1 ;

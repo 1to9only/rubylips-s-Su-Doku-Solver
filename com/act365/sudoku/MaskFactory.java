@@ -182,12 +182,10 @@ public class MaskFactory implements Enumeration {
     
     /**
      * Generates the next mask. It's guaranteed that the new mask
-     * will not simply be a reflection of an earlier mask. When the
-     * dimension of the associated grid is given, the mask will
-     * iterate until the balls are uniformly-distributed across the grid.
+     * will not simply be a reflection of an earlier mask. 
      */
     
-    void iterate( int boxesAcross ){
+    void iterate(){
         int i ;
         int[] reflection = new int[nBalls+1];
         while(true){
@@ -227,10 +225,6 @@ public class MaskFactory implements Enumeration {
             }
             reflectTopRightBottomLeft( reflection );
             if( ! precedes( reflection ) ){
-                continue ;
-            }
-            // Check for uniformity.
-            if( ! uniform( boxesAcross ) ){
                 continue ;
             }
             // All tests passed.
@@ -355,7 +349,7 @@ public class MaskFactory implements Enumeration {
                 }
                 ++ r ;
             }
-            iterate( 0 );
+            iterate();
             haveIterated = true ;
             return previousMask ;
         } else {
@@ -544,83 +538,6 @@ public class MaskFactory implements Enumeration {
     }
     
     /**
-     * Calculates whether the balls are uniformly distributed on
-     * a grid of the given dimensions.
-     */
-    
-    boolean uniform( int boxesAcross ){
-        if( boxesAcross == 0 ){
-            return true ;
-        }
-        int boxesDown = cellsInRow / boxesAcross ,
-            target = filledCells / cellsInRow ;
-        int r , c , s , count ;
-        //
-        // Check each row.        
-        r = 0 ;
-        while( r < cellsInRow ){
-            count = 0 ;
-            c = 0 ;
-            while( c < cellsInRow ){
-                if( mask[r][c] ){
-                    if( ++ count > target + 1 ){
-                        return false ;
-                    }
-                }
-                ++ c ;    
-            }
-            if( count < target ){
-                return false ;            
-            }
-            ++ r ;
-        }
-        // Check each column.        
-        c = 0 ;
-        while( c < cellsInRow ){
-            count = 0 ;
-            r = 0 ;
-            while( r < cellsInRow ){
-                if( mask[r][c] ){
-                    if( ++ count > target + 1 ){
-                        return false ;
-                    }
-                }
-                ++ r ;    
-            }
-            if( count < target ){
-                return false ;            
-            }
-            ++ c ;
-        }
-        // Check each subgrid.
-        int sr , sc ;
-        s = 0 ;
-        while( s < cellsInRow ){
-            count = 0 ;
-            sr = s / boxesAcross ;
-            sc = s % boxesAcross ;
-            r = sr * boxesAcross ;
-            while( r < ( sr + 1 )* boxesAcross ){
-                c = sc * boxesDown ;
-                while( c < ( sc + 1 )* boxesDown ){
-                    if( mask[r][c] ){
-                        if( ++ count > target + 1 ){
-                            return false ;
-                        }
-                    }
-                    ++ c ;
-                }
-                ++ r ;
-            }
-            if( count < target ){
-                return false ;
-            }
-            ++ s ;
-        }
-        return true ;        
-    }
-    
-    /**
      * Starts the iterative sequence at the mask specified by an array of gaps.
      */    
     
@@ -744,9 +661,77 @@ public class MaskFactory implements Enumeration {
      * @param boxesAcross
      */
     
-    void initiate( int boxesAcross ){
-        initiate( false );    
-        iterate( boxesAcross );  
+    void initiate( int boxesAcross ) throws Exception {
+        
+        Random generator = new Random();
+        
+        MaskState state = new MaskState();
+        state.setup( boxesAcross , cellsInRow / boxesAcross );
+        
+        int i , r , c , minEliminated , nCandidates , pick ;
+        int[] rCandidates = new int[cellsInRow*cellsInRow] ,
+              cCandidates = new int[cellsInRow*cellsInRow] ;
+              
+        if( fillCentreCell ){
+            state.addCell( cellsInRow / 2 , cellsInRow / 2 );
+        }
+        
+        i = 0 ;
+        while( i < nBalls ){
+            minEliminated = Integer.MAX_VALUE ;
+            r = 0 ;
+            while( r < cellsInRow / 2 ){
+                c = 0 ;
+                while( c < cellsInRow ){
+                    if( state.nInvulnerable[r][c] < minEliminated ){
+                        minEliminated = state.nInvulnerable[r][c];
+                    }
+                    ++ c ;
+                }
+                ++ r ;
+            }
+            if( cellsInRow % 2 == 1 ){
+                c = 0 ;
+                while( c < cellsInRow / 2 ){
+                    if( state.nInvulnerable[r][c] < minEliminated ){
+                        minEliminated = state.nInvulnerable[r][c];
+                    }
+                    ++ c ;                
+                }
+            }
+            nCandidates = 0 ;
+            r = 0 ;
+            while( r < cellsInRow / 2 ){
+                c = 0 ;
+                while( c < cellsInRow ){
+                    if( state.nInvulnerable[r][c] == minEliminated ){
+                        rCandidates[nCandidates] = r ;
+                        cCandidates[nCandidates] = c ;
+                        ++ nCandidates ;
+                    }
+                    ++ c ;
+                }
+                ++ r ;
+            }
+            if( cellsInRow % 2 == 1 ){
+                c = 0 ;
+                while( c < cellsInRow / 2 ){
+                    if( state.nInvulnerable[r][c] == minEliminated ){
+                        rCandidates[nCandidates] = r ;
+                        cCandidates[nCandidates] = c ;
+                        ++ nCandidates ;
+                    }
+                    ++ c ;                
+                }
+            }
+            pick = nCandidates > 1 ? Math.abs( generator.nextInt() % nCandidates ) : 0 ;
+            r = rCandidates[pick];
+            c = cCandidates[pick];
+            state.addCell( r , c );
+            state.addCell( cellsInRow - 1 - r , cellsInRow - 1 - c );        
+            ++ i ;      
+        }
+        initiate( state.mask );
     }        
     
     /**

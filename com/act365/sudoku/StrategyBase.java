@@ -46,7 +46,7 @@ public abstract class StrategyBase {
     protected int[] xMoves ,
                     yMoves ;
     
-    protected String[] reasons ;
+    protected StringBuffer[] reasons ;
           
     protected int nMoves ;
     
@@ -56,7 +56,7 @@ public abstract class StrategyBase {
                     yCandidates ,
                     valueCandidates ;
     
-    protected String[] reasonCandidates ;
+    protected StringBuffer[] reasonCandidates ;
                     
     protected int nCandidates ;
     
@@ -116,12 +116,12 @@ public abstract class StrategyBase {
         if( resize ){
             xMoves = new int[grid.cellsInRow*grid.cellsInRow];
             yMoves = new int[grid.cellsInRow*grid.cellsInRow];
-            reasons = new String[grid.cellsInRow*grid.cellsInRow];
+            reasons = new StringBuffer[grid.cellsInRow*grid.cellsInRow];
             stateWrite = new boolean[grid.cellsInRow*grid.cellsInRow];
             xCandidates = new int[grid.cellsInRow*grid.cellsInRow*grid.cellsInRow];
             yCandidates = new int[grid.cellsInRow*grid.cellsInRow*grid.cellsInRow];
             valueCandidates = new int[grid.cellsInRow*grid.cellsInRow*grid.cellsInRow];
-            reasonCandidates = new String[grid.cellsInRow*grid.cellsInRow*grid.cellsInRow];
+            reasonCandidates = new StringBuffer[grid.cellsInRow*grid.cellsInRow*grid.cellsInRow];
         }
 
         nMoves = 0 ;
@@ -132,9 +132,16 @@ public abstract class StrategyBase {
         bestY = grid.cellsInRow ;
         bestValue = grid.cellsInRow ;
         
+        int i ;
+        if( explain ){
+            i = 0 ;
+            while( i < grid.cellsInRow * grid.cellsInRow ){
+                reasons[i++] = new StringBuffer();
+            }
+        }        
         if( state instanceof IState ){
             state.setup( grid.boxesAcross , grid.boxesDown );        
-            int i , j ;
+            int j ;
             i = 0 ;
             while( i < grid.cellsInRow ){
                 j = 0 ;
@@ -159,7 +166,7 @@ public abstract class StrategyBase {
         bestY = yCandidates[pick];
         bestValue = valueCandidates[pick];  
         if( explain ){
-            bestReason = reasonCandidates[pick];   
+            bestReason = reasonCandidates[pick].toString();   
         }
     }
     
@@ -178,7 +185,10 @@ public abstract class StrategyBase {
      * @see com.act365.sudoku.IStrategy#updateState(int,int,int,String,boolean)
      */    
     
-    public void updateState( int x , int y , int value , String reason , boolean writeState ) throws Exception {
+    public boolean updateState( int x , int y , int value , String reason , boolean writeState ) throws Exception {
+        if( nMoves == -1 ){
+            return false ;
+        }
         // Store current state variables on thread.
         if( writeState ){
             state.pushState( nMoves );
@@ -190,11 +200,12 @@ public abstract class StrategyBase {
         xMoves[nMoves] = x ;
         yMoves[nMoves] = y ;
         if( explain ){
-            reasons[nMoves] = reason ;
+            reasons[nMoves].append( reason );
         }
         ++ nMoves ;
         // Update state variables
         state.addMove( x , y , value - 1 );
+        return true ;
     }
 
     /**
@@ -205,6 +216,19 @@ public abstract class StrategyBase {
     public boolean unwind( int newNMoves , boolean reset ) {
         // Unwind thread.
         if( newNMoves >= 0 ){
+            if( explain && reset ){
+                reasons[newNMoves].append("The move (");
+                reasons[newNMoves].append( 1 + xMoves[newNMoves] );
+                reasons[newNMoves].append(",");
+                reasons[newNMoves].append( 1 + yMoves[newNMoves] );
+                reasons[newNMoves].append("):=");
+                reasons[newNMoves].append( grid.data[xMoves[newNMoves]][yMoves[newNMoves]] );
+                reasons[newNMoves].append(" would lead to a contradiction.\n");
+                int i = newNMoves + 1 ;
+                while( i < nMoves ){
+                    reasons[i++] = new StringBuffer();
+                }
+            }
             state.popState( newNMoves );
             state.eliminateMove( xMoves[newNMoves] , yMoves[newNMoves] , grid.data[xMoves[newNMoves]][yMoves[newNMoves]] - 1 );
         }
@@ -305,7 +329,7 @@ public abstract class StrategyBase {
      */
 
     public String getReasonCandidate( int index ){
-        return reasonCandidates[index];
+        return reasonCandidates[index].toString();
     }
     
     /**
@@ -349,7 +373,7 @@ public abstract class StrategyBase {
      */
 
     public String getReason( int move ){
-        return reasons[move];    
+        return reasons[move].toString();    
     }
     
     /**

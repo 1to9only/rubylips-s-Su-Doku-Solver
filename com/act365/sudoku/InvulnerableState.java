@@ -69,7 +69,7 @@ public class InvulnerableState implements IState {
         final boolean resize = cellsInRow != boxesAcross * boxesDown ;
 
         cellsInRow = boxesAcross * boxesDown ;
-        maxScore = 2 * cellsInRow + boxesAcross * boxesDown - boxesAcross - boxesDown ;
+        maxScore = 3 * cellsInRow - boxesAcross - boxesDown ;
         
         int i , j , k ;
         if( resize ){
@@ -109,8 +109,8 @@ public class InvulnerableState implements IState {
             while( j < cellsInRow ){
                 v = 0 ;
                 while( v < cellsInRow ){
-                    threadEliminated[nMoves][i][j][v] = eliminated[i][j][v];
-                    threadNInvulnerable[nMoves][i][j][v] = nInvulnerable[i][j][v];
+                    threadEliminated[nMoves][v][i][j] = eliminated[v][i][j];
+                    threadNInvulnerable[nMoves][v][i][j] = nInvulnerable[v][i][j];
                     ++ v ;
                 }
                 ++ j ;
@@ -132,8 +132,8 @@ public class InvulnerableState implements IState {
             while( j < cellsInRow ){
                 v = 0 ;
                 while( v < cellsInRow ){
-                    eliminated[i][j][v] = threadEliminated[nMoves][i][j][v];
-                    nInvulnerable[i][j][v] = threadNInvulnerable[nMoves][i][j][v];
+                    eliminated[v][i][j] = threadEliminated[nMoves][v][i][j];
+                    nInvulnerable[v][i][j] = threadNInvulnerable[nMoves][v][i][j];
                     ++ v ;
                 }
                 ++ j ;
@@ -151,7 +151,7 @@ public class InvulnerableState implements IState {
 	public void addMove(int x, int y, int value ) throws Exception {
         int i , j , v , cx , cy ;
         // Check that it's a valid candidate.
-        if( eliminated[x][y][value] ){
+        if( eliminated[value][x][y] ){
             throw new Exception("The move (" + ( 1 + x ) + "," + ( 1 + y ) + "):=" + ( 1 + value ) + " has already been eliminated");
         }
         // Calc temp values.
@@ -162,38 +162,38 @@ public class InvulnerableState implements IState {
         // Update nInvulnerable for (x,y).
         v = 0 ;
         while( v < cellsInRow ){
-            nInvulnerable[x][y][v] = maxScore ;
+            nInvulnerable[v][x][y] = maxScore ;
             ++ v ; 
         }
         // Update nInvulnerable for the domain of (x,y).
         v = 0 ;
         while( v < cellsInRow ){
-            if( eliminated[x][y][v] ){
+            if( eliminated[v][x][y] ){
                 ++ v ;
                 continue ;
             }
             // Shared column
             i = -1 ;
             while( ++ i < cellsInRow ){
-                if( i == x || eliminated[i][y][v] ){
+                if( i == x || eliminated[v][i][y] ){
                     continue ;
                 }
                 if( v == value ){
-                    nInvulnerable[i][y][v] = maxScore ;
+                    nInvulnerable[v][i][y] = maxScore ;
                 } else {
-                    ++ nInvulnerable[i][y][v];
+                    ++ nInvulnerable[v][i][y];
                 }
             }
             // Shared row
             j = -1 ;
             while( ++ j < cellsInRow ){
-                if( j == y || eliminated[x][j][v] ){
+                if( j == y || eliminated[v][x][j] ){
                     continue ;
                 }
                 if( v == value ){
-                    nInvulnerable[x][j][v] = maxScore ;
+                    nInvulnerable[v][x][j] = maxScore ;
                 } else {
-                    ++ nInvulnerable[x][j][v];
+                    ++ nInvulnerable[v][x][j];
                 }
             }
             // Shared subgrid
@@ -204,13 +204,13 @@ public class InvulnerableState implements IState {
                 }
                 j = lowerY - 1 ;
                 while( ++ j < upperY ){
-                    if( j == y || eliminated[i][j][v] ){
+                    if( j == y || eliminated[v][i][j] ){
                         continue ;
                     }
                     if( v == value ){
-                        nInvulnerable[i][j][v] = maxScore ;
+                        nInvulnerable[v][i][j] = maxScore ;
                     } else {
-                        ++ nInvulnerable[i][j][v];
+                        ++ nInvulnerable[v][i][j];
                     }
                 }
             }
@@ -226,7 +226,7 @@ public class InvulnerableState implements IState {
             }
             cy = 0 ;
             while( cy < cellsInRow ){
-                if( eliminated[cx][cy][value] || cy == y || lowerX <= cx && cx < upperX && lowerY <= cy && cy < upperY ){
+                if( eliminated[value][cx][cy] || cy == y || lowerX <= cx && cx < upperX && lowerY <= cy && cy < upperY ){
                     ++ cy ;
                     continue ;
                 }
@@ -239,9 +239,9 @@ public class InvulnerableState implements IState {
                     if( i == x ){
                         j = 0 ;
                         while( j < cellsInRow ){
-                            if( ! eliminated[i][j][value] ){
+                            if( ! eliminated[value][i][j] ){
                                 if( i == cx || j == cy || lowerCX <= i && i < upperCX && lowerCY <= j && j < upperCY ){
-                                    ++ nInvulnerable[cx][cy][value];
+                                    ++ nInvulnerable[value][cx][cy];
                                 }
                             }
                             ++ j ;
@@ -249,16 +249,16 @@ public class InvulnerableState implements IState {
                     } else if( lowerX <= i && i < upperX ){
                         j = lowerY ;
                         while( j < upperY ){
-                            if( ! eliminated[i][j][value] ){
+                            if( ! eliminated[value][i][j] ){
                                 if( i == cx || j == cy || lowerCX <= i && i < upperCX && lowerCY <= j && j < upperCY ){
-                                    ++ nInvulnerable[cx][cy][value];
+                                    ++ nInvulnerable[value][cx][cy];
                                 }
                             }
                             ++ j ;
                         }
-                    } else if( ! eliminated[i][y][value] ){
+                    } else if( ! eliminated[value][i][y] ){
                         if( i == cx || y == cy || lowerCX <= i && i < upperCX && lowerCY <= y && y < upperCY ){
-                            ++ nInvulnerable[cx][cy][value];
+                            ++ nInvulnerable[value][cx][cy];
                         }
                     }
                     ++ i ;
@@ -271,24 +271,24 @@ public class InvulnerableState implements IState {
         // Eliminate other candidates for the current cell.
         i = 0 ;
         while( i < cellsInRow ){
-            if( i != value && ! eliminated[x][y][i] ){
-                eliminated[x][y][i] = true ;
+            if( i != value && ! eliminated[i][x][y] ){
+                eliminated[i][x][y] = true ;
             }
             ++ i ;
         }
         // Eliminate other candidates for the current row.
         j = 0 ;
         while( j < cellsInRow ){
-            if( j != y && ! eliminated[x][j][value] ){
-                eliminated[x][j][value] = true ;
+            if( j != y && ! eliminated[value][x][j] ){
+                eliminated[value][x][j] = true ;
             }
             ++ j ;
         }
         // Eliminate other candidates for the current column.
         i = 0 ;
         while( i < cellsInRow ){
-            if( i != x && ! eliminated[i][y][value] ){
-                eliminated[i][y][value] = true ;
+            if( i != x && ! eliminated[value][i][y] ){
+                eliminated[value][i][y] = true ;
             }
             ++ i ;
         }
@@ -303,8 +303,8 @@ public class InvulnerableState implements IState {
                 if( j == y ){
                     continue ;
                 }
-                if( ! eliminated[i][j][value] ){
-                    eliminated[i][j][value] = true ;
+                if( ! eliminated[value][i][j] ){
+                    eliminated[value][i][j] = true ;
                 }
             }
         }
@@ -329,10 +329,10 @@ public class InvulnerableState implements IState {
             j = 0 ;
             while( j < cellsInRow ){
                 if( i == x && j == y ){
-                    eliminated[x][y][value] = true ;
-                    nInvulnerable[i][j][value] = maxScore ;
-                } else if( ! eliminated[i][j][value] && inDomain( partial , y , j ) ){
-                    ++ nInvulnerable[i][j][value];
+                    eliminated[value][x][y] = true ;
+                    nInvulnerable[value][i][j] = maxScore ;
+                } else if( ! eliminated[value][i][j] && inDomain( partial , y , j ) ){
+                    ++ nInvulnerable[value][i][j];
                 }
                 ++ j ;
             }
@@ -380,55 +380,12 @@ public class InvulnerableState implements IState {
         
         StringBuffer sb = new StringBuffer();
         
-        int i , j , k , v ;
-        int number = maxScore , fieldWidth = 1 , numberWidth ;
-        while( ( number /= 10 ) >= 1 ){
-            ++ fieldWidth ;
-        }
-        v = 0 ;
+        int v = 0 ;
         while( v < cellsInRow ){
             sb.append( v + 1 );
             sb.append(".\n");
-            i = 0 ;
-            while( i < cellsInRow ){
-                if( i > 0 && i % boxesAcross == 0 ){
-                    k = 0 ;
-                    while( k < ( fieldWidth + 1 )* cellsInRow + ( boxesAcross - 1 )* 2 ){
-                        sb.append('*');
-                        ++ k ;
-                    }
-                    sb.append(" \n");
-                }
-                j = 0 ;
-                while( j < cellsInRow ){
-                    if( j > 0 && j % boxesDown == 0 ){
-                        sb.append(" *");
-                    }
-                    k = 0 ;
-                    if( nInvulnerable[i][j][v] > 0 ){
-                        numberWidth = 1 ;
-                        number = nInvulnerable[i][j][v];
-                        while( ( number /= 10 ) >= 1 ){
-                            ++ numberWidth ;
-                        }
-                        while( k < 1 + fieldWidth - numberWidth ){
-                            sb.append(' ');
-                            ++ k ;
-                        }
-                        sb.append( nInvulnerable[i][j][v] );
-                    } else {
-                        sb.append(' ');
-                        while( k < fieldWidth ){
-                            sb.append('.');
-                            ++ k ;
-                        }
-                    }
-                    ++ j ;
-                }
-                sb.append(" \n");
-                ++ i ;
-            }
-            ++ v ;        
+            sb.append( SuDokuUtils.toString( nInvulnerable[v] , boxesAcross , maxScore ) );
+            ++ v ;
         }
         
         return sb.toString();

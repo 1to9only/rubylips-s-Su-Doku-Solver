@@ -299,54 +299,6 @@ public class NumberState implements IState {
      */
     
     public String toString() {
-        
-        StringBuffer sb = new StringBuffer();
-        
-        int i , j , k ;        
-        int number = cellsInRow , fieldWidth = 1 , numberWidth ;
-        while( ( number /= 10 ) >= 1 ){
-            ++ fieldWidth ;
-        }
-        i = 0 ;
-        while( i < cellsInRow ){
-            if( i > 0 && i % boxesAcross == 0 ){
-                k = 0 ;
-                while( k < ( fieldWidth + 1 )* cellsInRow + ( boxesAcross - 1 )* 2 ){
-                    sb.append('*');
-                    ++ k ;
-                }
-                sb.append(" \n");
-            }
-            j = 0 ;
-            while( j < cellsInRow ){
-                if( j > 0 && j % boxesDown == 0 ){
-                    sb.append(" *");
-                }
-                k = 0 ;
-                if( nEliminated[i][j] > 0 ){
-                    numberWidth = 1 ;
-                    number = nEliminated[i][j];
-                    while( ( number /= 10 ) >= 1 ){
-                        ++ numberWidth ;
-                    }
-                    while( k < fieldWidth - numberWidth + 1 ){
-                        sb.append(' ');
-                        ++ k ;
-                    }
-                    sb.append( nEliminated[i][j] );
-                } else {
-                    sb.append(' ');
-                    while( k < fieldWidth ){
-                        sb.append('.');
-                        ++ k ;
-                    }
-                }
-                ++ j ;
-            }
-            sb.append(" \n");
-            ++ i ;
-        }
-        
-        return sb.toString();
+        return SuDokuUtils.toString( nEliminated , boxesAcross );
     }
 }

@@ -206,8 +206,8 @@ public class LeastCandidatesNumber extends StrategyBase implements IStrategy {
                                     sb.append( 1 + ( j - 2 * grid.cellsInRow )% grid.boxesAcross );
                                     sb.append("]");
                                 }
-                                sb.append(".");
-                                reasonCandidates[nCandidates] = sb.toString();
+                                sb.append(".\n");
+                                reasonCandidates[nCandidates] = sb ;
                             }
                             ++ nCandidates ;
                             if( ! findMany ){

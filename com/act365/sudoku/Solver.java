@@ -226,7 +226,9 @@ public class Solver extends Thread {
             if( strategy.findCandidates() > 0 ){
                 strategy.selectCandidate();
                 strategy.setCandidate();
-                strategy.updateState( strategy.getBestX() , strategy.getBestY() , strategy.getBestValue() , strategy.getBestReason() , strategy.getScore() > 1 );
+                if( ! strategy.updateState( strategy.getBestX() , strategy.getBestY() , strategy.getBestValue() , strategy.getBestReason() , strategy.getScore() > 1 ) ){
+                    return nSolns ;
+                }
                 if( stillIndisputable && ! countUnwinds ){
                     if( strategy.getScore() == 1 ){
                         ++ firstDisputableMove ;   

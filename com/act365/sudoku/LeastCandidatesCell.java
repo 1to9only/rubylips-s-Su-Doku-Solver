@@ -134,8 +134,8 @@ public class LeastCandidatesCell extends StrategyBase implements IStrategy {
                                 sb.append( i + 1 );
                                 sb.append(",");
                                 sb.append( j + 1 );
-                                sb.append(").");
-                                reasonCandidates[nCandidates] = sb.toString();
+                                sb.append(").\n");
+                                reasonCandidates[nCandidates] = sb ;
                             }
                             ++ nCandidates ;
                             if( ! findMany ){

@@ -125,13 +125,17 @@ public class FirstAvailable extends StrategyBase implements IStrategy {
      * @param writeState is ignored
      */    
     
-    public void updateState( int x , int y , int value , String reason , boolean writeState ){
+    public boolean updateState( int x , int y , int value , String reason , boolean writeState ){
+        if( nMoves == -1 ){
+            return false ;
+        }
         lastMoveSuccessful = true ;
         // Store move to thread
         xMoves[nMoves] = x ;
         yMoves[nMoves] = y ;
         stateWrite[nMoves] = true ;
         ++ nMoves ;
+        return true ;
     }
     
     /**

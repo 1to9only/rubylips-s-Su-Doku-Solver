@@ -91,7 +91,7 @@ public interface IStrategy {
      * @param writeState whether the updated state should be written to the stack 
      */
 
-    public void updateState( int x , int y , int value , String reason , boolean writeState ) throws Exception ;
+    public boolean updateState( int x , int y , int value , String reason , boolean writeState ) throws Exception ;
     
     /**
      * Unwinds the most recent move and reverts the state grids.
