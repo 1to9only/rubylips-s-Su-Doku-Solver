@@ -235,7 +235,7 @@ public class GridContainer extends com.act365.awt.Container {
                                      1 , 
                                      0 ,
                                      0 ,
-                                     0 ,
+                                     Integer.MAX_VALUE ,
                                      new MaskFactory( grid.cellsInRow , filledCells , true ) ,
                                      Composer.defaultThreads , 
                                      0 , 
