@@ -38,8 +38,10 @@ public class Strategy {
                             RANDOM_LEAST_CANDIDATES_NUMBER = 4 ,
                             LEAST_CANDIDATES_HYBRID = 5 ,
                             RANDOM_LEAST_CANDIDATES_HYBRID = 6 ,
-                            MOST_CANDIDATES = 7 ,
-                            RANDOM_MOST_CANDIDATES = 8 ;
+                            LEAST_CANDIDATES_HYBRID_II = 7 ,
+                            RANDOM_LEAST_CANDIDATES_HYBRID_II = 8 ,
+                            MOST_CANDIDATES = 9 ,
+                            RANDOM_MOST_CANDIDATES = 10 ;
 
 	public final static String[] strategyNames = new String[] { "First Available", 
                                                                 "Least Candidates Cell" ,
@@ -48,6 +50,8 @@ public class Strategy {
                                                                 "Random Least Candidates Number" ,
                                                                 "Least Candidates Hybrid" ,
                                                                 "Random Least Candidates Hybrid" ,
+                                                                "Least Candidates Hybrid II" ,
+                                                                "Random Least Candidates Hybrid II" ,
                                                                 "Most Candidates" ,
                                                                 "Random Most Candidates" };
     
@@ -74,10 +78,16 @@ public class Strategy {
             return new LeastCandidatesNumber( true );
             
             case LEAST_CANDIDATES_HYBRID:
-            return new LeastCandidatesHybrid( false );
+            return new LeastCandidatesHybrid( false , false );
             
             case RANDOM_LEAST_CANDIDATES_HYBRID :
-            return new LeastCandidatesHybrid( true );
+            return new LeastCandidatesHybrid( true , false );
+            
+            case LEAST_CANDIDATES_HYBRID_II:
+            return new LeastCandidatesHybrid( false , true );
+            
+            case RANDOM_LEAST_CANDIDATES_HYBRID_II :
+            return new LeastCandidatesHybrid( true , true );
             
             case MOST_CANDIDATES :
             return new MostCandidates( null , false );

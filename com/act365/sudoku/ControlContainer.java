@@ -42,7 +42,7 @@ public class ControlContainer extends com.act365.awt.Container
                                          ClipboardOwner {
     //
     
-    final static int defaultStrategy = Strategy.RANDOM_LEAST_CANDIDATES_HYBRID ,
+    final static int defaultStrategy = Strategy.LEAST_CANDIDATES_HYBRID_II ,
                      defaultMinFilledCellsValue = 32 ;
      
     //

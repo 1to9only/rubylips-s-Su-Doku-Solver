@@ -87,18 +87,20 @@ public interface IStrategy {
     /**
      * Tells the strategy to update its internal state variables to account
      * for the move (x,y):= value. 
+     * @param writeState whether the updated state should be written to the stack 
      * @return whether the update has been successful
      */
 
-    public boolean updateState( int x , int y , int value );
+    public boolean updateState( int x , int y , int value , boolean writeState );
     
     /**
-     * Unwinds the most recent move.
-     * @param resetCurrent whether to erase the current grid position
-     * @return whether the move could be reverted
+     * Unwinds the most recent move and reverts the state grids.
+     * @param newNMoves the point to which the stack should unwind
+     * @param reset whether to erase intervening moves from the grid
+     * @return whether the new state grids are valid 
      */
     
-    public boolean unwind( boolean resetCurrent );	
+    public boolean unwind( int newNMoves , boolean reset );	
     
     /**
      * Resets the grid to its state before the strategy had been invoked.
@@ -170,6 +172,13 @@ public interface IStrategy {
      */
     
     public int getThreadY( int move );
+    
+    /**
+     * Returns the number of moves made at the last point where two 
+     * or more alternatives had existed. 
+     */
+
+    public int getLastWrittenMove();
     
     /**
      * Lists the moves in the current thread.

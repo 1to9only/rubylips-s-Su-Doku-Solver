@@ -41,6 +41,7 @@ public class Solver extends Thread {
     
     int maxSolns ,
         maxUnwinds ,
+        maxComplexity ,
         composeSolverThreshold ,
         index ;
     
@@ -49,7 +50,8 @@ public class Solver extends Thread {
     PrintWriter debug ;
     
     transient int nUnwinds ,
-                  nSolns ;
+                  nSolns ,
+                  complexity ;
     
     /**
      * Creates a Solver instance.
@@ -62,6 +64,7 @@ public class Solver extends Thread {
      * @param composeSolver solver to be used at each step by the composer in order to check solution uniqueness
      * @param maxSolns the maximum number of solutions to find before exit (0 for unlimited solutions)
      * @param maxUnwinds the maximum permitted number of unwinds (0 for no limit)
+     * @param maxComplexity the maximum permitted complexity (0 for no limit)
      * @param debug (optional) destination for debug info
      */
     
@@ -75,6 +78,7 @@ public class Solver extends Thread {
                    int composeSolverThreshold ,
                    int maxSolns ,
                    int maxUnwinds ,
+                   int maxComplexity ,
                    PrintStream debug ){
         super( threadGroup , threadName );
         this.composer = composer ;
@@ -85,6 +89,7 @@ public class Solver extends Thread {
         this.composeSolverThreshold = composeSolverThreshold ;
         this.maxSolns = maxSolns ;
         this.maxUnwinds = maxUnwinds ;
+        this.maxComplexity = maxComplexity ;
         this.debug = debug instanceof PrintStream ? new PrintWriter( debug ) : null ; 
     }
     
@@ -111,15 +116,27 @@ public class Solver extends Thread {
         this.composeSolverThreshold = composeSolverThreshold ;
         this.maxSolns = maxSolns ;
         this.maxUnwinds = 0 ;
+        this.maxComplexity = Integer.MAX_VALUE ;
         this.debug = debug instanceof PrintStream ? new PrintWriter( debug ) : null ;
     }
 
+    /**
+     * Creates a Solver instance.
+     * @param grid grid to be solved
+     * @param strategy strategy to be used to complete the grid
+     */
+
+    public Solver( Grid grid ,
+                   IStrategy strategy ){
+        this( grid , strategy , null , 0 , 1 , null );                   
+    }
+    
     /**
      * Runs the solver on a thread.
      */    
     
     public void run(){
-        nSolns = solve( strategy , composeSolver , composeSolverThreshold , maxSolns , true , maxUnwinds );
+        nSolns = solve( strategy , composeSolver , composeSolverThreshold , maxSolns , true , maxUnwinds , maxComplexity );
         if( composer instanceof Composer ){
             composer.solverFinished( index );
         }
@@ -143,12 +160,22 @@ public class Solver extends Thread {
     }
     
     /**
+     * Determines the complexity figure for a puzzle.
+     */
+    
+    public int getComplexity(){
+        return complexity ;
+    }
+    
+    /**
      * Solves the grid.
      * @param strategy main strategy to use
      * @param composeSolver (optional) strategy used at each step in order to check for uniqueness
      * @param maxSolns (optional) maximum number of solutions to be found before exit
      * @param maskSize the number of initially-filled cells 
      * @param countUnwinds whether the number of unwinds should be counted
+     * @param maxUnwinds the maximum permitted number of unwinds (0 for no limit)
+     * @param maxComplexity the maximum permitted complexity (0 for no limit)     
      * @return the number of solutions found
      */
     
@@ -157,10 +184,11 @@ public class Solver extends Thread {
                int composeSolverThreshold ,
                int maxSolns ,
                boolean countUnwinds ,
-               int maxUnwinds ){
-        int i , nSolns = 0 , nComposeSolns = 2 , count ;
+               int maxUnwinds ,
+               int maxComplexity ){
+        int i , nSolns = 0 , nComposeSolns = 2 , count , lastWrittenMove ;
         if( countUnwinds ){
-            nUnwinds = 0 ;
+            nUnwinds = complexity = 0 ;
         }
         if( ! strategy.setup( grid ) ){
             return nSolns ;
@@ -171,27 +199,26 @@ public class Solver extends Thread {
             if( strategy.findCandidates() > 0 ){
                 strategy.selectCandidate();
                 strategy.setCandidate();
-                if( ! strategy.updateState( strategy.getBestX() , strategy.getBestY() , strategy.getBestValue() ) ){
+                if( ! strategy.updateState( strategy.getBestX() , strategy.getBestY() , strategy.getBestValue() , strategy.getScore() > 1 ) ){
                     return nSolns ;
                 }
                 count = grid.countFilledCells();
                 if( composeSolver instanceof IStrategy && count >= composeSolverThreshold ){
-                    nComposeSolns = solve( composeSolver , null , 0 , 2 , false , 0 );
+                    nComposeSolns = solve( composeSolver , null , 0 , 2 , false , 0 , 0 );
                     if( nComposeSolns == 0 ){
                         nComposeSolns = 2 ;
                         // No solutions exist - that's no good.
                         composeSolver.reset();
-                        if( countUnwinds && ++ nUnwinds == maxUnwinds ){
+                        lastWrittenMove = strategy.getLastWrittenMove();
+                        complexity += strategy.getThreadLength() - lastWrittenMove ;
+                        if( countUnwinds && ( ++ nUnwinds == maxUnwinds || complexity >= maxComplexity ) || ! strategy.unwind( lastWrittenMove , true ) ){
                             return nSolns ;
                         }
-                        if( ! strategy.unwind( true ) ){
-                            return nSolns ;
-                        }  
                         continue ;                      
                     }
                 }
                 if( count == grid.cellsInRow * grid.cellsInRow || nComposeSolns == 1 ){
-                    nComposeSolns = 2 ;         
+                    nComposeSolns = 2 ;
                     // Grid has been solved.
                     if( composeSolver instanceof IStrategy && composer instanceof Composer ){
                         composer.addSolution( index );
@@ -204,10 +231,9 @@ public class Solver extends Thread {
                     if( ++ nSolns == maxSolns ){ 
                         return nSolns ;
                     }
-                    if( countUnwinds && ++ nUnwinds == maxUnwinds ){
-                        return nSolns ;
-                    }
-                    if( ! strategy.unwind( true ) ){
+                    lastWrittenMove = strategy.getLastWrittenMove();
+                    complexity += strategy.getThreadLength() - lastWrittenMove ;
+                    if( countUnwinds && ( ++ nUnwinds == maxUnwinds || complexity >= maxComplexity ) || ! strategy.unwind( lastWrittenMove , true ) ){
                         return nSolns ;
                     }
                 } else if( composeSolver instanceof IStrategy ){
@@ -215,10 +241,9 @@ public class Solver extends Thread {
                 }
             } else {
                 // Stuck
-                if( countUnwinds && ++ nUnwinds == maxUnwinds ){
-                    return nSolns ;
-                }
-                if( ! strategy.unwind( true ) ){
+                lastWrittenMove = strategy.getLastWrittenMove();
+                complexity += strategy.getThreadLength() - lastWrittenMove ;
+                if( countUnwinds && ( ++ nUnwinds == maxUnwinds || complexity >= maxComplexity ) || ! strategy.unwind( lastWrittenMove , true ) ){
                     return nSolns ;
                 }
             }
@@ -234,33 +259,24 @@ public class Solver extends Thread {
      * The default is for all solutions to be reported.
      * <br><code>[-s strategy]</code> stipulates the strategy to be used. the default is Least Candidates Hybrid.
      * <br><code>[-v]</code> stipulates whether the app should execute in verbose mode. The default is no.
-     * <br><code>[-u max unwinds]</code> stipulates the maximum number of unwinds to be performed. 
-     * The default is for there to be no limit.
      * <br> The puzzle will be read from standard input.  
      */
     
     public static void main( String[] args ){
         
-        final String usage = "Usage: Solver [-m max solutions] [-s strategy] [-v] [-u max unwinds]";
+        final String usage = "Usage: Solver [-m max solutions] [-s strategy] [-v]";
         
         boolean debug = false ;
         
-        int i , maxSolns = 0 , maxUnwinds = 0 ;
+        int i , maxSolns = 0 , maxUnwinds = 0 , maxComplexity = 0 ;
         
-        String strategyLabel = "Least Candidates Hybrid";
+        String strategyLabel = "Least Candidates Hybrid II";
         
         i = 0 ;
         while( i < args.length ){
             if( args[i].equals("-m") ){
                 try {
                     maxSolns = Integer.parseInt( args[++i] );
-                } catch ( NumberFormatException e ) {
-                    System.err.println( usage );
-                    System.exit( 1 );
-                }
-            } else if( args[i].equals("-u") ) {
-                try {
-                    maxUnwinds = Integer.parseInt( args[++i] );
                 } catch ( NumberFormatException e ) {
                     System.err.println( usage );
                     System.exit( 1 );

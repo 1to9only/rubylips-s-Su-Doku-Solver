@@ -25,6 +25,8 @@
 
 package com.act365.sudoku;
 
+import java.util.Random ;
+
 /**
  * StrategyBase handles several thread-related function common to
  * most implementors of IStrategy.
@@ -33,9 +35,13 @@ package com.act365.sudoku;
 
 public abstract class StrategyBase {
 
+    int size ;
+    
     protected Grid grid ;
     
     // Thread variables
+    
+    protected boolean[] stateWrite ;
     
     protected int[] xMoves ,
                     yMoves ;
@@ -50,6 +56,12 @@ public abstract class StrategyBase {
                     
     protected int nCandidates ;
     
+    // Whether the selection should be random.
+    
+    protected boolean randomize ;
+    
+    Random generator ;
+    
     // Score
     
     protected int score ;
@@ -60,40 +72,83 @@ public abstract class StrategyBase {
                   bestY ,
                   bestValue ;
     
+    // State variables
+    
+    protected IState state ;
+     
     // Whether the underlying grid has been resized.
     
     transient protected boolean resize ;
-                  
+    
+    /**
+     * Creates a new base class with an optional random number generator.
+     */
+    
+    protected StrategyBase( boolean randomize ){
+        this.randomize = randomize ;                  
+        if( randomize ){
+            generator = new Random();
+        }
+    }
+    
     /**
      * Sets up the thread.
      */
     
     protected boolean setup( Grid grid ){
     
-        resize = this.grid == null || this.grid.cellsInRow != grid.cellsInRow ;
+        resize = this.grid == null || grid.cellsInRow != size ;
             
         this.grid = grid ;
+        size = grid.cellsInRow ;
         
         if( resize ){
             xMoves = new int[grid.cellsInRow*grid.cellsInRow];
             yMoves = new int[grid.cellsInRow*grid.cellsInRow];
+            stateWrite = new boolean[grid.cellsInRow*grid.cellsInRow];
+            xCandidates = new int[grid.cellsInRow*grid.cellsInRow*grid.cellsInRow];
+            yCandidates = new int[grid.cellsInRow*grid.cellsInRow*grid.cellsInRow];
+            valueCandidates = new int[grid.cellsInRow*grid.cellsInRow*grid.cellsInRow];
         }
-        nMoves = 0 ;
 
-        if( resize ){
-            xCandidates = new int[grid.cellsInRow*grid.cellsInRow];
-            yCandidates = new int[grid.cellsInRow*grid.cellsInRow];
-            valueCandidates = new int[grid.cellsInRow*grid.cellsInRow];
-        }
-        nCandidates = 0 ;
-    
+        nMoves = 0 ;
+        nCandidates = 0 ;    
         score = 0 ;
             
         bestX = grid.cellsInRow ; 
         bestY = grid.cellsInRow ;
         bestValue = grid.cellsInRow ;
         
+        if( state instanceof IState ){
+            state.setup( grid.boxesAcross , grid.boxesDown );        
+            int i , j ;
+            i = 0 ;
+            while( i < grid.cellsInRow ){
+                j = 0 ;
+                while( j < grid.cellsInRow ){
+                    if( grid.data[i][j] > 0 ){
+                        if( ! state.addMove( i , j , grid.data[i][j] - 1 ) ){
+                            return false ;
+                        }
+                    }
+                    ++ j ;
+                }
+                ++ i ;
+            }
+        }
+
         return true ;
+    }
+    
+    /**
+     * Selects a single candidate from the available list.
+     */
+    
+    public void selectCandidate() {
+        int pick = randomize && nCandidates > 1 ? Math.abs( generator.nextInt() % nCandidates ) : 0 ;
+        bestX = xCandidates[pick];
+        bestY = yCandidates[pick];
+        bestValue = valueCandidates[pick];     
     }
     
     /**
@@ -105,14 +160,61 @@ public abstract class StrategyBase {
         grid.data[bestX][bestY] = bestValue ;
     }
     
+
+    /**
+     * Updates state variables.
+     * @see com.act365.sudoku.IStrategy#updateState(int,int,int,boolean)
+     */    
+    
+    public boolean updateState( int x , int y , int value , boolean writeState ){
+        // Store current state variables on thread.
+        if( writeState ){
+            state.pushState( nMoves );
+            stateWrite[nMoves] = true ;
+        } else {
+            stateWrite[nMoves] = false ;
+        }        
+        // Store move to thread
+        xMoves[nMoves] = x ;
+        yMoves[nMoves] = y ;
+        ++ nMoves ;
+        // Update state variables
+        if( ! state.addMove( x , y , value - 1 ) ){
+            return false ;
+        } else {
+            return true;
+        }
+    }
+
+    /**
+     * Unwinds the the thread and reinstates state variables.
+     * @see com.act365.sudoku.IStrategy#unwind(int,boolean)
+     */
+    
+    public boolean unwind( int newNMoves , boolean reset ) {
+        // Unwind thread.
+        if( newNMoves >= 0 ){
+            state.popState( newNMoves );
+            state.eliminateMove( xMoves[newNMoves] , yMoves[newNMoves] , grid.data[xMoves[newNMoves]][yMoves[newNMoves]] - 1 );
+        }
+        if( reset ){
+            int i = Math.max( newNMoves , 0 );
+            while( i < nMoves ){
+                grid.data[xMoves[i]][yMoves[i]] = 0 ;
+                ++ i ;
+            }
+        }
+        nMoves = newNMoves ;
+        return nMoves >= 0 ;
+    }
+    
     /**
      * Resets each cell that appears on the thread.
      * @see com.act365.sudoku.IStrategy#reset()
      */
     
     public void reset() {
-        while( nMoves > 0 ){
-            -- nMoves ;
+        while( -- nMoves >= 0 ){
             grid.data[xMoves[nMoves]][yMoves[nMoves]] = 0 ;   
         }       
     }
@@ -211,6 +313,21 @@ public abstract class StrategyBase {
     
     public int getScore(){
         return score ;
+    }
+    
+    /**
+     * Returns the number of moves that had been made at the
+     * last point where two alternative moves existed.
+     */
+    
+    public int getLastWrittenMove(){
+        int i = nMoves ; 
+        while( -- i >= 0 ){
+            if( stateWrite[i] ){
+                break ;
+            }
+        }
+        return i ;
     }
     
     /**

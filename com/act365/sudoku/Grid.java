@@ -47,7 +47,8 @@ public class Grid implements Cloneable , Serializable {
 
     // Transient data
     
-    transient int nUnwinds ; // How many times the thread has been unwound
+    transient int nUnwinds ,
+                  complexity ; 
 
     transient Solver solver ;
                       
@@ -112,7 +113,7 @@ public class Grid implements Cloneable , Serializable {
      * @param s string in the format created by <code>toString()</code>
      */
     
-    public void populate( String s ){
+    public Grid populate( String s ){
 
         StringTokenizer st = new StringTokenizer( s , " ");
         
@@ -152,6 +153,8 @@ public class Grid implements Cloneable , Serializable {
             }
             ++ i ;
         }
+        
+        return this ;
     }
     
     /**
@@ -197,9 +200,10 @@ public class Grid implements Cloneable , Serializable {
         try {
             solver.join();            
             nUnwinds = solver.getNumberOfUnwinds();
-            nSolns = solver.getNumberOfSolutions();                      
+            nSolns = solver.getNumberOfSolutions();
+            complexity = solver.getComplexity();                      
         } catch( InterruptedException e ) {
-            nSolns = nUnwinds = 0 ;
+            nSolns = nUnwinds = complexity = 0 ;
         }
         return nSolns ;
     }

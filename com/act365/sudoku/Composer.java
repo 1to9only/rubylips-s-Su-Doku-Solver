@@ -44,6 +44,7 @@ public class Composer extends Thread {
     int maxSolns ,
         maxMasks ,
         maxUnwinds ,
+        maxComplexity ,
         nSolvers ,
         composeSolverThreshold ;
     
@@ -67,7 +68,7 @@ public class Composer extends Thread {
                   nSolns ,
                   nMasks ,
                   nThreads ,
-                  maxComplexity ,
+                  maxPuzzleComplexity ,
                   mostComplex ,
                   tempSolutions ;
     
@@ -89,6 +90,7 @@ public class Composer extends Thread {
      * @param maxSolns maximum number of solutions to find (0 for no limit)
      * @param maxMasks maximum number of masks to use (0 for no limit)
      * @param maxUnwinds maximum permitted number of unwinds (0 for no limit)
+     * @param maxComplexity maximum permitted complexity (0 for no limit)
      * @param maskFactory factory to generate the masks
      * @param nSolvers number of solver threads to run
      * @param composeSolverThreshold tree depth beyond which the compose solver will be invoked
@@ -100,6 +102,7 @@ public class Composer extends Thread {
                      int maxSolns ,
                      int maxMasks ,
                      int maxUnwinds ,
+                     int maxComplexity ,
                      MaskFactory maskFactory ,
                      int nSolvers ,
                      int composeSolverThreshold ,
@@ -108,10 +111,12 @@ public class Composer extends Thread {
         this.maxSolns = maxSolns ;
         this.maxMasks = maxMasks ;
         this.maxUnwinds = maxUnwinds ;
+        this.maxComplexity = maxComplexity ;
         this.maskFactory = maskFactory ;
         this.nSolvers = nSolvers ;
         this.composeSolverThreshold = composeSolverThreshold ;
         this.debug = debug instanceof PrintStream ? new PrintWriter( debug ) : null ;
+        
         maskSize = maskFactory.getFilledCells();
         cellsInRow = maskFactory.getCellsInRow();
         solverGroup = new ThreadGroup("Solvers");        
@@ -170,14 +175,16 @@ public class Composer extends Thread {
             puzzles.addElement( puzzle );
             if( !( gridContainer instanceof GridContainer ) ){
                 puzzle.solve( lch , 2 );
-                if( puzzle.nUnwinds > maxComplexity ){
+                if( puzzle.complexity > maxComplexity ){
                     mostComplex = nSolns ;
-                    maxComplexity = puzzle.nUnwinds ;                
+                    maxPuzzleComplexity = puzzle.complexity ;                
                 }
                 if( debug instanceof PrintWriter ){
                     double t = ( new Date().getTime() - startTime )/ 1000. ;
                     debug.println( "Solution " + ( 1 + nSolns ) +":\n");
-                    debug.println( "Puzzle Complexity = " + puzzle.nUnwinds );
+                    debug.println( "Puzzle Complexity = " + puzzle.complexity );
+                    debug.println( "Puzzle Unwinds = " + puzzle.nUnwinds );
+                    debug.println( "Cumulative Composer Complexity = " + solvers[solverIndex].complexity );
                     debug.println( "Cumulative Composer Complexity = " + solvers[solverIndex].nUnwinds );
                     debug.println( "Time = " + new DecimalFormat("#0.000").format( t ) + "s\n" );
                 }
@@ -243,6 +250,7 @@ public class Composer extends Thread {
                                            composeSolverThreshold , 
                                            maxSolns , 
                                            maxUnwinds ,
+                                           maxComplexity ,
                                            null );
         solvers[solverIndex].start();
         ++ nThreads ;
@@ -299,7 +307,7 @@ public class Composer extends Thread {
             } else {
                 System.out.println( nSolns + " solutions found");
                 if( nSolns > 0 ){
-                    System.out.println("Most complex: (" + maxComplexity + ")");
+                    System.out.println("Most complex: (" + maxPuzzleComplexity + ")");
                     System.out.println( ((Grid) puzzles.elementAt( mostComplex ) ).toString() );
                 }
             }
@@ -313,7 +321,8 @@ public class Composer extends Thread {
      * three in each dimension.
      * <br><code>[-ms max solns|-mm max masks]</code> defines optional termination conditions. The app will exit if <code>max solns</code>
      * puzzles have been generated or <code>max masks</code> masks have been considered, whichever occurs sooner.
-     * <br><code>[-mu max unwinds]</code> stipulates a limit on the number of unwinds permitted on a singla mask.
+     * <br><code>[-mu max unwinds]</code> stipulates a limit on the number of unwinds permitted on a single mask.
+     * <br><code>[-mu max unwinds]</code> stipulates a limit on the complexity permitted on a single mask.
      * <br><code>[-s solvers]</code> stipulates the number of solver (or, equivalently, threads) to execute simultaneously. The default is 3.
      * <br><code>[-c threshold]</code> stipulates the tree depth beyond which the compose solver will be invoked. The default value is 0.
      * <br><code>[-r]</code> stipulates whether a random initial mask should be used. The default is no.
@@ -323,13 +332,14 @@ public class Composer extends Thread {
      */
 
     public static void main( String[] args ){
-        final String usage = "Usage: Composer [-a across] [-d down] [-ms max solns|-mm max masks] [-mu max unwinds] [-s solvers] [-c threshold] [-r] [-v] -i|#cells";
+        final String usage = "Usage: Composer [-a across] [-d down] [-ms max solns|-mm max masks] [-mu max unwinds] [-mc max complexity] [-s solvers] [-c threshold] [-r] [-v] -i|#cells";
         
         int boxesAcross = 3 ,
             boxesDown = 3 ,
             maxSolns = 0 ,
             maxMasks = 0 ,
             maxUnwinds = 0 ,
+            maxComplexity = Integer.MAX_VALUE ,
             nSolvers = defaultThreads ,
             filledCells = 0 ,
             composeSolverThreshold = 0 ;
@@ -376,6 +386,13 @@ public class Composer extends Thread {
             } else if( args[i].equals("-mu") ){
                 try {
                     maxUnwinds = Integer.parseInt( args[++i] ); 
+                } catch ( NumberFormatException e ) {
+                    System.err.println( usage );
+                    System.exit( 1 );
+                }
+            } else if( args[i].equals("-mc") ){
+                try {
+                    maxComplexity = Integer.parseInt( args[++i] ); 
                 } catch ( NumberFormatException e ) {
                     System.err.println( usage );
                     System.exit( 1 );
@@ -452,6 +469,7 @@ public class Composer extends Thread {
                           maxSolns ,
                           maxMasks , 
                           maxUnwinds ,
+                          maxComplexity ,
                           maskFactory , 
                           nSolvers , 
                           composeSolverThreshold , 

@@ -45,6 +45,7 @@ public class FirstAvailable extends StrategyBase implements IStrategy {
      */
     
     public FirstAvailable() {
+        super( false );
         lastMoveSuccessful = true ;
     }
     
@@ -121,26 +122,28 @@ public class FirstAvailable extends StrategyBase implements IStrategy {
     }
     
     /**
-     * Updates state variables.
-     * @see com.act365.sudoku.IStrategy#updateState(int,int,int)
+     * Updates state variables. 
+     * @see com.act365.sudoku.IStrategy#updateState(int,int,int,boolean)
+     * @param writeState is ignored
      */    
     
-    public boolean updateState( int x , int y , int value ){
+    public boolean updateState( int x , int y , int value , boolean writeState ){
         lastMoveSuccessful = true ;
         // Store move to thread
         xMoves[nMoves] = x ;
         yMoves[nMoves] = y ;
+        stateWrite[nMoves] = true ;
         ++ nMoves ;
         return true ;
     }
     
     /**
      * Removes the current cell coordinates from the thread.
-     * @see com.act365.sudoku.IStrategy#unwind(boolean)
+     * @see com.act365.sudoku.IStrategy#unwind(int,boolean)
      */
     
-	public boolean unwind( boolean resetCurrent ) {
-        if( nMoves == 0 ){
+	public boolean unwind( int newNMoves , boolean reset ) {
+        if( newNMoves == - 1 ){
             return false ;
         } 
         -- nMoves ;
@@ -148,12 +151,12 @@ public class FirstAvailable extends StrategyBase implements IStrategy {
         if( grid.countFilledCells() == grid.cellsInRow * grid.cellsInRow ){
             return true ;
         }
-        if( resetCurrent ){
+        if( reset ){
             grid.data[x][y] = 0 ; 
         }
         x = xMoves[nMoves];
         y = yMoves[nMoves];
-		return true;
+		return true ;
 	}
 	
 	/**

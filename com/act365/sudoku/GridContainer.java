@@ -235,6 +235,7 @@ public class GridContainer extends com.act365.awt.Container {
                                      1 , 
                                      0 ,
                                      0 ,
+                                     0 ,
                                      new MaskFactory( grid.cellsInRow , filledCells , true ) ,
                                      Composer.defaultThreads , 
                                      0 , 
@@ -277,7 +278,7 @@ public class GridContainer extends com.act365.awt.Container {
      */
     
     public int getComplexity(){
-    	return grid.nUnwinds ;
+    	return grid.complexity ;
     }
     
     /**
