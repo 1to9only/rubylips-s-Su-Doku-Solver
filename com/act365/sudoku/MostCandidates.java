@@ -42,7 +42,8 @@ public class MostCandidates extends StrategyBase implements IStrategy {
      */
     
     public MostCandidates( boolean[][] mask , boolean randomize ){
-        super( randomize );
+        super( randomize , false );
+        this.randomize = randomize ;
         this.mask = mask ;
         state = new InvulnerableState();
     }
@@ -101,11 +102,14 @@ public class MostCandidates extends StrategyBase implements IStrategy {
                 }
                 v = 0 ;
                 while( v < grid.cellsInRow ){
-                    if( ! invulnerableState.eliminated[i][j][v] && ! invulnerableState.eliminated[i][j][v] && invulnerableState.nInvulnerable[i][j][v] == minEliminated ){
+                    if( ! invulnerableState.eliminated[i][j][v] && invulnerableState.nInvulnerable[i][j][v] == minEliminated ){
                         xCandidates[nCandidates] = i ;
                         yCandidates[nCandidates] = j ;
                         valueCandidates[nCandidates] = v + 1 ;
                         ++ nCandidates ;
+                        if( ! randomize ){
+                            return nCandidates ;
+                        }
                     }
                     ++ v ;
                 }
@@ -120,10 +124,10 @@ public class MostCandidates extends StrategyBase implements IStrategy {
     /**
      * Updates state variables. MostCandidates always writes
      * its state to the stack.
-     * @see com.act365.sudoku.IStrategy#updateState(int,int,int,boolean)
+     * @see com.act365.sudoku.IStrategy#updateState(int,int,int,String,boolean)
      */    
     
-    public boolean updateState( int x , int y , int value , boolean writeState ){
+    public boolean updateState( int x , int y , int value , String reason , boolean writeState ){
         // Store current state variables on thread.
         state.pushState( nMoves );
         stateWrite[nMoves] = true ;

@@ -45,7 +45,7 @@ public class FirstAvailable extends StrategyBase implements IStrategy {
      */
     
     public FirstAvailable() {
-        super( false );
+        super( false , false );
         lastMoveSuccessful = true ;
     }
     
@@ -123,11 +123,11 @@ public class FirstAvailable extends StrategyBase implements IStrategy {
     
     /**
      * Updates state variables. 
-     * @see com.act365.sudoku.IStrategy#updateState(int,int,int,boolean)
+     * @see com.act365.sudoku.IStrategy#updateState(int,int,int,String,boolean)
      * @param writeState is ignored
      */    
     
-    public boolean updateState( int x , int y , int value , boolean writeState ){
+    public boolean updateState( int x , int y , int value , String reason , boolean writeState ){
         lastMoveSuccessful = true ;
         // Store move to thread
         xMoves[nMoves] = x ;

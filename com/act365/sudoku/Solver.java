@@ -45,6 +45,8 @@ public class Solver extends Thread {
         composeSolverThreshold ,
         index ;
     
+    boolean useNative ;
+    
     Composer composer ;
     
     PrintWriter debug ;
@@ -79,7 +81,8 @@ public class Solver extends Thread {
                    int maxSolns ,
                    int maxUnwinds ,
                    int maxComplexity ,
-                   PrintStream debug ){
+                   PrintStream debug ,
+                   boolean useNative ){
         super( threadGroup , threadName );
         this.composer = composer ;
         this.index = index ;
@@ -90,7 +93,8 @@ public class Solver extends Thread {
         this.maxSolns = maxSolns ;
         this.maxUnwinds = maxUnwinds ;
         this.maxComplexity = maxComplexity ;
-        this.debug = debug instanceof PrintStream ? new PrintWriter( debug ) : null ; 
+        this.debug = debug instanceof PrintStream ? new PrintWriter( debug ) : null ;
+        this.useNative = useNative ; 
     }
     
     /**
@@ -118,6 +122,7 @@ public class Solver extends Thread {
         this.maxUnwinds = 0 ;
         this.maxComplexity = Integer.MAX_VALUE ;
         this.debug = debug instanceof PrintStream ? new PrintWriter( debug ) : null ;
+        this.useNative = false ;
     }
 
     /**
@@ -136,7 +141,16 @@ public class Solver extends Thread {
      */    
     
     public void run(){
-        nSolns = solve( strategy , composeSolver , composeSolverThreshold , maxSolns , true , maxUnwinds , maxComplexity );
+        if( useNative ){
+            if( ! ( strategy instanceof MostCandidates ) ){
+                System.err.println("Warning: Most Candidates composer strategy will be used");
+            } else if( ! ( composeSolver instanceof LeastCandidatesHybrid ) ){
+                System.err.println("Warning: Least Candidates Hybrid strategy will be used");
+            }
+            nSolns = _solve( (MostCandidates) strategy , (LeastCandidatesHybrid) composeSolver , composeSolverThreshold , maxSolns , true , maxUnwinds , maxComplexity );
+        } else {
+            nSolns = solve( strategy , composeSolver , composeSolverThreshold , maxSolns , true , maxUnwinds , maxComplexity );
+        }
         if( composer instanceof Composer ){
             composer.solverFinished( index );
         }
@@ -171,6 +185,7 @@ public class Solver extends Thread {
      * Solves the grid.
      * @param strategy main strategy to use
      * @param composeSolver (optional) strategy used at each step in order to check for uniqueness
+     * @param the number of cells filled before the composeSolver is invoked
      * @param maxSolns (optional) maximum number of solutions to be found before exit
      * @param maskSize the number of initially-filled cells 
      * @param countUnwinds whether the number of unwinds should be counted
@@ -186,7 +201,7 @@ public class Solver extends Thread {
                boolean countUnwinds ,
                int maxUnwinds ,
                int maxComplexity ){
-        int i , nSolns = 0 , nComposeSolns = 2 , count , lastWrittenMove ;
+        int nSolns = 0 , nComposeSolns = 2 , count , lastWrittenMove ;
         if( countUnwinds ){
             nUnwinds = complexity = 0 ;
         }
@@ -199,7 +214,7 @@ public class Solver extends Thread {
             if( strategy.findCandidates() > 0 ){
                 strategy.selectCandidate();
                 strategy.setCandidate();
-                if( ! strategy.updateState( strategy.getBestX() , strategy.getBestY() , strategy.getBestValue() , strategy.getScore() > 1 ) ){
+                if( ! strategy.updateState( strategy.getBestX() , strategy.getBestY() , strategy.getBestValue() , strategy.getBestReason() , strategy.getScore() > 1 ) ){
                     return nSolns ;
                 }
                 count = grid.countFilledCells();
@@ -214,7 +229,6 @@ public class Solver extends Thread {
                         if( countUnwinds && ( ++ nUnwinds == maxUnwinds || complexity >= maxComplexity ) || ! strategy.unwind( lastWrittenMove , true ) ){
                             return nSolns ;
                         }
-                        continue ;                      
                     }
                 }
                 if( count == grid.cellsInRow * grid.cellsInRow || nComposeSolns == 1 ){
@@ -236,7 +250,7 @@ public class Solver extends Thread {
                     if( countUnwinds && ( ++ nUnwinds == maxUnwinds || complexity >= maxComplexity ) || ! strategy.unwind( lastWrittenMove , true ) ){
                         return nSolns ;
                     }
-                } else if( composeSolver instanceof IStrategy ){
+                } else if( composeSolver instanceof IStrategy  && count >= composeSolverThreshold ){
                     composeSolver.reset();
                 }
             } else {
@@ -252,6 +266,27 @@ public class Solver extends Thread {
         return nSolns ;
     }
     
+    /**
+     * Solves the grid.
+     * @param strategy main strategy to use
+     * @param composeSolver (optional) strategy used at each step in order to check for uniqueness
+     * @param the number of cells filled before the composeSolver is invoked
+     * @param maxSolns (optional) maximum number of solutions to be found before exit
+     * @param maskSize the number of initially-filled cells 
+     * @param countUnwinds whether the number of unwinds should be counted
+     * @param maxUnwinds the maximum permitted number of unwinds (0 for no limit)
+     * @param maxComplexity the maximum permitted complexity (0 for no limit)     
+     * @return the number of solutions found
+     */
+    
+    native int _solve( MostCandidates strategy ,
+                       LeastCandidatesHybrid composeSolver ,
+                       int composeSolverThreshold ,
+                       int maxSolns ,
+                       boolean countUnwinds ,
+                       int maxUnwinds ,
+                       int maxComplexity );
+                      
     /**
      * Command-line app to solve Su Doku puzzles.
      * <br><code>Solver [-m max solutions] [-s strategy] [-v] [-u max unwinds]</code>
@@ -270,7 +305,7 @@ public class Solver extends Thread {
         
         int i , maxSolns = 0 , maxUnwinds = 0 , maxComplexity = 0 ;
         
-        String strategyLabel = "Least Candidates Hybrid II";
+        String strategyLabel = "Least Candidates Hybrid";
         
         i = 0 ;
         while( i < args.length ){

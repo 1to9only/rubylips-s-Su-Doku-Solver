@@ -48,6 +48,8 @@ public class Composer extends Thread {
         nSolvers ,
         composeSolverThreshold ;
     
+    boolean useNative ;
+    
     MaskFactory maskFactory ;
 
     ThreadGroup solverGroup ;
@@ -106,7 +108,8 @@ public class Composer extends Thread {
                      MaskFactory maskFactory ,
                      int nSolvers ,
                      int composeSolverThreshold ,
-                     PrintStream debug ) throws Exception {
+                     PrintStream debug ,
+                     boolean useNative ) throws Exception {
         this.gridContainer = gridContainer ;                       
         this.maxSolns = maxSolns ;
         this.maxMasks = maxMasks ;
@@ -116,7 +119,8 @@ public class Composer extends Thread {
         this.nSolvers = nSolvers ;
         this.composeSolverThreshold = composeSolverThreshold ;
         this.debug = debug instanceof PrintStream ? new PrintWriter( debug ) : null ;
-        
+        this.useNative = useNative ;
+
         maskSize = maskFactory.getFilledCells();
         cellsInRow = maskFactory.getCellsInRow();
         solverGroup = new ThreadGroup("Solvers");        
@@ -125,11 +129,11 @@ public class Composer extends Thread {
         solverMasks = new boolean[nSolvers][cellsInRow][cellsInRow];
         solverGrids = new Grid[nSolvers];
         puzzles = new Vector();
-        lch = new LeastCandidatesHybrid( false );
+        lch = new LeastCandidatesHybrid( false , false , false );
             
         int i = 0 ;
         while( i < nSolvers ){
-            composeSolvers[i] = new LeastCandidatesHybrid( true );
+            composeSolvers[i] = new LeastCandidatesHybrid( false , false , false );
             solverGrids[i] = new Grid( boxesAcross , cellsInRow / boxesAcross );
             ++ i ;
         }
@@ -185,7 +189,7 @@ public class Composer extends Thread {
                     debug.println( "Puzzle Complexity = " + puzzle.complexity );
                     debug.println( "Puzzle Unwinds = " + puzzle.nUnwinds );
                     debug.println( "Cumulative Composer Complexity = " + solvers[solverIndex].complexity );
-                    debug.println( "Cumulative Composer Complexity = " + solvers[solverIndex].nUnwinds );
+                    debug.println( "Cumulative Composer Unwinds = " + solvers[solverIndex].nUnwinds );
                     debug.println( "Time = " + new DecimalFormat("#0.000").format( t ) + "s\n" );
                 }
                 lch.reset();
@@ -251,7 +255,8 @@ public class Composer extends Thread {
                                            maxSolns , 
                                            maxUnwinds ,
                                            maxComplexity ,
-                                           null );
+                                           null ,
+                                           useNative );
         solvers[solverIndex].start();
         ++ nThreads ;
     }
@@ -268,7 +273,6 @@ public class Composer extends Thread {
         allSolutionsFound = false ;
         solverIndex = -1 ;
         nThreads = 0 ;
-        maxComplexity = 0 ;
         // Set off the solver threads, one per mask.
         int i = 0 ;
         while( i < nSolvers && ( maxMasks == 0 || nMasks < maxMasks ) ){
@@ -327,12 +331,13 @@ public class Composer extends Thread {
      * <br><code>[-c threshold]</code> stipulates the tree depth beyond which the compose solver will be invoked. The default value is 0.
      * <br><code>[-r]</code> stipulates whether a random initial mask should be used. The default is no.
      * <br><code>[-v]</code> stipualtes whether the Composer should run in verbose mode. The default is no.
+     * <br><code>[-n]</code> stipulates that the native library should be loaded
      * <br><code>-i</code> stipulates that the initial mask should be read from standard input.
      * <br><code>#cells</code> stipulates the number of initially-filled cells to appear in the puzzles.   
      */
 
     public static void main( String[] args ){
-        final String usage = "Usage: Composer [-a across] [-d down] [-ms max solns|-mm max masks] [-mu max unwinds] [-mc max complexity] [-s solvers] [-c threshold] [-r] [-v] -i|#cells";
+        final String usage = "Usage: Composer [-a across] [-d down] [-ms max solns|-mm max masks] [-mu max unwinds] [-mc max complexity] [-s solvers] [-c threshold] [-r] [-v] [-n] -i|#cells";
         
         int boxesAcross = 3 ,
             boxesDown = 3 ,
@@ -346,7 +351,8 @@ public class Composer extends Thread {
             
         boolean randomize = false ,
                 trace = false ,
-                standardInput = false ;
+                standardInput = false ,
+                useNative = false ;
         
         // Process command-line args.
         if( args.length == 0 ){
@@ -415,6 +421,13 @@ public class Composer extends Thread {
                 randomize = true ;
             } else if( args[i].equals("-v") ){
                 trace = true ;
+            } else if( args[i].equals("-n") ){
+                try {
+                    System.loadLibrary("SuDoku");
+                    useNative = true ;
+                } catch ( Exception e ) {
+                    System.err.println("Native library could not be loaded");
+                }
             } else {
                 System.err.println( usage );
                 System.exit( 1 );                
@@ -473,7 +486,8 @@ public class Composer extends Thread {
                           maskFactory , 
                           nSolvers , 
                           composeSolverThreshold , 
-                          trace ? System.out : null ).start();  
+                          trace ? System.out : null ,
+                          useNative ).start();  
         } catch ( Exception e ) {
             System.out.println( e.getMessage() );
             System.exit( 3 );

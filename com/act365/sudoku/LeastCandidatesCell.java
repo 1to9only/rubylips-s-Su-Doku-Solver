@@ -36,12 +36,29 @@ package com.act365.sudoku;
 
 public class LeastCandidatesCell extends StrategyBase implements IStrategy {
 
+    boolean findMany ;
+    
     /**
-     * Creates a new LeastCandidatesCell instance to solve the given grid.
+     * Creates a new LeastCandidatesCell instance.
+     * @param randomize whether the final candidate should be randomly chosen from the set of possibles
      */
     
     public LeastCandidatesCell( boolean randomize ){
-        super( randomize );
+        this( randomize , randomize , true );
+    }
+    
+    /**
+     * Creates a new LeastCandidatesCell instance.
+     * @param findMany whether an entire set of possible values should be found
+     * @param randomize whether the final candidate should be randomly chosen from the set of possibles
+     * @param explain whether explanatory debug should be produced
+     */
+    
+    public LeastCandidatesCell( boolean findMany , 
+                                boolean randomize ,
+                                boolean explain ){
+        super( randomize , explain );
+        this.findMany = findMany ;
         state = new CellState();
     }
     
@@ -62,6 +79,7 @@ public class LeastCandidatesCell extends StrategyBase implements IStrategy {
         CellState cellState = (CellState) state ;
 		// Find the unpopulated cells with the smallest number of candidates.		
 		int i , j , k , maxEliminated = -1 ;
+        StringBuffer sb ;
         nCandidates = 0 ;
 		i = 0 ;
 		while( i < grid.cellsInRow ){
@@ -95,7 +113,29 @@ public class LeastCandidatesCell extends StrategyBase implements IStrategy {
                             xCandidates[nCandidates] = i ;
                             yCandidates[nCandidates] = j ;
                             valueCandidates[nCandidates] = k + 1 ;
+                            if( explain ){
+                                sb = new StringBuffer();
+                                sb.append("The value ");
+                                sb.append( k + 1 );
+                                sb.append(" is ");
+                                if( score > 1 ){
+                                    sb.append("one of ");
+                                    sb.append( score );
+                                    sb.append(" candidates ");
+                                } else {
+                                    sb.append("the only candidate ");
+                                }
+                                sb.append("for the cell (");
+                                sb.append( i + 1 );
+                                sb.append(",");
+                                sb.append( j + 1 );
+                                sb.append(")");
+                                reasonCandidates[nCandidates] = sb.toString();
+                            }
                             ++ nCandidates ;
+                            if( ! findMany ){
+                                return nCandidates ;
+                            }
                         }
                         ++ k ;
                     }

@@ -40,13 +40,11 @@ public class ControlContainer extends com.act365.awt.Container
                               implements ActionListener ,
                                          ItemListener ,
                                          ClipboardOwner {
-    //
-    
+
     final static int defaultStrategy = Strategy.LEAST_CANDIDATES_HYBRID_II ,
-                     defaultMinFilledCellsValue = 32 ;
+                     defaultMinFilledCellsValue = 32 ,
+                     reasoningAreaColumns = 50 ;
      
-    //
-    
 	int boxesAcross ,
 		boxesDown ,
 		minFilledCellsValue ;
@@ -56,7 +54,9 @@ public class ControlContainer extends com.act365.awt.Container
 	TextField across ,
 			  down ,
 			  minFilledCells ;
-              
+
+    TextArea reasoningArea ;
+                  
 	Button solve ,
 		   unsolve ,
 		   reset ,
@@ -142,7 +142,12 @@ public class ControlContainer extends com.act365.awt.Container
         minFilledCells = new TextField( 2 );
         interrupt = new Button("Break");
         interrupt.addActionListener( this );
-                
+    
+        // Add the Reasoning area
+        reasoningArea = new TextArea();
+        reasoningArea.setColumns( reasoningAreaColumns );
+        reasoningArea.setEditable( false );
+                    
         // Lay out the components.
 		addComponent( solve , 0 , 0 , 3 , 1 , 1 , 0 );
 		addComponent( unsolve , 4 , 0 , 3 , 1 , 1 , 0 );
@@ -179,15 +184,18 @@ public class ControlContainer extends com.act365.awt.Container
         addComponent( new Label("Filled Cells") , 4 , 6 , 2 , 1 , 1 , 0 );
         addComponent( minFilledCells , 6 , 6 , 1 , 1 , 1 , 0 );
         addComponent( interrupt , 8 , 6 , 3 , 1 , 1 , 0 );
+        
+        addComponent( reasoningArea , 0 , 7 , 11 , 5 , 1 , 1 );
           
 		write();	
     }    
 
     /**
-     * The ControlContainer looks best at 300x300.
+     * The ControlContainer looks best at 300x500.
      */
-	public Dimension getBestSize() {
-		return new Dimension( 300 , 300 );
+	
+    public Dimension getBestSize() {
+		return new Dimension( 300 , 500 );
 	}
 
 	/**
@@ -199,6 +207,19 @@ public class ControlContainer extends com.act365.awt.Container
 		if( evt.getSource() == solve ){
 			grid.solve();
             time.setText( new DecimalFormat("#0.000").format( grid.getSolveTime() )+ "s");
+            if( grid.getStrategy().explainsReasoning() ){
+                int i = 0 ;
+                while( i < grid.getStrategy().getThreadLength() ){
+                    reasoningArea.append( ( 1 + i ) + ". " + grid.getStrategy().getReason(i) + '\n');
+                    ++ i ;
+                }
+                i = 0 ;
+                while( i < reasoningArea.getColumns() ){
+                    reasoningArea.append("#");
+                    ++ i ;
+                }
+                reasoningArea.append("\n");
+            }
 		} else if( evt.getSource() == unsolve ) {
 			grid.unsolve();
 		} else if( evt.getSource() == reset ){

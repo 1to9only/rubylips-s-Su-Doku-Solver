@@ -34,14 +34,31 @@ package com.act365.sudoku;
 
 public class LeastCandidatesNumber extends StrategyBase implements IStrategy {
 
+    boolean findMany ;
+    
     boolean[][][] considered ;
     
     /**
      * Creates a new LeastCandidatesNumber instance to solve the given grid.
+     * @param randomize whether the final candidate should be randomly chosen from the set of possibles
      */
     
     public LeastCandidatesNumber( boolean randomize ){
-        super( randomize );
+        this( randomize , randomize , true );
+    }
+    
+    /**
+     * Creates a new LeastCandidatesNumber instance to solve the given grid.
+     * @param findMany whether an entire set of possible values should be found
+     * @param randomize whether the final candidate should be randomly chosen from the set of possibles
+     * @param explain whether explanatory debug should be produced
+     */
+    
+    public LeastCandidatesNumber( boolean findMany , 
+                                  boolean randomize ,
+                                  boolean explain ){
+        super( randomize , explain );
+        this.findMany = findMany ;
         state = new NumberState();
     }
     
@@ -53,25 +70,28 @@ public class LeastCandidatesNumber extends StrategyBase implements IStrategy {
 
         super.setup( grid );
 
-        int i , j , k ;
-        if( resize ){
-            considered = new boolean[grid.cellsInRow][grid.cellsInRow][grid.cellsInRow];
-        } else {
-            i = 0 ;
-            while( i < grid.cellsInRow ){
-                j = 0 ;
-                while( j < grid.cellsInRow ){
-                    k = 0 ;
-                    while( k < grid.cellsInRow ){
-                        considered[i][j][k] = false ;
-                        ++ k ;
+        if( findMany ){
+            int i , j , k ;
+            if( resize ){
+                considered = new boolean[grid.cellsInRow][grid.cellsInRow][grid.cellsInRow];
+            } else {
+                i = 0 ;
+                while( i < grid.cellsInRow ){
+                    j = 0 ;
+                    while( j < grid.cellsInRow ){
+                        k = 0 ;
+                        while( k < grid.cellsInRow ){
+                            considered[i][j][k] = false ;
+                            ++ k ;
+                        }
+                        ++ j ;
                     }
-                    ++ j ;
-                }
                 
-                ++ i ;
+                    ++ i ;
+                }
             }
         }
+
         return true ;
     }
     
@@ -85,6 +105,7 @@ public class LeastCandidatesNumber extends StrategyBase implements IStrategy {
         NumberState numberState = (NumberState) state ;
         // Find the unpopulated cells with the smallest number of candidates.       
         int i , j , k , x , y , maxEliminated = -1 ;
+        StringBuffer sb ;
         nCandidates = 0 ;
         i = 0 ;
         while( i < grid.cellsInRow ){
@@ -108,18 +129,20 @@ public class LeastCandidatesNumber extends StrategyBase implements IStrategy {
         score = grid.cellsInRow - maxEliminated ;
         nCandidates = 0 ;
         // Blank out the grid of considered values.
-        i = 0 ;
-        while( i < grid.cellsInRow ){
-            j = 0 ;
-            while( j < grid.cellsInRow ){
-                k = 0 ;
-                while( k < grid.cellsInRow ){
-                    considered[i][j][k] = false ;
-                    ++ k ;
+        if( findMany ){
+            i = 0 ;
+            while( i < grid.cellsInRow ){
+                j = 0 ;
+                while( j < grid.cellsInRow ){
+                    k = 0 ;
+                    while( k < grid.cellsInRow ){
+                        considered[i][j][k] = false ;
+                        ++ k ;
+                    }
+                    ++ j ;
                 }
-                ++ j ;
+                ++ i ;
             }
-            ++ i ;
         }
         // Convert into standard x,y:=value coordinate system
         i = 0 ;
@@ -140,15 +163,52 @@ public class LeastCandidatesNumber extends StrategyBase implements IStrategy {
                                 x = ( j - 2 * grid.cellsInRow )/ grid.boxesAcross * grid.boxesAcross + k / grid.boxesDown ;
                                 y = ( j - 2 * grid.cellsInRow )% grid.boxesAcross * grid.boxesDown + k % grid.boxesDown ;
                             }
-                            if( considered[x][y][i] ){
-                                ++ k ;
-                                continue;
+                            if( findMany ){
+                                if( considered[x][y][i] ){
+                                    ++ k ;
+                                    continue;
+                                }
+                                considered[x][y][i] = true ;
                             }
-                            considered[x][y][i] = true ;
                             xCandidates[nCandidates] = x ;
                             yCandidates[nCandidates] = y ;
                             valueCandidates[nCandidates] = i + 1 ;
+                            if( explain ){
+                                sb = new StringBuffer();
+                                sb.append("The cell (");
+                                sb.append( x + 1 );
+                                sb.append(",");
+                                sb.append( y + 1 );
+                                sb.append(") is ");
+                                if( score > 1 ){
+                                    sb.append("one of ");
+                                    sb.append( score );
+                                    sb.append(" candidates ");
+                                } else {
+                                    sb.append("the only candidate ");
+                                }                                                             
+                                sb.append("for the value ");
+                                sb.append( i + 1 );
+                                sb.append(" in ");
+                                if( j < grid.cellsInRow ){
+                                    sb.append("Row ");
+                                    sb.append( x + 1 );
+                                } else if( j < 2 * grid.cellsInRow ){
+                                    sb.append("Column ");
+                                    sb.append( y + 1 );
+                                } else {
+                                    sb.append("Box [");
+                                    sb.append( 1 + ( j - 2 * grid.cellsInRow )/grid.boxesAcross );
+                                    sb.append(",");
+                                    sb.append( 1 + ( j - 2 * grid.cellsInRow )% grid.boxesAcross );
+                                    sb.append("]");
+                                }
+                                reasonCandidates[nCandidates] = sb.toString();
+                            }
                             ++ nCandidates ;
+                            if( ! findMany ){
+                                return nCandidates ;
+                            }
                         }
                         ++ k ;
                     }

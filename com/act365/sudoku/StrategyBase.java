@@ -45,6 +45,8 @@ public abstract class StrategyBase {
     
     protected int[] xMoves ,
                     yMoves ;
+    
+    protected String[] reasons ;
           
     protected int nMoves ;
     
@@ -53,6 +55,8 @@ public abstract class StrategyBase {
     protected int[] xCandidates ,
                     yCandidates ,
                     valueCandidates ;
+    
+    protected String[] reasonCandidates ;
                     
     protected int nCandidates ;
     
@@ -61,6 +65,10 @@ public abstract class StrategyBase {
     protected boolean randomize ;
     
     Random generator ;
+    
+    // Whether explanatory debug should be produced.
+    
+    protected boolean explain ;
     
     // Score
     
@@ -71,6 +79,8 @@ public abstract class StrategyBase {
     protected int bestX ,
                   bestY ,
                   bestValue ;
+    
+    protected String bestReason ;
     
     // State variables
     
@@ -84,8 +94,9 @@ public abstract class StrategyBase {
      * Creates a new base class with an optional random number generator.
      */
     
-    protected StrategyBase( boolean randomize ){
+    protected StrategyBase( boolean randomize , boolean explain ){
         this.randomize = randomize ;                  
+        this.explain = explain ;
         if( randomize ){
             generator = new Random();
         }
@@ -105,10 +116,12 @@ public abstract class StrategyBase {
         if( resize ){
             xMoves = new int[grid.cellsInRow*grid.cellsInRow];
             yMoves = new int[grid.cellsInRow*grid.cellsInRow];
+            reasons = new String[grid.cellsInRow*grid.cellsInRow];
             stateWrite = new boolean[grid.cellsInRow*grid.cellsInRow];
             xCandidates = new int[grid.cellsInRow*grid.cellsInRow*grid.cellsInRow];
             yCandidates = new int[grid.cellsInRow*grid.cellsInRow*grid.cellsInRow];
             valueCandidates = new int[grid.cellsInRow*grid.cellsInRow*grid.cellsInRow];
+            reasonCandidates = new String[grid.cellsInRow*grid.cellsInRow*grid.cellsInRow];
         }
 
         nMoves = 0 ;
@@ -148,7 +161,10 @@ public abstract class StrategyBase {
         int pick = randomize && nCandidates > 1 ? Math.abs( generator.nextInt() % nCandidates ) : 0 ;
         bestX = xCandidates[pick];
         bestY = yCandidates[pick];
-        bestValue = valueCandidates[pick];     
+        bestValue = valueCandidates[pick];  
+        if( explain ){
+            bestReason = reasonCandidates[pick];   
+        }
     }
     
     /**
@@ -163,10 +179,10 @@ public abstract class StrategyBase {
 
     /**
      * Updates state variables.
-     * @see com.act365.sudoku.IStrategy#updateState(int,int,int,boolean)
+     * @see com.act365.sudoku.IStrategy#updateState(int,int,int,String,boolean)
      */    
     
-    public boolean updateState( int x , int y , int value , boolean writeState ){
+    public boolean updateState( int x , int y , int value , String reason , boolean writeState ){
         // Store current state variables on thread.
         if( writeState ){
             state.pushState( nMoves );
@@ -177,6 +193,9 @@ public abstract class StrategyBase {
         // Store move to thread
         xMoves[nMoves] = x ;
         yMoves[nMoves] = y ;
+        if( explain ){
+            reasons[nMoves] = reason ;
+        }
         ++ nMoves ;
         // Update state variables
         if( ! state.addMove( x , y , value - 1 ) ){
@@ -247,6 +266,15 @@ public abstract class StrategyBase {
     }
     
     /**
+     * Returns the reason for the best move.
+     * @see com.act365.sudoku.IStrategy#getBestReason()
+     */
+    
+    public String getBestReason(){
+        return bestReason ;
+    }
+    
+    /**
      * Returns the x-coordinate of the given candidate.
      */
     
@@ -270,6 +298,14 @@ public abstract class StrategyBase {
         return valueCandidates[ index ];    
     }
 
+    /**
+     * Reasons the reason behind the given candidate.
+     */
+
+    public String getReasonCandidate( int index ){
+        return reasonCandidates[index];
+    }
+    
     /**
      * Returns the umber of candidates.
      */    
@@ -303,6 +339,23 @@ public abstract class StrategyBase {
     
     public int getThreadY( int move ){
         return yMoves[ move ];    
+    }
+
+    /**
+     * Returns the reasoning behind the given move.
+     * @see com.act365.sudoku.IStrategy#getReason(int)
+     */
+
+    public String getReason( int move ){
+        return reasons[move];    
+    }
+    
+    /**
+     * Indicates whether the strategy explains its reasoning.
+     */
+    
+    public boolean explainsReasoning(){
+        return explain ;
     }
     
     /**

@@ -78,16 +78,16 @@ public class Strategy {
             return new LeastCandidatesNumber( true );
             
             case LEAST_CANDIDATES_HYBRID:
-            return new LeastCandidatesHybrid( false , false );
+            return new LeastCandidatesHybrid( false , false ,true );
             
             case RANDOM_LEAST_CANDIDATES_HYBRID :
-            return new LeastCandidatesHybrid( true , false );
+            return new LeastCandidatesHybrid( true , false , true );
             
             case LEAST_CANDIDATES_HYBRID_II:
-            return new LeastCandidatesHybrid( false , true );
+            return new LeastCandidatesHybrid( false , true , true );
             
             case RANDOM_LEAST_CANDIDATES_HYBRID_II :
-            return new LeastCandidatesHybrid( true , true );
+            return new LeastCandidatesHybrid( true , true , true );
             
             case MOST_CANDIDATES :
             return new MostCandidates( null , false );

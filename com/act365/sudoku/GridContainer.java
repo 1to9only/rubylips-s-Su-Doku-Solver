@@ -239,7 +239,8 @@ public class GridContainer extends com.act365.awt.Container {
                                      new MaskFactory( grid.cellsInRow , filledCells , true ) ,
                                      Composer.defaultThreads , 
                                      0 , 
-                                     null );
+                                     null ,
+                                     false );
             composer.start();
         } catch ( Exception e ) {
         }
@@ -322,6 +323,14 @@ public class GridContainer extends com.act365.awt.Container {
     
     public void setStrategy( int strategyCode ){
         strategy = Strategy.create( strategyCode );
+    }
+
+    /**
+     * Returns the currently selected stratey object.
+     */
+    
+    public IStrategy getStrategy(){
+        return strategy ;    
     }
     
     /**
