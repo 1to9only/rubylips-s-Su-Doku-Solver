@@ -721,7 +721,7 @@ public class LeastCandidatesHybrid extends StrategyBase implements IStrategy {
             valueCandidates[nCandidates] = better.getValueCandidate( nCandidates );
             if( explain ){
                 reasonCandidates[nCandidates] = new StringBuffer();
-                reasonCandidates[nCandidates].append( sb );
+                reasonCandidates[nCandidates].append( sb.toString() );
                 reasonCandidates[nCandidates].append( better.getReasonCandidate( nCandidates ) );
             }
             ++ nCandidates ;    
