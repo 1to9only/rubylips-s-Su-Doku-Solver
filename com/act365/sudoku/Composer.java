@@ -52,8 +52,6 @@ public class Composer extends Thread {
     
     MaskFactory maskFactory ;
 
-    ThreadGroup solverGroup ;
-    
     Solver[] solvers ;
         
     IStrategy[] composeSolvers ;
@@ -123,7 +121,6 @@ public class Composer extends Thread {
 
         maskSize = maskFactory.getFilledCells();
         cellsInRow = maskFactory.getCellsInRow();
-        solverGroup = new ThreadGroup("Solvers");        
         solvers = new Solver[nSolvers];
         composeSolvers = new LeastCandidatesHybrid[nSolvers];
         solverMasks = new boolean[nSolvers][cellsInRow][cellsInRow];
@@ -244,8 +241,7 @@ public class Composer extends Thread {
             ++ r ;
         }
         solverGrids[solverIndex].reset();
-        solvers[solverIndex] = new Solver( solverGroup , 
-                                           "Solver-" + ( solverIndex + 1 ) , 
+        solvers[solverIndex] = new Solver( "Solver-" + ( solverIndex + 1 ) , 
                                            this ,
                                            solverIndex ,
                                            solverGrids[solverIndex] , 

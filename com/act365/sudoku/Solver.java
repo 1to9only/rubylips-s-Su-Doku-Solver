@@ -57,7 +57,6 @@ public class Solver extends Thread {
     
     /**
      * Creates a Solver instance.
-     * @param threadGroup thread group to which the solver will belong
      * @param threadName thread name
      * @param composer composer object to which to report
      * @param index composer-defined index number for solver
@@ -70,8 +69,7 @@ public class Solver extends Thread {
      * @param debug (optional) destination for debug info
      */
     
-    public Solver( ThreadGroup threadGroup ,
-                   String threadName ,
+    public Solver( String threadName ,
                    Composer composer ,
                    int index ,
                    Grid grid ,
@@ -83,7 +81,7 @@ public class Solver extends Thread {
                    int maxComplexity ,
                    PrintStream debug ,
                    boolean useNative ){
-        super( threadGroup , threadName );
+        super( threadName );
         this.composer = composer ;
         this.index = index ;
         this.grid = grid ;
