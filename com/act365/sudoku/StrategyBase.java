@@ -44,7 +44,8 @@ public abstract class StrategyBase {
     protected boolean[] stateWrite ;
     
     protected int[] xMoves ,
-                    yMoves ;
+                    yMoves ,
+                    values ;
     
     protected StringBuffer[] reasons ;
           
@@ -116,6 +117,7 @@ public abstract class StrategyBase {
         if( resize ){
             xMoves = new int[grid.cellsInRow*grid.cellsInRow];
             yMoves = new int[grid.cellsInRow*grid.cellsInRow];
+            values = new int[grid.cellsInRow*grid.cellsInRow];
             reasons = new StringBuffer[grid.cellsInRow*grid.cellsInRow];
             stateWrite = new boolean[grid.cellsInRow*grid.cellsInRow];
             xCandidates = new int[grid.cellsInRow*grid.cellsInRow*grid.cellsInRow];
@@ -199,6 +201,7 @@ public abstract class StrategyBase {
         // Store move to thread
         xMoves[nMoves] = x ;
         yMoves[nMoves] = y ;
+        values[nMoves] = value - 1 ;
         if( explain ){
             reasons[nMoves].append( reason );
         }
@@ -222,7 +225,7 @@ public abstract class StrategyBase {
                 reasons[newNMoves].append(",");
                 reasons[newNMoves].append( 1 + yMoves[newNMoves] );
                 reasons[newNMoves].append("):=");
-                reasons[newNMoves].append( grid.data[xMoves[newNMoves]][yMoves[newNMoves]] );
+                reasons[newNMoves].append( 1 + values[newNMoves] );
                 reasons[newNMoves].append(" would lead to a contradiction.\n");
                 int i = newNMoves + 1 ;
                 while( i < nMoves ){
@@ -230,7 +233,7 @@ public abstract class StrategyBase {
                 }
             }
             state.popState( newNMoves );
-            state.eliminateMove( xMoves[newNMoves] , yMoves[newNMoves] , grid.data[xMoves[newNMoves]][yMoves[newNMoves]] - 1 );
+            state.eliminateMove( xMoves[newNMoves] , yMoves[newNMoves] , values[newNMoves] );
         }
         if( reset ){
             int i = Math.max( newNMoves , 0 );
@@ -258,8 +261,13 @@ public abstract class StrategyBase {
      */
     
     public void reset( int move ) {
-        while( -- nMoves >= move ){
-            grid.data[xMoves[nMoves]][yMoves[nMoves]] = 0 ;   
+        while( nMoves > move ){
+            -- nMoves ;   
+            grid.data[xMoves[nMoves]][yMoves[nMoves]] = 0 ;
+        }       
+        while( nMoves < move ){
+            grid.data[xMoves[nMoves]][yMoves[nMoves]] = 1 + values[nMoves] ;
+            ++ nMoves ;   
         }       
     }
 

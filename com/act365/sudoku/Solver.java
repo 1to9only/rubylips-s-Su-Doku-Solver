@@ -26,6 +26,8 @@
 package com.act365.sudoku;
 
 import java.io.* ;
+import java.text.DecimalFormat ;
+import java.util.Date ;
 
 /**
  * A Solver instance solves a grid on a thread that exits
@@ -332,14 +334,16 @@ public class Solver extends Thread {
      * The default is for all solutions to be reported.
      * <br><code>[-s strategy]</code> stipulates the strategy to be used. the default is Least Candidates Hybrid.
      * <br><code>[-v]</code> stipulates whether the app should execute in verbose mode. The default is no.
+     * <br><code>[-p]</code> enables profiling information.
      * <br> The puzzle will be read from standard input.  
      */
     
     public static void main( String[] args ){
         
-        final String usage = "Usage: Solver [-m max solutions] [-s strategy] [-v]";
+        final String usage = "Usage: Solver [-m max solutions] [-s strategy] [-v] [-p profile]";
         
-        boolean debug = false ;
+        boolean debug = false ,
+                profile = false ;
         
         int i , maxSolns = 0 , maxUnwinds = 0 , maxComplexity = 0 ;
         
@@ -358,6 +362,8 @@ public class Solver extends Thread {
                 debug = true ;
             } else if( args[i].equals("-s") ){
                 strategyLabel = args[++i];
+            } else if( args[i].equals("-p") ) {
+                profile = true ;
             } else {
                 System.err.println( usage );
                 System.exit( 1 );
@@ -390,13 +396,31 @@ public class Solver extends Thread {
             System.exit( 3 );
         }
         // Solve.
+        long startTime ;
+        double solveTime ;
         Solver solver = new Solver( grid , strategy , null , 0 , maxSolns , debug ? System.out : null );
+        startTime = new Date().getTime();
         solver.start();
         try {
             solver.join();
         } catch ( InterruptedException e ){
             System.out.println("Solver interrupted");
         }
-        System.out.println( solver.getNumberOfSolutions() + " solutions found.");
+        solveTime = ( new Date().getTime() - startTime )/ 1000. ;
+        System.out.print( solver.getNumberOfSolutions() + " solutions found in ");
+        System.out.println( new DecimalFormat("#0.000").format( solveTime )+ "s");
+        if( profile ){
+            System.out.println("Unwinds: " + solver.nUnwinds );
+            System.out.println("Complexity: " + solver.complexity );
+            if( strategy instanceof LeastCandidatesHybrid ){
+                LeastCandidatesHybrid lch = (LeastCandidatesHybrid) strategy ;
+                if( lch.state instanceof IState ){
+                    System.out.println("Single Sector Candidates: " + lch.singleSectorCandidatesCalls + " calls " + lch.singleSectorCandidatesEliminations + " eliminations");
+                    System.out.println("Disjoint Subsets: " + lch.disjointSubsetsCalls + " calls " + lch.disjointSubsetsEliminations + " eliminations");
+                    System.out.println("X-Wings: " + lch.xWingsCalls + " calls " + lch.xWingsEliminations + " eliminations");
+                    System.out.println("Nishio: " + lch.nishioCalls + " calls " + lch.nishioEliminations + " eliminations");
+                }
+            }
+        }
     }
 }

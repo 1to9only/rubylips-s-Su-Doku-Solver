@@ -132,7 +132,7 @@ public class MostCandidates extends StrategyBase implements IStrategy {
         // Unwind thread.
         if( newNMoves >= 0 ){
             state.popState( newNMoves );
-            state.eliminateMove( xMoves[newNMoves] , yMoves[newNMoves] , grid.data[xMoves[newNMoves]][yMoves[newNMoves]] - 1 );
+            state.eliminateMove( xMoves[newNMoves] , yMoves[newNMoves] , values[newNMoves] );
         }
         if( reset ){
             int i = Math.max( newNMoves , 0 );

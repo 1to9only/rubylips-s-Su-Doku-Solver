@@ -147,7 +147,15 @@ public class GridContainer extends com.act365.awt.Container {
      */
     
     public void unsolve(){
-    	strategy.reset();
+        unsolve( 0 );
+    }
+    
+    /**
+     * Resets the grid to the partial solution prior to the given move.
+     */
+    
+    public void unsolve( int move ){
+    	strategy.reset( move );
     	write();
     }
     

@@ -29,6 +29,7 @@ import java.awt.* ;
 import java.awt.datatransfer.* ;
 import java.awt.event.* ;
 import java.text.DecimalFormat ;
+import java.util.StringTokenizer ;
 
 /**
  * A ControlContainer instance contains the various buttons and text
@@ -39,6 +40,7 @@ import java.text.DecimalFormat ;
 public class ControlContainer extends com.act365.awt.Container 
                               implements ActionListener ,
                                          ItemListener ,
+                                         MouseListener ,
                                          ClipboardOwner {
 
     final static int defaultStrategy = Strategy.LEAST_CANDIDATES_HYBRID_II ,
@@ -152,6 +154,7 @@ public class ControlContainer extends com.act365.awt.Container
         // Add the Reasoning area
         reasoningArea = new TextArea();
         reasoningArea.setEditable( false );
+        reasoningArea.addMouseListener( this );
                     
         // Lay out the components.
 		addComponent( solve , 0 , 0 , 3 , 1 , 1 , 0 );
@@ -213,17 +216,19 @@ public class ControlContainer extends com.act365.awt.Container
 			grid.solve();
             time.setText( new DecimalFormat("#0.000").format( grid.getSolveTime() )+ "s");
             if( grid.getStrategy().explainsReasoning() ){
+                reasoningArea.setText( null );
+                reasoningArea.append("START\n"); 
                 int i = 0 ;
                 while( i < grid.getStrategy().getThreadLength() ){
                     reasoningArea.append( ( 1 + i ) + ". " + grid.getStrategy().getReason( i ) );
                     ++ i ;
                 }
-                reasoningArea.append("##################################################\n"); // 50 chars
             }
 		} else if( evt.getSource() == unsolve ) {
 			grid.unsolve();
 		} else if( evt.getSource() == reset ){
 			grid.reset();
+            reasoningArea.setText( null );
             time.setText("0.0s");
         } else if( evt.getSource() == copy ) {
             if( isApplet ){
@@ -297,6 +302,58 @@ public class ControlContainer extends com.act365.awt.Container
 		}
 	}
 	
+    /**
+     * 
+     * When a mouse is clicked in the Reasoning Area, the puzzle will reset itself 
+     * to the appropriate partial-solution. 
+     */
+    
+    public void mouseClicked( MouseEvent evt ){
+        int lastMove = 0 ,
+            fullStopIndex ;
+        String reasonText = reasoningArea.getText().substring( 0 , reasoningArea.getCaretPosition() ) ,
+               reason = "";
+        StringTokenizer st = new StringTokenizer( reasonText , "\n" );
+        while( st.hasMoreTokens() ){
+            try {
+                reason = st.nextToken();
+                if( ( fullStopIndex = reason.indexOf('.') ) >= 0 ){
+                    lastMove = Integer.parseInt( reason.substring( 0 , fullStopIndex ) );
+                }
+            } catch( NumberFormatException e ) {
+            }
+        }
+        grid.unsolve( lastMove );
+    }
+    
+    /**
+     * Mouse motion is ignored.
+     */
+    
+    public void mouseEntered( MouseEvent evt ){
+    }
+    
+    /**
+     * Mouse motion is ignored.
+     */
+    
+    public void mouseExited( MouseEvent evt ){
+    }
+    
+    /**
+     * Mouse presses are ignored.
+     */
+    
+    public void mousePressed( MouseEvent evt ){
+    }
+
+    /**
+     * Mouse releases are ignored.
+     */    
+    
+    public void mouseReleased( MouseEvent evt ){
+    }
+    
     /**
      * Reacts to changes to the strategy list.
      */

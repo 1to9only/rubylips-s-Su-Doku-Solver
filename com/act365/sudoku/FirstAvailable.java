@@ -133,6 +133,7 @@ public class FirstAvailable extends StrategyBase implements IStrategy {
         // Store move to thread
         xMoves[nMoves] = x ;
         yMoves[nMoves] = y ;
+        values[nMoves] = value - 1 ;
         stateWrite[nMoves] = true ;
         ++ nMoves ;
         return true ;

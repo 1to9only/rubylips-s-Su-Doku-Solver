@@ -53,7 +53,7 @@ public class SuDokuUtils {
             if( i > 0 && i % boxesAcross == 0 ){
                 k = 0 ;
                 while( k < ( fieldWidth + 1 )* cellsInRow + ( boxesAcross - 1 )* 2 ){
-                    sb.append('*');
+                    sb.append('-');
                     ++ k ;
                 }
                 sb.append(" \n");
@@ -61,7 +61,7 @@ public class SuDokuUtils {
             j = 0 ;
             while( j < cellsInRow ){
                 if( j > 0 && j % boxesDown == 0 ){
-                    sb.append(" *");
+                    sb.append(" |");
                 }
                 k = 0 ;
                 if( data[i][j] > 0 ){

@@ -127,11 +127,11 @@ public class Composer extends Thread {
         solverMasks = new boolean[nSolvers][cellsInRow][cellsInRow];
         solverGrids = new Grid[nSolvers];
         puzzles = new Vector();
-        lch = new LeastCandidatesHybrid( false , true , true );
+        lch = new LeastCandidatesHybrid( false , true , true , true );
             
         int i = 0 ;
         while( i < nSolvers ){
-            composeSolvers[i] = new LeastCandidatesHybrid( false , leastCandidatesHybridFilter , false );
+            composeSolvers[i] = new LeastCandidatesHybrid( false , leastCandidatesHybridFilter , false , false );
             solverGrids[i] = new Grid( boxesAcross , cellsInRow / boxesAcross );
             ++ i ;
         }
@@ -190,8 +190,45 @@ public class Composer extends Thread {
                     debug.println( "Puzzle Unwinds = " + puzzle.nUnwinds );
                     debug.println( "Cumulative Composer Complexity = " + solvers[solverIndex].complexity );
                     debug.println( "Cumulative Composer Unwinds = " + solvers[solverIndex].nUnwinds );
-                    debug.println( "Time = " + new DecimalFormat("#0.000").format( t ) + "s\n" );
+                    debug.println( "Time = " + new DecimalFormat("#0.000").format( t ) + "s" );
+                    boolean multipleCategories = false ; 
+                    StringBuffer sb = new StringBuffer();
+                    if( puzzle.nUnwinds == 1 ){
+                        sb.append("Logical");
+                        multipleCategories = true ;
+                    }
                     puzzle.solve( lch , 1 );
+                    if( lch.singleSectorCandidatesEliminations > 0 ){
+                        if( multipleCategories ){
+                            sb.append(":");
+                        }
+                        sb.append("Single Sector Candidates");
+                        multipleCategories = true ;
+                    }
+                    if( lch.disjointSubsetsEliminations > 0 ){
+                        if( multipleCategories ){
+                            sb.append(":");
+                        }
+                        sb.append("Disjoint Subsets");
+                        multipleCategories = true ;
+                    }
+                    if( lch.xWingsEliminations > 0 ){
+                        if( multipleCategories ){
+                            sb.append(":");
+                        }
+                        sb.append("X-Wings");
+                        multipleCategories = true ;
+                    }
+                    if( lch.nishioEliminations > 0 ){
+                        if( multipleCategories ){
+                            sb.append(":");
+                        }
+                        sb.append("Nishio");
+                        multipleCategories = true ;
+                    }
+                    if( sb.length() > 0 ){
+                        debug.println( sb.toString() );
+                    }
                     int i = 0 ;
                     while( i < lch.getThreadLength() ){
                         debug.print( ( 1 + i ) + ". " + lch.getReason(i) );
