@@ -261,11 +261,11 @@ public abstract class StrategyBase {
      */
     
     public void reset( int move ) {
-        while( nMoves > move ){
+        while( nMoves > move && nMoves >= 0 && nMoves <= grid.cellsInRow * grid.cellsInRow ){
             -- nMoves ;   
             grid.data[xMoves[nMoves]][yMoves[nMoves]] = 0 ;
         }       
-        while( nMoves < move ){
+        while( 0 <= nMoves && nMoves < move && nMoves < grid.cellsInRow * grid.cellsInRow ){
             grid.data[xMoves[nMoves]][yMoves[nMoves]] = 1 + values[nMoves] ;
             ++ nMoves ;   
         }       

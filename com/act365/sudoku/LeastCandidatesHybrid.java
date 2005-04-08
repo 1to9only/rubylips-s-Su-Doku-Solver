@@ -36,28 +36,36 @@ public class LeastCandidatesHybrid extends StrategyBase implements IStrategy {
     
     LeastCandidatesCell lcc ;
 
+    IStrategy better ;
+
     boolean useDisjointSubsets ,
             useSingleSectorCandidates ,
             useXWings ,
             useNishio ;
             
-    int disjointSubsetsCalls ,
+    int singleCandidatureCalls ,
+        disjointSubsetsCalls ,
         disjointSubsetsEliminations ,
         singleSectorCandidatesCalls ,
         singleSectorCandidatesEliminations ,
         xWingsCalls ,
         xWingsEliminations ,
+        swordfishEliminations ,
         nishioCalls ,
-        nishioEliminations ;
+        nishioEliminations ,
+        nStrings ,
+        maxStrings ;
     
     // Arrays defined as members in order to improve performance.
     
     transient int[] x , y , linkedValues , linkedCells ;
     
+    transient int[] stringR0 , stringC0 , stringR1 , stringC1 , stringLength ;
+    
     transient boolean[] union ;
             
     transient int[][] mask ;
-    
+
     /**
      * Sets up a LeastCandidatesHybrid II strategy with an optional random element.
      * @param randomize whether the final candidates should be chosen randomly from its peers
@@ -108,13 +116,25 @@ public class LeastCandidatesHybrid extends StrategyBase implements IStrategy {
                 linkedCells = new int[grid.cellsInRow];
                 union = new boolean[grid.cellsInRow];
             }
+            if( useXWings ){
+                nStrings = 0 ;
+                // The following array size isn't a theoretical upper limit 
+                // but should prove adequate.
+                maxStrings = grid.cellsInRow * grid.cellsInRow * grid.cellsInRow ;
+                stringR0 = new int[maxStrings];
+                stringC0 = new int[maxStrings];
+                stringR1 = new int[maxStrings];
+                stringC1 = new int[maxStrings];
+                stringLength = new int[maxStrings];
+            }
             if( useNishio ){
                 mask = new int[grid.cellsInRow][grid.cellsInRow];
             }
         }
+        singleCandidatureCalls = 0 ;
         disjointSubsetsCalls = disjointSubsetsEliminations = 0 ;
         singleSectorCandidatesCalls = singleSectorCandidatesEliminations = 0 ;
-        xWingsCalls = xWingsEliminations = 0 ;
+        xWingsCalls = xWingsEliminations = swordfishEliminations = 0 ;
         nishioCalls = nishioEliminations = 0 ;
     }
     
@@ -128,44 +148,49 @@ public class LeastCandidatesHybrid extends StrategyBase implements IStrategy {
      
 	public int findCandidates() {
         
-        IStrategy better ;
-
         StringBuffer sb = explain ? new StringBuffer() : null ;
 
-        if( lcc.findCandidates() == 0 || lcc.getScore() > 1 && lcn.findCandidates() == 0 ){
+        try {
+            singleCandidature();
+        } catch ( Exception e ){
             score = 0 ;
-            return ( nCandidates = 0 );
+            return ( nCandidates = 0 );            
         }
         
-        if( lcc.getScore() == 1 || lcc.getScore() < lcn.getScore() ){
-            better = lcc ;
-        } else {
-            better = lcn ;
-        }
-        
-        // When no indisputable candidate exists, look for linked values
-        // or restricted candidate regions in order to eliminate moves.
+        // When no indisputable candidate exists, employ the various
+        // rules in order to try to eliminate candidates.
         // The code is only executed for Least Candidates Hybrid II. 
-        if( state instanceof IState && better.getScore() > 1 ){
+        if( state instanceof IState && score > 1 ){
             try {
-                while( useSingleSectorCandidates && singleSectorCandidates( sb ) || 
-                       useDisjointSubsets && disjointSubsets( sb ) || 
-                       useXWings && xWings( sb ) || 
-                       useNishio && nishio( sb ) ){
-                    if( lcc.findCandidates() == 0 || lcc.getScore() > 1 && lcn.findCandidates() == 0 ){
-                        score = 0 ;
-                        return ( nCandidates = 0 );
-                    }
-                    if( lcc.getScore() == 1 || lcc.getScore() < lcn.getScore() ){
-                        better = lcc ;
-                    } else {
-                        better = lcn ;
-                    }
-                    if( better.getScore() == 1 ){
+                while( true ){
+                    if( useSingleSectorCandidates && singleSectorCandidates( sb ) && singleCandidature() ){
                         break ;
                     }
+                    if( useDisjointSubsets && disjointSubsets( sb ) ){
+                        if( singleCandidature() ){
+                            break ;
+                        } else {
+                            continue ;
+                        }
+                    }
+                    if( useXWings && xWings( sb ) ){
+                        if( singleCandidature() ){
+                            break ;
+                        } else {
+                            continue ;
+                        }
+                    }
+                    if( useNishio && nishio( sb ) ){
+                        if( singleCandidature() ){
+                            break ;
+                        } else {
+                            continue ;
+                        }
+                    }
+                    break ;
                 }
             } catch ( Exception e ) {
+                score = 0 ;
                 return ( nCandidates = 0 );
             }
         }
@@ -181,7 +206,6 @@ public class LeastCandidatesHybrid extends StrategyBase implements IStrategy {
             }
             ++ nCandidates ;    
         }        
-        score = better.getScore();
         
         if( state instanceof IState ){
             InvulnerableState invulnerableState = (InvulnerableState) state ;
@@ -215,6 +239,25 @@ public class LeastCandidatesHybrid extends StrategyBase implements IStrategy {
         return nCandidates ;
 	}
 
+    /**
+     * Determines which underlying strategy to prefer.  
+     * @return whether an undisputed candidate has been found
+     * @throws Exception bad grid state
+     */
+    
+    boolean singleCandidature() throws Exception {
+        ++ singleCandidatureCalls ;
+        if( lcc.findCandidates() == 0 || lcc.getScore() > 1 && lcn.findCandidates() == 0 ){
+            throw new Exception("Bad grid state");
+        }
+        if( lcc.getScore() == 1 || lcc.getScore() < lcn.getScore() ){
+            better = lcc ;
+        } else {
+            better = lcn ;
+        }
+        return ( score = better.getScore() ) == 1 ;
+    }
+    
     /**
      * Checks whether some strictly smaller subset of the candidates for a 
      * row, column or box will fit into some subset of the available cells,
@@ -587,119 +630,257 @@ public class LeastCandidatesHybrid extends StrategyBase implements IStrategy {
         ++ xWingsCalls ;
         boolean movesEliminated = false , anyMoveEliminated ;
         CellState cellState = (CellState) lcc.state ;
-        NumberState numberState = (NumberState) lcn.state ; 
-        int i , s , v , p0 , p1 , q0 , q1 , r0 , r1 , c0 ,c1 ;
+        NumberState numberState = (NumberState) lcn.state ;
+        int i , j , k , v , s , t0 , t1 , x0 , x1 , y0 , y1 , r0 , c0 , r1 , c1 ;
+        int nUnitStrings , longStringsBegin , longStringsEnd ; 
         v = 0 ;
         considerXWingsValue:
         while( v < grid.cellsInRow ){
+            // Find all the unit strings.
+            nStrings = 0 ;
             s = 0 ;
-            p0 = p1 = q0 = q1 = -1 ;
-            while( s < 2 * grid.cellsInRow ){
-                if( s == grid.cellsInRow ){
-                    // Reset as columns are now considered.
-                    p0 = p1 = q0 = q1 = -1 ;
-                }
-                if(  numberState.nEliminated[v][s] != grid.cellsInRow - 2 ){
+            while( s < 3 * grid.cellsInRow && nStrings < maxStrings ){
+                if( numberState.nEliminated[v][s] != grid.cellsInRow - 2 ){
                     ++ s ;
                     continue ;
                 }
-                if( p0 == -1 ){
-                    p0 = s % grid.cellsInRow ;
-                    i = 0 ;
-                    while( i < grid.cellsInRow ){
-                        if( numberState.eliminated[v][s][i] ){
-                            ++ i ;
-                            continue ;
-                        }
-                        if( q0 == -1 ){
-                            q0 = i ;
-                        } else {
-                            q1 = i ;
-                            break ;
-                        }
-                        ++ i ;
-                    }
-                    ++ s ;
-                    continue ;
-                } else if( numberState.eliminated[v][s][q0] || numberState.eliminated[v][s][q1] ){
-                    ++ s ;
-                    continue ;
+                t0 = 0 ;
+                while( numberState.eliminated[v][s][t0] ){
+                    ++ t0 ;
                 }
-                p1 = s % grid.cellsInRow ;
-                anyMoveEliminated = false ;
-                i = 0 ;
-                while( i < grid.cellsInRow ){
-                    if( i == p0 || i == p1 ){
-                        ++ i ;
+                t1 = t0 + 1 ;
+                while( numberState.eliminated[v][s][t1] ){
+                    ++ t1 ;
+                }
+                if( s < grid.cellsInRow ){
+                    x0 = x1 = s ;
+                    y0 = t0 ;
+                    y1 = t1 ;
+                } else if( s < 2 * grid.cellsInRow ){
+                    x0 = t0 ;
+                    x1 = t1 ;
+                    y0 = y1 = s - grid.cellsInRow ;
+                } else {                    
+                    x0 = ( s - 2 * grid.cellsInRow )/ grid.boxesAcross * grid.boxesAcross + t0 / grid.boxesDown ;
+                    x1 = ( s - 2 * grid.cellsInRow )/ grid.boxesAcross * grid.boxesAcross + t1 / grid.boxesDown ;
+                    y0 = ( s - 2 * grid.cellsInRow )% grid.boxesAcross * grid.boxesDown + t0 % grid.boxesDown ;
+                    y1 = ( s - 2 * grid.cellsInRow )% grid.boxesAcross * grid.boxesDown + t1 % grid.boxesDown ;
+                    if( x0 == x1 || y0 == y1 ){
+                        ++ s ;
                         continue ;
                     }
-                    if( s < grid.cellsInRow ){
-                        r0 = r1 = i ;
-                        c0 = q0 ;
-                        c1 = q1 ;
-                    } else {
-                        c0 = c1 = i ;
-                        r0 = q0 ;
-                        r1 = q1 ;
-                    }
-                    if( ! cellState.eliminated[r0][c0][v] ){
-                        numberState.eliminateMove( r0 , c0 , v );
-                        cellState.eliminateMove( r0 , c0 , v );
-                        state.eliminateMove( r0 , c0 , v );
-                        anyMoveEliminated = movesEliminated = true ;
-                        ++ xWingsEliminations ;
-                    }
-                    if( ! cellState.eliminated[r1][c1][v] ){
-                        numberState.eliminateMove( r1 , c1 , v );
-                        cellState.eliminateMove( r1 , c1 , v );
-                        state.eliminateMove( r1 , c1 , v );
-                        anyMoveEliminated = movesEliminated = true ;
-                        ++ xWingsEliminations ;
+                }
+                stringR0[nStrings] = x0 ;
+                stringC0[nStrings] = y0 ;
+                stringR1[nStrings] = x1 ;
+                stringC1[nStrings] = y1 ;
+                stringLength[nStrings] = 1 ;
+                ++ nStrings ;
+                ++ s ;
+            }
+            // Attempt to build longer strings.
+            nUnitStrings = nStrings ;
+            longStringsBegin = 0 ;
+            longStringsEnd = nStrings ;
+            while( longStringsBegin < longStringsEnd ){
+                i = 0 ;
+                while( i < nUnitStrings ){
+                    j = Math.max( 1 + i , longStringsBegin );
+                    considerLongStrings:
+                    while( j < longStringsEnd && nStrings < maxStrings ){
+                        if( stringR0[i] == stringR0[j] && stringC0[i] == stringC0[j] && 
+                         !( stringR1[i] == stringR1[j] && stringC1[i] == stringC1[j] ) ){
+                            x0 = stringR1[i];
+                            y0 = stringC1[i];
+                            x1 = stringR1[j];
+                            y1 = stringC1[j];
+                        } else if( stringR1[i] == stringR1[j] && stringC1[i] == stringC1[j] && 
+                                !( stringR0[i] == stringR0[j] && stringC0[i] == stringC0[j] ) ){
+                            x0 = stringR0[i];
+                            y0 = stringC0[i];
+                            x1 = stringR0[j];
+                            y1 = stringC0[j];
+                        } else if( stringR0[i] == stringR1[j] && stringC0[i] == stringC1[j] && 
+                                !( stringR1[i] == stringR0[j] && stringC1[i] == stringC0[j] ) ){
+                            x0 = stringR1[i];
+                            y0 = stringC1[i];
+                            x1 = stringR0[j];
+                            y1 = stringC0[j];
+                        } else if( stringR1[i] == stringR0[j] && stringC1[i] == stringC0[j] && 
+                                !( stringR0[i] == stringR1[j] && stringC0[i] == stringC1[j] ) ){
+                            x0 = stringR0[i];
+                            y0 = stringC0[i];
+                            x1 = stringR1[j];
+                            y1 = stringC1[j];
+                        } else {
+                            ++ j ;
+                            continue ;
+                        }
+                        if( x0 < x1 || x0 == x1 && y0 < y1 ){
+                            r0 = x0 ;
+                            c0 = y0 ; 
+                            r1 = x1 ;
+                            c1 = y1 ; 
+                        } else {
+                            r0 = x1 ;
+                            c0 = y1 ; 
+                            r1 = x0 ;
+                            c1 = y0 ; 
+                        }
+                        // Check for cyclic dependencies.
+                        k = 0 ;
+                        while( k < nStrings ){
+                            if( r0 == stringR0[k] && c0 == stringC0[k] && r1 == stringR1[k] && c1 == stringC1[k] ){
+                                ++ j ;
+                                continue considerLongStrings ;
+                            }
+                            ++ k ;
+                        }
+                        stringR0[nStrings] = r0 ;
+                        stringC0[nStrings] = c0 ; 
+                        stringR1[nStrings] = r1 ;
+                        stringC1[nStrings] = c1 ; 
+                        stringLength[nStrings++] = 1 + stringLength[j];
+                        ++ j ;
                     }
                     ++ i ;
                 }
-                if( anyMoveEliminated ){
-                    if( explain ){
-                        if( s < grid.cellsInRow ){
-                            r0 = p0 ;
-                            r1 = p1 ;
-                            c0 = q0 ;
-                            c1 = q1 ;
-                        } else {
-                            c0 = p0 ;
-                            c1 = p1 ;
-                            r0 = q0 ;
-                            r1 = q1 ;
+                longStringsBegin = longStringsEnd ;
+                longStringsEnd = nStrings ;
+            }
+            if( nStrings == maxStrings ){
+                System.err.println("String buffer is full with " + nStrings + " elements");
+            }
+            // See whether any strings match.
+            i = 0 ;
+            while( i < nStrings - 1 ){
+                if( stringLength[i] % 2 == 0 ){
+                    ++ i ;
+                    continue ;
+                }
+                j = i + 1 ;
+                while( j < nStrings ){
+                    if( stringLength[j] % 2 == 0 ){
+                        ++ j ;
+                        continue ;
+                    }
+                    if( stringR0[i] == stringR0[j] && stringC0[i] == stringC0[j] ||
+                        stringR0[i] == stringR1[j] && stringC0[i] == stringC1[j] ||
+                        stringR1[i] == stringR0[j] && stringC1[i] == stringC0[j] ||
+                        stringR1[i] == stringR1[j] && stringC1[i] == stringC1[j] ){
+                        ++ j ;
+                        continue ;
+                    }
+                    anyMoveEliminated = false ;
+                    if( stringR0[i] == stringR0[j] && stringR1[i] == stringR1[j] ){
+                        k = 0 ;
+                        while( k < grid.cellsInRow ){
+                            if( k == stringC0[i] || k == stringC0[j] ){
+                                ++ k ;
+                                continue ;
+                            }
+                            if( ! cellState.eliminated[stringR0[i]][k][v] ){
+                                numberState.eliminateMove( stringR0[i] , k , v );
+                                cellState.eliminateMove( stringR0[i] , k , v );
+                                state.eliminateMove( stringR0[i] , k , v );
+                                anyMoveEliminated = movesEliminated = true ;
+                                if( stringLength[i] == 1 && stringLength[j] == 1 ){
+                                    ++ xWingsEliminations ;
+                                } else {
+                                    ++ swordfishEliminations ;
+                                }
+                            }
+                            ++ k ;
                         }
+                        k = 0 ;
+                        while( k < grid.cellsInRow ){
+                            if( k == stringC1[i] || k == stringC1[j] ){
+                                ++ k ;
+                                continue ;
+                            }
+                            if( ! cellState.eliminated[stringR1[i]][k][v] ){
+                                numberState.eliminateMove( stringR1[i] , k , v );
+                                cellState.eliminateMove( stringR1[i] , k , v );
+                                state.eliminateMove( stringR1[i] , k , v );
+                                anyMoveEliminated = movesEliminated = true ;
+                                if( stringLength[i] == 1 && stringLength[j] == 1 ){
+                                    ++ xWingsEliminations ;
+                                } else {
+                                    ++ swordfishEliminations ;
+                                }
+                            }
+                            ++ k ;
+                        }
+                    }
+                    if( stringC0[i] == stringC0[j] && stringC1[i] == stringC1[j] ){
+                        k = 0 ;
+                        while( k < grid.cellsInRow ){
+                            if( k == stringR0[i] || k == stringR0[j] ){
+                                ++ k ;
+                                continue ;
+                            }
+                            if( ! cellState.eliminated[k][stringC0[i]][v] ){
+                                numberState.eliminateMove( k , stringC0[i] , v );
+                                cellState.eliminateMove( k , stringC0[i] , v );
+                                state.eliminateMove( k , stringC0[i] , v );
+                                anyMoveEliminated = movesEliminated = true ;
+                                if( stringLength[i] == 1 && stringLength[j] == 1 ){
+                                    ++ xWingsEliminations ;
+                                } else {
+                                    ++ swordfishEliminations ;
+                                }
+                            }
+                            ++ k ;
+                        }
+                        k = 0 ;
+                        while( k < grid.cellsInRow ){
+                            if( k == stringR1[i] || k == stringR1[j] ){
+                                ++ k ;
+                                continue ;
+                            }
+                            if( ! cellState.eliminated[k][stringC1[i]][v] ){
+                                numberState.eliminateMove( k , stringC1[i] , v );
+                                cellState.eliminateMove( k , stringC1[i] , v );
+                                state.eliminateMove( k , stringC1[i] , v );
+                                anyMoveEliminated = movesEliminated = true ;
+                                if( stringLength[i] == 1 && stringLength[j] == 1 ){
+                                    ++ xWingsEliminations ;
+                                } else {
+                                    ++ swordfishEliminations ;
+                                }
+                            }
+                            ++ k ;
+                        }
+                    }                    
+                    if( anyMoveEliminated && explain ){
                         sb.append( 1 + v );
                         sb.append("s must appear in the cells (");
-                        sb.append( 1 + r0 );
+                        sb.append( 1 + stringR0[i] );
                         sb.append(",");
-                        sb.append( 1 + c0 );
+                        sb.append( 1 + stringC0[i] );
                         sb.append(") and (");
-                        sb.append( 1 + r1 );
+                        sb.append( 1 + stringR1[j] );
                         sb.append(",");
-                        sb.append( 1 + c1 );
+                        sb.append( 1 + stringC1[j] );
                         sb.append(") or the cells (");
-                        sb.append( 1 + r0 );
+                        sb.append( 1 + stringR0[j] );
                         sb.append(",");
-                        sb.append( 1 + c1 );
+                        sb.append( 1 + stringC0[j] );
                         sb.append(") and (");
-                        sb.append( 1 + r1 );
+                        sb.append( 1 + stringR1[i] );
                         sb.append(",");
-                        sb.append( 1 + c0 );
+                        sb.append( 1 + stringC1[i] );
                         sb.append(").\n");
                     }
-                    ++ v ;
-                    continue considerXWingsValue ;
+                    ++ j ;
                 }
-                ++ s ;
+                ++ i ;
             }
             ++ v ;
         }
         return movesEliminated ;
     }
-    
+        
     /**
      * Searches for moves that would make it impossible to place the remaining values.
      * @param sb explanation
@@ -880,7 +1061,6 @@ public class LeastCandidatesHybrid extends StrategyBase implements IStrategy {
                             }
                             if( nCandidates == 0 ){
                                 movesEliminated = anyMoveEliminated = true ;
-                                ++ nishioEliminations ;
                                 continue checkConsistency ;
                             } else if( ! candidateNominated ){
                                 r = xLower ;
@@ -907,6 +1087,7 @@ public class LeastCandidatesHybrid extends StrategyBase implements IStrategy {
                         cellState.eliminateMove( i , j , v );
                         numberState.eliminateMove( i , j , v );
                         state.eliminateMove( i , j , v );               
+                        ++ nishioEliminations ;
                         if( explain ){
                             sb.append("The move (");
                             sb.append( i + 1 );

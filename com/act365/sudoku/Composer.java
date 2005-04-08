@@ -185,49 +185,55 @@ public class Composer extends Thread {
                 }
                 if( debug instanceof PrintWriter ){
                     double t = ( new Date().getTime() - startTime )/ 1000. ;
-                    debug.println( "Solution " + ( 1 + nSolns ) +":\n");
+                    debug.println( "Puzzle " + ( 1 + nSolns ) +":\n");
                     debug.println( "Puzzle Complexity = " + puzzle.complexity );
                     debug.println( "Puzzle Unwinds = " + puzzle.nUnwinds );
                     debug.println( "Cumulative Composer Complexity = " + solvers[solverIndex].complexity );
                     debug.println( "Cumulative Composer Unwinds = " + solvers[solverIndex].nUnwinds );
                     debug.println( "Time = " + new DecimalFormat("#0.000").format( t ) + "s" );
-                    boolean multipleCategories = false ; 
+                    boolean multipleCategories = false ,
+                            logical = puzzle.nUnwinds == 1 ; 
                     StringBuffer sb = new StringBuffer();
-                    if( puzzle.nUnwinds == 1 ){
-                        sb.append("Logical");
-                        multipleCategories = true ;
-                    }
                     puzzle.solve( lch , 1 );
-                    if( lch.singleSectorCandidatesEliminations > 0 ){
-                        if( multipleCategories ){
-                            sb.append(":");
+                    if( logical ){
+                        if( lch.singleSectorCandidatesEliminations > 0 ){
+                            if( multipleCategories ){
+                                sb.append(":");
+                            }
+                            sb.append("Single Sector Candidates");
+                            multipleCategories = true ;
                         }
-                        sb.append("Single Sector Candidates");
-                        multipleCategories = true ;
-                    }
-                    if( lch.disjointSubsetsEliminations > 0 ){
-                        if( multipleCategories ){
-                            sb.append(":");
+                        if( lch.disjointSubsetsEliminations > 0 ){
+                            if( multipleCategories ){
+                                sb.append(":");
+                            }
+                            sb.append("Disjoint Subsets");
+                            multipleCategories = true ;
                         }
-                        sb.append("Disjoint Subsets");
-                        multipleCategories = true ;
-                    }
-                    if( lch.xWingsEliminations > 0 ){
-                        if( multipleCategories ){
-                            sb.append(":");
+                        if( lch.xWingsEliminations > 0 ){
+                            if( multipleCategories ){
+                                sb.append(":");
+                            }
+                            sb.append("X-Wings");
+                            multipleCategories = true ;
                         }
-                        sb.append("X-Wings");
-                        multipleCategories = true ;
-                    }
-                    if( lch.nishioEliminations > 0 ){
-                        if( multipleCategories ){
-                            sb.append(":");
+                        if( lch.swordfishEliminations > 0 ){
+                            if( multipleCategories ){
+                                sb.append(":");
+                            }
+                            sb.append("Swordfish");
+                            multipleCategories = true ;
                         }
-                        sb.append("Nishio");
-                        multipleCategories = true ;
-                    }
-                    if( sb.length() > 0 ){
-                        debug.println( sb.toString() );
+                        if( lch.nishioEliminations > 0 ){
+                            if( multipleCategories ){
+                                sb.append(":");
+                            }
+                            sb.append("Nishio");
+                            multipleCategories = true ;
+                        }
+                        if( sb.length() > 0 ){
+                            debug.println( sb.toString() );
+                        }
                     }
                     int i = 0 ;
                     while( i < lch.getThreadLength() ){

@@ -415,9 +415,11 @@ public class Solver extends Thread {
             if( strategy instanceof LeastCandidatesHybrid ){
                 LeastCandidatesHybrid lch = (LeastCandidatesHybrid) strategy ;
                 if( lch.state instanceof IState ){
+                    System.out.println("Single Candidature: " + lch.singleCandidatureCalls + " calls");
                     System.out.println("Single Sector Candidates: " + lch.singleSectorCandidatesCalls + " calls " + lch.singleSectorCandidatesEliminations + " eliminations");
                     System.out.println("Disjoint Subsets: " + lch.disjointSubsetsCalls + " calls " + lch.disjointSubsetsEliminations + " eliminations");
                     System.out.println("X-Wings: " + lch.xWingsCalls + " calls " + lch.xWingsEliminations + " eliminations");
+                    System.out.println("Swordfish: " + lch.swordfishEliminations + " eliminations");
                     System.out.println("Nishio: " + lch.nishioCalls + " calls " + lch.nishioEliminations + " eliminations");
                 }
             }
