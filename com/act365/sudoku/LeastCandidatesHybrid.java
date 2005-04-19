@@ -41,23 +41,30 @@ public class LeastCandidatesHybrid extends StrategyBase implements IStrategy {
     boolean useDisjointSubsets ,
             useSingleSectorCandidates ,
             useXWings ,
-            useNishio ;
+            useSwordfish ,
+            useNishio ,
+            useGuesses ;
             
     int singleCandidatureCalls ,
         disjointSubsetsCalls ,
         disjointSubsetsEliminations ,
+        maxDisjointSubsetsSize ,
         singleSectorCandidatesCalls ,
         singleSectorCandidatesEliminations ,
         xWingsCalls ,
         xWingsEliminations ,
+        swordfishCalls ,
         swordfishEliminations ,
         nishioCalls ,
         nishioEliminations ,
-        nStrings ,
+        nGuesses ,
         maxStrings ;
     
     // Arrays defined as members in order to improve performance.
-    
+
+    transient int disjointSubsetsStartSector ,
+                  singleSectorCandidatesStartValue ;
+        
     transient int[] x , y , linkedValues , linkedCells ;
     
     transient int[] stringR0 , stringC0 , stringR1 , stringC1 , stringLength ;
@@ -87,7 +94,9 @@ public class LeastCandidatesHybrid extends StrategyBase implements IStrategy {
         useDisjointSubsets = true ;
         useSingleSectorCandidates = true ;
         useXWings = useAllLogicalMethods ;
+        useSwordfish = useAllLogicalMethods ;
         useNishio = useAllLogicalMethods ;
+        useGuesses = true ;
     }
 
     /**
@@ -116,8 +125,7 @@ public class LeastCandidatesHybrid extends StrategyBase implements IStrategy {
                 linkedCells = new int[grid.cellsInRow];
                 union = new boolean[grid.cellsInRow];
             }
-            if( useXWings ){
-                nStrings = 0 ;
+            if( useXWings || useSwordfish ){
                 // The following array size isn't a theoretical upper limit 
                 // but should prove adequate.
                 maxStrings = grid.cellsInRow * grid.cellsInRow * grid.cellsInRow ;
@@ -131,11 +139,14 @@ public class LeastCandidatesHybrid extends StrategyBase implements IStrategy {
                 mask = new int[grid.cellsInRow][grid.cellsInRow];
             }
         }
+        maxDisjointSubsetsSize = explain ? grid.cellsInRow : 6 /* Rule-of-thumb */ ;
         singleCandidatureCalls = 0 ;
         disjointSubsetsCalls = disjointSubsetsEliminations = 0 ;
         singleSectorCandidatesCalls = singleSectorCandidatesEliminations = 0 ;
-        xWingsCalls = xWingsEliminations = swordfishEliminations = 0 ;
+        xWingsCalls = xWingsEliminations = 0 ;
+        swordfishCalls = swordfishEliminations = 0 ;
         nishioCalls = nishioEliminations = 0 ;
+        nGuesses = 0 ;
     }
     
 	/**
@@ -162,14 +173,22 @@ public class LeastCandidatesHybrid extends StrategyBase implements IStrategy {
         // The code is only executed for Least Candidates Hybrid II. 
         if( state instanceof IState && score > 1 ){
             try {
+                disjointSubsetsStartSector = 0 ;
+                singleSectorCandidatesStartValue = 0 ;
                 while( true ){
-                    if( useSingleSectorCandidates && singleSectorCandidates( sb ) && singleCandidature() ){
-                        break ;
+                    if( useSingleSectorCandidates && singleSectorCandidates( sb ) ){
+                        if( singleCandidature() ){
+                            break ;
+                        } else {
+                            disjointSubsetsStartSector = 0 ;
+                            continue ;
+                        }
                     }
                     if( useDisjointSubsets && disjointSubsets( sb ) ){
                         if( singleCandidature() ){
                             break ;
                         } else {
+                            singleSectorCandidatesStartValue = 0 ;
                             continue ;
                         }
                     }
@@ -177,6 +196,17 @@ public class LeastCandidatesHybrid extends StrategyBase implements IStrategy {
                         if( singleCandidature() ){
                             break ;
                         } else {
+                            singleSectorCandidatesStartValue = 0 ;
+                            disjointSubsetsStartSector = 0 ;
+                            continue ;
+                        }
+                    }
+                    if( useSwordfish && swordfish( sb ) ){
+                        if( singleCandidature() ){
+                            break ;
+                        } else {
+                            singleSectorCandidatesStartValue = 0 ;
+                            disjointSubsetsStartSector = 0 ;
                             continue ;
                         }
                     }
@@ -184,12 +214,22 @@ public class LeastCandidatesHybrid extends StrategyBase implements IStrategy {
                         if( singleCandidature() ){
                             break ;
                         } else {
+                            singleSectorCandidatesStartValue = 0 ;
+                            disjointSubsetsStartSector = 0 ;
                             continue ;
                         }
                     }
                     break ;
                 }
             } catch ( Exception e ) {
+                score = 0 ;
+                return ( nCandidates = 0 );
+            }
+        }
+        if( score > 1 ){
+            if( useGuesses ){
+                ++ nGuesses ;
+            } else {
                 score = 0 ;
                 return ( nCandidates = 0 );
             }
@@ -269,12 +309,11 @@ public class LeastCandidatesHybrid extends StrategyBase implements IStrategy {
     
     boolean disjointSubsets( StringBuffer sb ) throws Exception {
         ++ disjointSubsetsCalls ;
-        boolean movesEliminated = false ;
         boolean anyMoveEliminated ;
         CellState cellState = (CellState) lcc.state ;
         NumberState numberState = (NumberState) lcn.state ; 
-        int s , i , j , k , l , subsetSize , unionSize , nUnfilled ;
-        s = 0 ;
+        int s , i , j , k , l , subsetSize , unionSize , nUnfilled , nUnconsideredValues ;
+        s = disjointSubsetsStartSector ;
         while( s < 3 * grid.cellsInRow ){
             nUnfilled = 0 ;
             i = 0 ;
@@ -296,9 +335,18 @@ public class LeastCandidatesHybrid extends StrategyBase implements IStrategy {
                 ++ s ;
                 continue ;
             }
+            // Count the number of unconsidered values.
+            nUnconsideredValues = 0 ;
+            i = linkedValues[subsetSize-1] + 1 ;
+            while( i < grid.cellsInRow ){
+                if( ! numberState.isFilled[i][s] ){
+                    ++ nUnconsideredValues ;
+                }
+                ++ i ;
+            }
             // Calculate union size
             unionSize = grid.cellsInRow - numberState.nEliminated[linkedValues[0]][s] ;                    
-            while(true){
+            while( true ){
                 anyMoveEliminated = false ;
                 // Check the union size.
                 if( unionSize < subsetSize ){
@@ -342,41 +390,45 @@ public class LeastCandidatesHybrid extends StrategyBase implements IStrategy {
                             numberState.eliminateMove( x[i] , y[i] , j );
                             cellState.eliminateMove( x[i] , y[i] , j );
                             state.eliminateMove( x[i] , y[i] , j );
-                            anyMoveEliminated = movesEliminated = true ;
+                            anyMoveEliminated = true ;
                             ++ disjointSubsetsEliminations ; 
                             ++ j ;
                         }
                         ++ i ;
                     }
-                    if( explain && anyMoveEliminated ){
-                        sb.append("The values ");
-                        sb.append( 1 + linkedValues[0] );
-                        i = 1 ;
-                        while( i < subsetSize - 1 ){
-                            sb.append(", ");
-                            sb.append( 1 + linkedValues[i++] );
-                        }
-                        sb.append(" and ");
-                        sb.append( 1 + linkedValues[i] );
-                        sb.append(" occupy the cells (");
-                        sb.append( 1 + x[0] );
-                        sb.append(",");
-                        sb.append( 1 + y[0] );
-                        sb.append(")");
-                        i = 1 ;
-                        while( i < subsetSize - 1 ){
-                            sb.append(", (");
+                    if( anyMoveEliminated ){
+                        if( explain ){
+                            sb.append("The values ");
+                            sb.append( 1 + linkedValues[0] );
+                            i = 1 ;
+                            while( i < subsetSize - 1 ){
+                                sb.append(", ");
+                                sb.append( 1 + linkedValues[i++] );
+                            }
+                            sb.append(" and ");
+                            sb.append( 1 + linkedValues[i] );
+                            sb.append(" occupy the cells (");
+                            sb.append( 1 + x[0] );
+                            sb.append(",");
+                            sb.append( 1 + y[0] );
+                            sb.append(")");
+                            i = 1 ;
+                            while( i < subsetSize - 1 ){
+                                sb.append(", (");
+                                sb.append( 1 + x[i] );
+                                sb.append(",");
+                                sb.append( 1 + y[i] );
+                                sb.append(")");
+                                ++ i ;
+                            }
+                            sb.append(" and (");
                             sb.append( 1 + x[i] );
                             sb.append(",");
                             sb.append( 1 + y[i] );
-                            sb.append(")");
-                            ++ i ;
+                            sb.append(") in some order.\n");
                         }
-                        sb.append(" and (");
-                        sb.append( 1 + x[i] );
-                        sb.append(",");
-                        sb.append( 1 + y[i] );
-                        sb.append(") in some order.\n");
+                        disjointSubsetsStartSector = s ;
+                        return true ;
                     }
                     if( linkedValues[0] < grid.cellsInRow - 1 ){
                         ++ linkedValues[0];
@@ -384,11 +436,11 @@ public class LeastCandidatesHybrid extends StrategyBase implements IStrategy {
                     } else {
                         break ;
                     }
-                } else if( unionSize < nUnfilled ){
+                } else if( unionSize >= maxDisjointSubsetsSize || unionSize > subsetSize + nUnconsideredValues || unionSize >= nUnfilled ) {
+                    ++ linkedValues[subsetSize-1];
+                } else {
                     linkedValues[subsetSize] = linkedValues[subsetSize-1] + 1 ;
                     ++ subsetSize ;
-                } else {
-                    ++ linkedValues[subsetSize-1];
                 }
                 // Ensure that the last value in the subset is sensible.
                 while( subsetSize > 0 ){
@@ -408,29 +460,38 @@ public class LeastCandidatesHybrid extends StrategyBase implements IStrategy {
                 if( subsetSize == 0 ){
                     break;
                 }                            
+                // Count the number of unconsidered values.
+                nUnconsideredValues = 0 ;
+                i = linkedValues[subsetSize-1] + 1 ;
+                while( i < grid.cellsInRow ){
+                    if( ! numberState.isFilled[i][s] ){
+                        ++ nUnconsideredValues ;
+                    }
+                    ++ i ;
+                }
                 // Calculate the union size for the new subset.
                 unionSize = 0 ;
                 i = 0 ;
                 while( i < grid.cellsInRow ){
                     union[i++] = false ;
                 }
-                i = 0 ;
-                while( i < grid.cellsInRow ){
-                    j = 0 ;
-                    while( j < subsetSize ){
-                        if( ! numberState.eliminated[linkedValues[j]][s][i] ){
+                j = 0 ;
+                while( j < subsetSize ){
+                    i = 0 ;
+                    while( i < grid.cellsInRow ){
+                        if( ! union[i] && ! numberState.eliminated[linkedValues[j]][s][i] ){
                             union[i] = true ;
                             ++ unionSize ;
-                            break;
                         }
-                        ++ j ;
+                        ++ i ;
                     }
-                    ++ i ;
+                    ++ j ;
                 }
             }
             ++ s ;
         }
-        return movesEliminated ;
+        disjointSubsetsStartSector = 0 ;
+        return false ;
     }
     
     /**
@@ -445,9 +506,9 @@ public class LeastCandidatesHybrid extends StrategyBase implements IStrategy {
         ++ singleSectorCandidatesCalls ;
         CellState cellState = (CellState) lcc.state ;
         NumberState numberState = (NumberState) lcn.state ; 
-        boolean movesEliminated = false , anyMoveEliminated ;
+        boolean anyMoveEliminated ;
         int i , j , s , value , box , row , column , x0 , y0 , xLower , xUpper , yLower , yUpper ;
-        value = 0 ;
+        value = singleSectorCandidatesStartValue ;
         while( value < grid.cellsInRow ){
             s = 0 ;
             while( s < 2 * grid.cellsInRow ){
@@ -501,29 +562,33 @@ public class LeastCandidatesHybrid extends StrategyBase implements IStrategy {
                                 numberState.eliminateMove( x0 , y0 , value );
                                 cellState.eliminateMove( x0 , y0 , value );
                                 state.eliminateMove( x0 , y0 , value );
-                                anyMoveEliminated = movesEliminated = true ;
+                                anyMoveEliminated = true ;
                                 ++ singleSectorCandidatesEliminations ;
                             }
                             ++ y0 ;                                
                         }
                         ++ x0 ;
                     }
-                    if( explain && anyMoveEliminated ){
-                        sb.append("The value ");
-                        sb.append( 1 + value );
-                        sb.append(" in Box [");
-                        sb.append( 1 + box / grid.boxesAcross );
-                        sb.append(",");
-                        sb.append( 1 + box % grid.boxesAcross );
-                        sb.append("] must lie in ");
-                        if( s < grid.cellsInRow ){
-                            sb.append("Row ");
-                            sb.append( 1 + s );
-                        } else {
-                            sb.append("Column ");
-                            sb.append( 1 + s - grid.cellsInRow );
+                    if( anyMoveEliminated ){
+                        if( explain ){
+                            sb.append("The value ");
+                            sb.append( 1 + value );
+                            sb.append(" in Box [");
+                            sb.append( 1 + box / grid.boxesAcross );
+                            sb.append(",");
+                            sb.append( 1 + box % grid.boxesAcross );
+                            sb.append("] must lie in ");
+                            if( s < grid.cellsInRow ){
+                                sb.append("Row ");
+                                sb.append( 1 + s );
+                            } else {
+                                sb.append("Column ");
+                                sb.append( 1 + s - grid.cellsInRow );
+                            }
+                            sb.append(".\n");
                         }
-                        sb.append(".\n");
+                        singleSectorCandidatesStartValue = value ;
+                        return true ;
                     }
                 }
                 ++ s ;
@@ -589,97 +654,130 @@ public class LeastCandidatesHybrid extends StrategyBase implements IStrategy {
                             numberState.eliminateMove( x0 , y0 , value );
                             cellState.eliminateMove( x0 , y0 , value );
                             state.eliminateMove( x0 , y0 , value );
-                            anyMoveEliminated = movesEliminated = true ;
+                            anyMoveEliminated = true ;
                             ++ singleSectorCandidatesEliminations ;
                         }
                         ++ j ;
                     }
-                    if( explain && anyMoveEliminated ){
-                        sb.append("The value ");
-                        sb.append( 1 + value );
-                        sb.append(" in ");
-                        if( column == -1 ){
-                            sb.append("Row ");
-                            sb.append( 1 + row );
-                        } else {
-                            sb.append("Column ");
-                            sb.append( 1 + column );
+                    if( anyMoveEliminated ){
+                        if( explain ){
+                            sb.append("The value ");
+                            sb.append( 1 + value );
+                            sb.append(" in ");
+                            if( column == -1 ){
+                                sb.append("Row ");
+                                sb.append( 1 + row );
+                            } else {
+                                sb.append("Column ");
+                                sb.append( 1 + column );
+                            }
+                            sb.append(" must lie in Box [");
+                            sb.append( 1 + ( s - 2 * grid.cellsInRow )/ grid.boxesAcross );
+                            sb.append(",");
+                            sb.append( 1 + ( s - 2 * grid.cellsInRow )% grid.boxesAcross );
+                            sb.append("].\n");
                         }
-                        sb.append(" must lie in Box [");
-                        sb.append( 1 + ( s - 2 * grid.cellsInRow )/ grid.boxesAcross );
-                        sb.append(",");
-                        sb.append( 1 + ( s - 2 * grid.cellsInRow )% grid.boxesAcross );
-                        sb.append("].\n");
+                        singleSectorCandidatesStartValue = value ;
+                        return true ;
                     }
                 }
                 ++ s ;
             }
             ++ value ;
         }
-        return movesEliminated ;
+        singleSectorCandidatesStartValue = 0 ;
+        return false ;
     }
     
     /**
      * Searches for the X-Wings pattern.
-     * @param sb explanation
-     * @return whether eliminations have been performed
-     * @throws Exception the grid is in a bad state
      */
     
     boolean xWings( StringBuffer sb ){
         ++ xWingsCalls ;
-        boolean movesEliminated = false , anyMoveEliminated ;
-        CellState cellState = (CellState) lcc.state ;
-        NumberState numberState = (NumberState) lcn.state ;
-        int i , j , k , v , s , t0 , t1 , x0 , x1 , y0 , y1 , r0 , c0 , r1 , c1 ;
-        int nUnitStrings , longStringsBegin , longStringsEnd ; 
+        int i , j , v , nUnitStrings ; 
         v = 0 ;
-        considerXWingsValue:
         while( v < grid.cellsInRow ){
-            // Find all the unit strings.
-            nStrings = 0 ;
-            s = 0 ;
-            while( s < 3 * grid.cellsInRow && nStrings < maxStrings ){
-                if( numberState.nEliminated[v][s] != grid.cellsInRow - 2 ){
+            nUnitStrings = unitStrings( v ) ;
+            i = 0 ;
+            while( i < nUnitStrings - 1 ){
+                j = i + 1 ;
+                while( j < nUnitStrings ){
+                    if( xWings( v , i , j , sb ) ){
+                        return true ;
+                    }
+                    ++ j ;
+                }
+                ++ i ;
+            }
+            ++ v ;
+        }
+        return false ;
+    }
+
+    /**
+     * Finds unit strings - sectors with two candidates for the given value.
+     */    
+
+    int unitStrings( int v ){
+        int nStrings , s , t0 , t1 , x0 , x1 , y0 , y1 ;
+        NumberState numberState = (NumberState) lcn.state ;
+        nStrings = 0 ;
+        s = 0 ;
+        while( s < 3 * grid.cellsInRow && nStrings < maxStrings ){
+            if( numberState.nEliminated[v][s] != grid.cellsInRow - 2 ){
+                ++ s ;
+                continue ;
+            }
+            t0 = 0 ;
+            while( numberState.eliminated[v][s][t0] ){
+                ++ t0 ;
+            }
+            t1 = t0 + 1 ;
+            while( numberState.eliminated[v][s][t1] ){
+                ++ t1 ;
+            }
+            if( s < grid.cellsInRow ){
+                x0 = x1 = s ;
+                y0 = t0 ;
+                y1 = t1 ;
+            } else if( s < 2 * grid.cellsInRow ){
+                x0 = t0 ;
+                x1 = t1 ;
+                y0 = y1 = s - grid.cellsInRow ;
+            } else {                    
+                x0 = ( s - 2 * grid.cellsInRow )/ grid.boxesAcross * grid.boxesAcross + t0 / grid.boxesDown ;
+                x1 = ( s - 2 * grid.cellsInRow )/ grid.boxesAcross * grid.boxesAcross + t1 / grid.boxesDown ;
+                y0 = ( s - 2 * grid.cellsInRow )% grid.boxesAcross * grid.boxesDown + t0 % grid.boxesDown ;
+                y1 = ( s - 2 * grid.cellsInRow )% grid.boxesAcross * grid.boxesDown + t1 % grid.boxesDown ;
+                if( x0 == x1 || y0 == y1 ){
                     ++ s ;
                     continue ;
                 }
-                t0 = 0 ;
-                while( numberState.eliminated[v][s][t0] ){
-                    ++ t0 ;
-                }
-                t1 = t0 + 1 ;
-                while( numberState.eliminated[v][s][t1] ){
-                    ++ t1 ;
-                }
-                if( s < grid.cellsInRow ){
-                    x0 = x1 = s ;
-                    y0 = t0 ;
-                    y1 = t1 ;
-                } else if( s < 2 * grid.cellsInRow ){
-                    x0 = t0 ;
-                    x1 = t1 ;
-                    y0 = y1 = s - grid.cellsInRow ;
-                } else {                    
-                    x0 = ( s - 2 * grid.cellsInRow )/ grid.boxesAcross * grid.boxesAcross + t0 / grid.boxesDown ;
-                    x1 = ( s - 2 * grid.cellsInRow )/ grid.boxesAcross * grid.boxesAcross + t1 / grid.boxesDown ;
-                    y0 = ( s - 2 * grid.cellsInRow )% grid.boxesAcross * grid.boxesDown + t0 % grid.boxesDown ;
-                    y1 = ( s - 2 * grid.cellsInRow )% grid.boxesAcross * grid.boxesDown + t1 % grid.boxesDown ;
-                    if( x0 == x1 || y0 == y1 ){
-                        ++ s ;
-                        continue ;
-                    }
-                }
-                stringR0[nStrings] = x0 ;
-                stringC0[nStrings] = y0 ;
-                stringR1[nStrings] = x1 ;
-                stringC1[nStrings] = y1 ;
-                stringLength[nStrings] = 1 ;
-                ++ nStrings ;
-                ++ s ;
             }
+            stringR0[nStrings] = x0 ;
+            stringC0[nStrings] = y0 ;
+            stringR1[nStrings] = x1 ;
+            stringC1[nStrings] = y1 ;
+            stringLength[nStrings] = 1 ;
+            ++ nStrings ;
+            ++ s ;
+        }
+        return nStrings ;
+    }
+    
+    /**
+     * Looks for the swordfish pattern.
+     */        
+    
+    boolean swordfish( StringBuffer sb ){
+        ++ swordfishCalls ;
+        int v , i , j , k , x0 , y0 , x1 , y1 , r0 , c0 , r1 , c1 ;
+        int nStrings , nUnitStrings , longStringsBegin , longStringsEnd ;
+        v = 0 ;
+        while( v < grid.cellsInRow ){
+            nStrings = nUnitStrings = unitStrings( v );
             // Attempt to build longer strings.
-            nUnitStrings = nStrings ;
             longStringsBegin = 0 ;
             longStringsEnd = nStrings ;
             while( longStringsBegin < longStringsEnd ){
@@ -751,7 +849,7 @@ public class LeastCandidatesHybrid extends StrategyBase implements IStrategy {
             if( nStrings == maxStrings ){
                 System.err.println("String buffer is full with " + nStrings + " elements");
             }
-            // See whether any strings match.
+            // Look for swordfish patterns.
             i = 0 ;
             while( i < nStrings - 1 ){
                 if( stringLength[i] % 2 == 0 ){
@@ -760,127 +858,151 @@ public class LeastCandidatesHybrid extends StrategyBase implements IStrategy {
                 }
                 j = i + 1 ;
                 while( j < nStrings ){
-                    if( stringLength[j] % 2 == 0 ){
+                    if( stringLength[j] == 1 || stringLength[j] % 2 == 0 ){
                         ++ j ;
                         continue ;
                     }
-                    if( stringR0[i] == stringR0[j] && stringC0[i] == stringC0[j] ||
-                        stringR0[i] == stringR1[j] && stringC0[i] == stringC1[j] ||
-                        stringR1[i] == stringR0[j] && stringC1[i] == stringC0[j] ||
-                        stringR1[i] == stringR1[j] && stringC1[i] == stringC1[j] ){
-                        ++ j ;
-                        continue ;
-                    }
-                    anyMoveEliminated = false ;
-                    if( stringR0[i] == stringR0[j] && stringR1[i] == stringR1[j] ){
-                        k = 0 ;
-                        while( k < grid.cellsInRow ){
-                            if( k == stringC0[i] || k == stringC0[j] ){
-                                ++ k ;
-                                continue ;
-                            }
-                            if( ! cellState.eliminated[stringR0[i]][k][v] ){
-                                numberState.eliminateMove( stringR0[i] , k , v );
-                                cellState.eliminateMove( stringR0[i] , k , v );
-                                state.eliminateMove( stringR0[i] , k , v );
-                                anyMoveEliminated = movesEliminated = true ;
-                                if( stringLength[i] == 1 && stringLength[j] == 1 ){
-                                    ++ xWingsEliminations ;
-                                } else {
-                                    ++ swordfishEliminations ;
-                                }
-                            }
-                            ++ k ;
-                        }
-                        k = 0 ;
-                        while( k < grid.cellsInRow ){
-                            if( k == stringC1[i] || k == stringC1[j] ){
-                                ++ k ;
-                                continue ;
-                            }
-                            if( ! cellState.eliminated[stringR1[i]][k][v] ){
-                                numberState.eliminateMove( stringR1[i] , k , v );
-                                cellState.eliminateMove( stringR1[i] , k , v );
-                                state.eliminateMove( stringR1[i] , k , v );
-                                anyMoveEliminated = movesEliminated = true ;
-                                if( stringLength[i] == 1 && stringLength[j] == 1 ){
-                                    ++ xWingsEliminations ;
-                                } else {
-                                    ++ swordfishEliminations ;
-                                }
-                            }
-                            ++ k ;
-                        }
-                    }
-                    if( stringC0[i] == stringC0[j] && stringC1[i] == stringC1[j] ){
-                        k = 0 ;
-                        while( k < grid.cellsInRow ){
-                            if( k == stringR0[i] || k == stringR0[j] ){
-                                ++ k ;
-                                continue ;
-                            }
-                            if( ! cellState.eliminated[k][stringC0[i]][v] ){
-                                numberState.eliminateMove( k , stringC0[i] , v );
-                                cellState.eliminateMove( k , stringC0[i] , v );
-                                state.eliminateMove( k , stringC0[i] , v );
-                                anyMoveEliminated = movesEliminated = true ;
-                                if( stringLength[i] == 1 && stringLength[j] == 1 ){
-                                    ++ xWingsEliminations ;
-                                } else {
-                                    ++ swordfishEliminations ;
-                                }
-                            }
-                            ++ k ;
-                        }
-                        k = 0 ;
-                        while( k < grid.cellsInRow ){
-                            if( k == stringR1[i] || k == stringR1[j] ){
-                                ++ k ;
-                                continue ;
-                            }
-                            if( ! cellState.eliminated[k][stringC1[i]][v] ){
-                                numberState.eliminateMove( k , stringC1[i] , v );
-                                cellState.eliminateMove( k , stringC1[i] , v );
-                                state.eliminateMove( k , stringC1[i] , v );
-                                anyMoveEliminated = movesEliminated = true ;
-                                if( stringLength[i] == 1 && stringLength[j] == 1 ){
-                                    ++ xWingsEliminations ;
-                                } else {
-                                    ++ swordfishEliminations ;
-                                }
-                            }
-                            ++ k ;
-                        }
+                    if( xWings( v , i , j , sb ) ){
+                        return true ;
                     }                    
-                    if( anyMoveEliminated && explain ){
-                        sb.append( 1 + v );
-                        sb.append("s must appear in the cells (");
-                        sb.append( 1 + stringR0[i] );
-                        sb.append(",");
-                        sb.append( 1 + stringC0[i] );
-                        sb.append(") and (");
-                        sb.append( 1 + stringR1[j] );
-                        sb.append(",");
-                        sb.append( 1 + stringC1[j] );
-                        sb.append(") or the cells (");
-                        sb.append( 1 + stringR0[j] );
-                        sb.append(",");
-                        sb.append( 1 + stringC0[j] );
-                        sb.append(") and (");
-                        sb.append( 1 + stringR1[i] );
-                        sb.append(",");
-                        sb.append( 1 + stringC1[i] );
-                        sb.append(").\n");
-                    }
                     ++ j ;
                 }
                 ++ i ;
             }
             ++ v ;
         }
-        return movesEliminated ;
+        return false ;
     }
-        
+
+    /**
+     * Establishes whether the two two-candidate sector indexed i and j form an
+     * X-Wing or Swordfish.
+     */
+    
+    boolean xWings( int v , int i , int j , StringBuffer sb ){
+        int k ;
+        boolean anyMoveEliminated = false ;
+        CellState cellState = (CellState) lcc.state ;
+        NumberState numberState = (NumberState) lcn.state ;
+        if( stringR0[i] == stringR0[j] && stringC0[i] == stringC0[j] ||
+            stringR0[i] == stringR1[j] && stringC0[i] == stringC1[j] ||
+            stringR1[i] == stringR0[j] && stringC1[i] == stringC0[j] ||
+            stringR1[i] == stringR1[j] && stringC1[i] == stringC1[j] ){
+                return anyMoveEliminated ;
+        }
+        if( stringR0[i] == stringR0[j] && stringR1[i] == stringR1[j] ){
+            k = 0 ;
+            while( k < grid.cellsInRow ){
+                if( k == stringC0[i] || k == stringC0[j] ){
+                    ++ k ;
+                    continue ;
+                }
+                if( ! cellState.eliminated[stringR0[i]][k][v] ){
+                    numberState.eliminateMove( stringR0[i] , k , v );
+                    cellState.eliminateMove( stringR0[i] , k , v );
+                    state.eliminateMove( stringR0[i] , k , v );
+                    anyMoveEliminated = true ;
+                    if( stringLength[i] == 1 && stringLength[j] == 1 ){
+                        ++ xWingsEliminations ;
+                    } else {
+                        ++ swordfishEliminations ;
+                    }
+                }
+                ++ k ;
+            }
+            k = 0 ;
+            while( k < grid.cellsInRow ){
+                if( k == stringC1[i] || k == stringC1[j] ){
+                    ++ k ;
+                    continue ;
+                }
+                if( ! cellState.eliminated[stringR1[i]][k][v] ){
+                    numberState.eliminateMove( stringR1[i] , k , v );
+                    cellState.eliminateMove( stringR1[i] , k , v );
+                    state.eliminateMove( stringR1[i] , k , v );
+                    anyMoveEliminated = true ;
+                    if( stringLength[i] == 1 && stringLength[j] == 1 ){
+                        ++ xWingsEliminations ;
+                    } else {
+                        ++ swordfishEliminations ;
+                    }
+                }
+                ++ k ;
+            }
+        }
+        if( stringC0[i] == stringC0[j] && stringC1[i] == stringC1[j] ){
+            k = 0 ;
+            while( k < grid.cellsInRow ){
+                if( k == stringR0[i] || k == stringR0[j] ){
+                    ++ k ;
+                    continue ;
+                }
+                if( ! cellState.eliminated[k][stringC0[i]][v] ){
+                    numberState.eliminateMove( k , stringC0[i] , v );
+                    cellState.eliminateMove( k , stringC0[i] , v );
+                    state.eliminateMove( k , stringC0[i] , v );
+                    anyMoveEliminated = true ;
+                    if( stringLength[i] == 1 && stringLength[j] == 1 ){
+                        ++ xWingsEliminations ;
+                    } else {
+                        ++ swordfishEliminations ;
+                    }
+                }
+                ++ k ;
+            }
+            k = 0 ;
+            while( k < grid.cellsInRow ){
+                if( k == stringR1[i] || k == stringR1[j] ){
+                    ++ k ;
+                    continue ;
+                }
+                if( ! cellState.eliminated[k][stringC1[i]][v] ){
+                    numberState.eliminateMove( k , stringC1[i] , v );
+                    cellState.eliminateMove( k , stringC1[i] , v );
+                    state.eliminateMove( k , stringC1[i] , v );
+                    anyMoveEliminated = true ;
+                    if( stringLength[i] == 1 && stringLength[j] == 1 ){
+                        ++ xWingsEliminations ;
+                    } else {
+                        ++ swordfishEliminations ;
+                    }
+                }
+                ++ k ;
+            }
+        }                    
+        if( anyMoveEliminated ){
+            if( explain ){
+                sb.append( 1 + v );
+                sb.append("s must appear in the cells (");
+                sb.append( 1 + stringR0[i] );
+                sb.append(",");
+                sb.append( 1 + stringC0[i] );
+                sb.append(") and (");
+                sb.append( 1 + stringR1[j] );
+                sb.append(",");
+                sb.append( 1 + stringC1[j] );
+                sb.append(") or the cells (");
+                sb.append( 1 + stringR0[j] );
+                sb.append(",");
+                sb.append( 1 + stringC0[j] );
+                sb.append(") and (");
+                sb.append( 1 + stringR1[i] );
+                sb.append(",");
+                sb.append( 1 + stringC1[i] );
+                sb.append("). [");
+                if( stringLength[j] == 1 ){
+                    sb.append("X-Wing");
+                } else {
+                    sb.append( stringLength[j] );
+                    sb.append("-leg Swordfish");
+                }
+                sb.append("]\n");                            
+            }
+            return true ;
+        }
+        return false ;
+    }
+            
     /**
      * Searches for moves that would make it impossible to place the remaining values.
      * @param sb explanation
@@ -890,7 +1012,7 @@ public class LeastCandidatesHybrid extends StrategyBase implements IStrategy {
     
     boolean nishio( StringBuffer sb ){
         ++ nishioCalls ;
-        boolean movesEliminated = false , anyMoveEliminated , candidateNominated ;
+        boolean anyMoveEliminated , candidateNominated ;
         CellState cellState = (CellState) lcc.state ;
         NumberState numberState = (NumberState) lcn.state ; 
         int i , j , v , r , c , box , x0 , y0 , xLower , xUpper , yLower , yUpper ;
@@ -988,7 +1110,7 @@ public class LeastCandidatesHybrid extends StrategyBase implements IStrategy {
                                 ++ c ;
                             }
                             if( nCandidates == 0 ){
-                                movesEliminated = anyMoveEliminated = true ;
+                                anyMoveEliminated = true ;
                                 continue checkConsistency ;
                             } else if( ! candidateNominated ){
                                 c = 0 ;
@@ -1020,7 +1142,7 @@ public class LeastCandidatesHybrid extends StrategyBase implements IStrategy {
                                 ++ r ;
                             }
                             if( nCandidates == 0 ){
-                                movesEliminated = anyMoveEliminated = true ;
+                                anyMoveEliminated = true ;
                                 continue checkConsistency ;
                             } else if( ! candidateNominated ){
                                 r = 0 ;
@@ -1060,7 +1182,7 @@ public class LeastCandidatesHybrid extends StrategyBase implements IStrategy {
                                 ++ r ;
                             }
                             if( nCandidates == 0 ){
-                                movesEliminated = anyMoveEliminated = true ;
+                                anyMoveEliminated = true ;
                                 continue checkConsistency ;
                             } else if( ! candidateNominated ){
                                 r = xLower ;
@@ -1099,6 +1221,7 @@ public class LeastCandidatesHybrid extends StrategyBase implements IStrategy {
                             sb.append( v + 1 );
                             sb.append("s.\n");
                         }
+                        return true ;
                     }
                     ++ j ;
                 }
@@ -1106,7 +1229,7 @@ public class LeastCandidatesHybrid extends StrategyBase implements IStrategy {
             }
             ++ v ;
         }
-        return movesEliminated ;
+        return false ;
     }
     
 	/** 
@@ -1151,38 +1274,39 @@ public class LeastCandidatesHybrid extends StrategyBase implements IStrategy {
 	 */
     
 	public boolean unwind( int newNMoves , boolean reset ){
+        if( newNMoves < 0 ){
+            return false ;
+        }
         // Unwind thread.
-        if( newNMoves >= 0 ){
-            if( explain && reset ){
-                reasons[newNMoves].append("The move (");
-                reasons[newNMoves].append( 1 + xMoves[newNMoves] );
-                reasons[newNMoves].append(",");
-                reasons[newNMoves].append( 1 + yMoves[newNMoves] );
-                reasons[newNMoves].append("):=");
-                reasons[newNMoves].append( grid.data[xMoves[newNMoves]][yMoves[newNMoves]] );
-                reasons[newNMoves].append(" would lead to a contradiction.\n");
-                int i = newNMoves + 1 ;
-                while( i < nMoves ){
-                    reasons[i++] = new StringBuffer();
-                }
+        if( explain && reset ){
+            reasons[newNMoves].append("The move (");
+            reasons[newNMoves].append( 1 + xMoves[newNMoves] );
+            reasons[newNMoves].append(",");
+            reasons[newNMoves].append( 1 + yMoves[newNMoves] );
+            reasons[newNMoves].append("):=");
+            reasons[newNMoves].append( grid.data[xMoves[newNMoves]][yMoves[newNMoves]] );
+            reasons[newNMoves].append(" would lead to a contradiction.\n");
+            int i = newNMoves + 1 ;
+            while( i < nMoves ){
+                reasons[i++] = new StringBuffer();
             }
-            if( state instanceof IState ){
-                state.popState( newNMoves );
-                state.eliminateMove( xMoves[newNMoves] , yMoves[newNMoves] , grid.data[xMoves[newNMoves]][yMoves[newNMoves]] - 1 );
-            }
+        }
+        if( state instanceof IState ){
+            state.popState( newNMoves );
+            state.eliminateMove( xMoves[newNMoves] , yMoves[newNMoves] , grid.data[xMoves[newNMoves]][yMoves[newNMoves]] - 1 );
         }
 		lcn.unwind( newNMoves , false );
         lcc.unwind( newNMoves , false );
         // Remove the most recent moves from the grid.
         if( reset ){
-            int i = Math.max( newNMoves , 0 );
+            int i = newNMoves ;
             while( i < nMoves ){
                 grid.data[xMoves[i]][yMoves[i]] = 0 ;
                 ++ i ;
             }
         }
         nMoves = newNMoves ;
-        return nMoves >= 0 ;
+        return true ;
 	}
     
     /**

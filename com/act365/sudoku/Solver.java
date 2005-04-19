@@ -419,7 +419,7 @@ public class Solver extends Thread {
                     System.out.println("Single Sector Candidates: " + lch.singleSectorCandidatesCalls + " calls " + lch.singleSectorCandidatesEliminations + " eliminations");
                     System.out.println("Disjoint Subsets: " + lch.disjointSubsetsCalls + " calls " + lch.disjointSubsetsEliminations + " eliminations");
                     System.out.println("X-Wings: " + lch.xWingsCalls + " calls " + lch.xWingsEliminations + " eliminations");
-                    System.out.println("Swordfish: " + lch.swordfishEliminations + " eliminations");
+                    System.out.println("Swordfish: " + lch.swordfishCalls + " calls " + lch.swordfishEliminations + " eliminations");
                     System.out.println("Nishio: " + lch.nishioCalls + " calls " + lch.nishioEliminations + " eliminations");
                 }
             }

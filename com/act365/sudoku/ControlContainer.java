@@ -28,7 +28,6 @@ package com.act365.sudoku;
 import java.awt.* ;
 import java.awt.datatransfer.* ;
 import java.awt.event.* ;
-import java.text.DecimalFormat ;
 import java.util.StringTokenizer ;
 
 /**
@@ -43,8 +42,7 @@ public class ControlContainer extends com.act365.awt.Container
                                          MouseListener ,
                                          ClipboardOwner {
 
-    final static int defaultStrategy = Strategy.LEAST_CANDIDATES_HYBRID_II ,
-                     defaultMinFilledCellsValue = 32 ;
+    final static int defaultMinFilledCellsValue = 32 ;
      
 	int boxesAcross ,
 		boxesDown ,
@@ -63,7 +61,6 @@ public class ControlContainer extends com.act365.awt.Container
 	Button solve ,
 		   unsolve ,
 		   reset ,
-           hint ,
 		   resize ,
 		   evaluate ,
 		   compose ,
@@ -74,12 +71,20 @@ public class ControlContainer extends com.act365.awt.Container
 
     Label solns ,
           complexity ,
-          time ,
-          cell ,
-          value ;
+          singleSectorCandidatesEliminations ,
+          disjointSubsetsEliminations ,
+          xWingsEliminations ,
+          swordfishEliminations ,
+          nishioEliminations ,
+          nGuesses ;
           
-    Choice strategy ;
-    
+    Checkbox singleSectorCandidates ,
+             disjointSubsets ,
+             xWings ,
+             swordfish ,
+             nishio ,
+             guess ;
+             
     SuDokuClipboard clipboard ;
     
     /**
@@ -114,23 +119,11 @@ public class ControlContainer extends com.act365.awt.Container
         shuffle = new Button("Shuffle");
         shuffle.addActionListener( this );
         
-        // Add the Hint controls.
-        hint = new Button("Hint");
-        hint.addActionListener( this );
-        cell = new Label();
-        value = new Label();
-        
-        // Add the Strategy controls.
-        strategy = new Choice();
-        int i = 0 ;
-        while( i < Strategy.strategyNames.length ){
-            strategy.add( Strategy.strategyNames[i] ); 
-            ++ i ;   
-        }
-        strategy.select( defaultStrategy );
-        grid.setStrategy( defaultStrategy );
-        strategy.addItemListener( this );
-        time = new Label("0.0s");
+        // Add the Evaluate controls
+        evaluate = new Button("Evaluate");
+        evaluate.addActionListener( this );
+        solns = new Label();
+        complexity = new Label();
             
         // Add the Resize controls.
         resize = new Button("Resize");
@@ -138,12 +131,6 @@ public class ControlContainer extends com.act365.awt.Container
         across = new TextField(1);
         down = new TextField(1);
         
-        // Add the Evaluate controls
-        evaluate = new Button("Evaluate");
-        evaluate.addActionListener( this );
-        solns = new Label();
-        complexity = new Label();
-            
         // Add the Compose controls
         compose = new Button("Compose");
         compose.addActionListener( this );
@@ -151,6 +138,26 @@ public class ControlContainer extends com.act365.awt.Container
         interrupt = new Button("Break");
         interrupt.addActionListener( this );
     
+        // Add the Strategy controls.
+        singleSectorCandidates = new Checkbox("Single Sector Candidates" , grid.getStrategy().useSingleSectorCandidates );
+        singleSectorCandidates.addItemListener( this );
+        singleSectorCandidatesEliminations = new Label("0");
+        disjointSubsets = new Checkbox("Disjoint Subsets" , grid.getStrategy().useDisjointSubsets );
+        disjointSubsets.addItemListener( this );
+        disjointSubsetsEliminations = new Label("0");
+        xWings = new Checkbox("X-Wings" , grid.getStrategy().useXWings );
+        xWings.addItemListener( this );
+        xWingsEliminations = new Label("0");
+        swordfish = new Checkbox("Swordfish" , grid.getStrategy().useSwordfish );
+        swordfish.addItemListener( this );
+        swordfishEliminations = new Label("0");
+        nishio = new Checkbox("Nishio" , grid.getStrategy().useNishio );
+        nishio.addItemListener( this );
+        nishioEliminations = new Label("0");
+        guess = new Checkbox("Guess" , grid.getStrategy().useGuesses );
+        guess.addItemListener( this );
+        nGuesses = new Label("0");
+        
         // Add the Reasoning area
         reasoningArea = new TextArea();
         reasoningArea.setEditable( false );
@@ -161,39 +168,43 @@ public class ControlContainer extends com.act365.awt.Container
 		addComponent( unsolve , 4 , 0 , 3 , 1 , 1 , 0 );
 		addComponent( reset , 8 , 0 , 3 , 1 , 1 , 0 );
 
-        addComponent( copy , 0 , 1 , 3 , 1 , 1 , 0 );
-        addComponent( paste , 4 , 1 , 3 , 1 , 1 , 0 );
-        addComponent( shuffle , 8 , 1 , 3 , 1 , 1 , 0 );
+        addComponent( evaluate , 0 , 1 , 3 , 1 , 1 , 0 );
+        addComponent( new Label("Solutions") , 4 , 1 , 2 , 1 , 1 , 0 );
+        addComponent( solns , 6 , 1 , 1 , 1 , 1 , 0 );
+        addComponent( new Label("Complexity") , 8 , 1 , 2 , 1 , 1 , 0 );
+        addComponent( complexity , 10 , 1 , 1 , 1 , 1 , 0 );
         
-        addComponent( hint , 0 , 2 , 3 , 1 , 1 , 0 );
-        addComponent( new Label("Cell") , 4 , 2 , 2 , 1 , 1 , 0 );
-        addComponent( cell , 6 , 2 , 1 , 1 , 1 , 0 );
-        addComponent( new Label("Value") , 8 , 2 , 2 , 1 , 1 , 0 );
-        addComponent( value , 10 , 2 , 1 , 1 , 1 , 0 );
+        addComponent( copy , 0 , 2 , 3 , 1 , 1 , 0 );
+        addComponent( paste , 4 , 2 , 3 , 1 , 1 , 0 );
+        addComponent( shuffle , 8 , 2 , 3 , 1 , 1 , 0 );
         
-        addComponent( new Label("Strategy") , 0 , 3 , 2 , 1 , 1 , 0 );
-        addComponent( strategy , 4 , 3 , 3 , 1 , 1 , 0 );
-        addComponent( new Label("Time") , 8 , 3 , 2 , 1 , 1 , 0 );
-        addComponent( time , 10 , 3 , 1 , 1 , 1 , 0 );
-        
-		addComponent( resize , 0 , 4 , 3 , 1 , 1 , 0 );
-		addComponent( new Label("Across") , 4 , 4 , 2 , 1 , 1 , 0 );
-		addComponent( across , 6 , 4 , 1 , 1 , 1 , 0 );
-		addComponent( new Label("Down") , 8 , 4 , 2 , 1 , 1 , 0 );
-		addComponent( down , 10 , 4 , 1 , 1 , 1 , 0 );	
+		addComponent( resize , 0 , 3 , 3 , 1 , 1 , 0 );
+		addComponent( new Label("Across") , 4 , 3 , 2 , 1 , 1 , 0 );
+		addComponent( across , 6 , 3 , 1 , 1 , 1 , 0 );
+		addComponent( new Label("Down") , 8 , 3 , 2 , 1 , 1 , 0 );
+		addComponent( down , 10 , 3 , 1 , 1 , 1 , 0 );	
 
-		addComponent( evaluate , 0 , 5 , 3 , 1 , 1 , 0 );
-		addComponent( new Label("Solutions") , 4 , 5 , 2 , 1 , 1 , 0 );
-		addComponent( solns , 6 , 5 , 1 , 1 , 1 , 0 );
-		addComponent( new Label("Complexity") , 8 , 5 , 2 , 1 , 1 , 0 );
-		addComponent( complexity , 10 , 5 , 1 , 1 , 1 , 0 );
-		
-        addComponent( compose , 0 , 6 , 3 , 1 , 1 , 0 );
-        addComponent( new Label("Filled Cells") , 4 , 6 , 2 , 1 , 1 , 0 );
-        addComponent( minFilledCells , 6 , 6 , 1 , 1 , 1 , 0 );
-        addComponent( interrupt , 8 , 6 , 3 , 1 , 1 , 0 );
+        addComponent( compose , 0 , 4 , 3 , 1 , 1 , 0 );
+        addComponent( new Label("Filled Cells") , 4 , 4 , 2 , 1 , 1 , 0 );
+        addComponent( minFilledCells , 6 , 4 , 1 , 1 , 1 , 0 );
+        addComponent( interrupt , 8 , 4 , 3 , 1 , 1 , 0 );
         
-        addComponent( reasoningArea , 0 , 7 , 11 , 5 , 1 , 1 );
+        addComponent( new Label("Pattern:") , 0 , 5 , 2 , 1 , 1 , 0 );
+        addComponent( singleSectorCandidates , 4 , 5 , 3 , 1 , 1 , 0 );
+        addComponent( singleSectorCandidatesEliminations , 10 , 5 , 1 , 1 , 1 , 0 );
+        addComponent( disjointSubsets , 4 , 6 , 3 , 1 , 1 , 0 );
+        addComponent( disjointSubsetsEliminations , 10 , 6 , 1 , 1 , 1 , 0 );
+        addComponent( xWings , 4 , 7 , 3 , 1 , 1 , 0 );
+        addComponent( xWingsEliminations , 10 , 7 , 1 , 1 , 1 , 0 );
+        addComponent( swordfish , 4 , 8 , 3 , 1 , 1 , 0 );
+        addComponent( swordfishEliminations , 10 , 8 , 1 , 1 , 1 , 0 );
+        addComponent( nishio , 4 , 9 , 3 , 1 , 1 , 0 );
+        addComponent( nishioEliminations , 10 , 9 , 1 , 1 , 1 , 0 );
+        
+        addComponent( guess , 4 , 10 , 3 , 1 , 1 , 0 );
+        addComponent( nGuesses , 10 , 10 , 1 , 1 , 1 , 0 );
+                
+        addComponent( reasoningArea , 0 , 11 , 11 , 5 , 1 , 1 );
           
 		write();	
     }    
@@ -214,7 +225,6 @@ public class ControlContainer extends com.act365.awt.Container
         
 		if( evt.getSource() == solve ){
 			grid.solve();
-            time.setText( new DecimalFormat("#0.000").format( grid.getSolveTime() )+ "s");
             if( grid.getStrategy().explainsReasoning() ){
                 reasoningArea.setText( null );
                 reasoningArea.append("START\n"); 
@@ -224,12 +234,13 @@ public class ControlContainer extends com.act365.awt.Container
                     ++ i ;
                 }
             }
+            write();
 		} else if( evt.getSource() == unsolve ) {
 			grid.unsolve();
 		} else if( evt.getSource() == reset ){
 			grid.reset();
             reasoningArea.setText( null );
-            time.setText("0.0s");
+            write();
         } else if( evt.getSource() == copy ) {
             if( isApplet ){
                 clipboard.show();
@@ -293,12 +304,6 @@ public class ControlContainer extends com.act365.awt.Container
 			write();
         } else if( evt.getSource() == interrupt ) {
             grid.stopComposer();
-		} else if( evt.getSource() == hint ){
-            read();
-            if( grid.hint() ){
-                cell.setText( "(" + grid.getHintX() + "," + grid.getHintY() + ")" );
-                value.setText( Integer.toString( grid.getHintValue() ) );
-            }
 		}
 	}
 	
@@ -359,8 +364,18 @@ public class ControlContainer extends com.act365.awt.Container
      */
 
     public void itemStateChanged( ItemEvent evt ){
-        if( evt.getSource() == strategy ){
-            grid.setStrategy( strategy.getSelectedIndex() );
+        if( evt.getSource() == singleSectorCandidates ){
+            grid.getStrategy().useSingleSectorCandidates = singleSectorCandidates.getState();
+        } else if( evt.getSource() == disjointSubsets ){
+            grid.getStrategy().useDisjointSubsets = disjointSubsets.getState();
+        } else if( evt.getSource() == xWings ){
+            grid.getStrategy().useXWings = xWings.getState();
+        } else if( evt.getSource() == swordfish ){
+            grid.getStrategy().useSwordfish = swordfish.getState();
+        } else if( evt.getSource() == nishio ){
+            grid.getStrategy().useNishio = nishio.getState();
+        } else if( evt.getSource() == guess ) {
+            grid.getStrategy().useGuesses = guess.getState();
         }
     }
     
@@ -391,6 +406,12 @@ public class ControlContainer extends com.act365.awt.Container
 		across.setText( Integer.toString( boxesAcross ) );
 		down.setText( Integer.toString( boxesDown ) );
 		minFilledCells.setText( Integer.toString( minFilledCellsValue ));
+        singleSectorCandidatesEliminations.setText( Integer.toString( grid.getStrategy().singleSectorCandidatesEliminations ) );
+        disjointSubsetsEliminations.setText( Integer.toString( grid.getStrategy().disjointSubsetsEliminations ) );
+        xWingsEliminations.setText( Integer.toString( grid.getStrategy().xWingsEliminations ) );
+        swordfishEliminations.setText( Integer.toString( grid.getStrategy().swordfishEliminations ) );
+        nishioEliminations.setText( Integer.toString( grid.getStrategy().nishioEliminations ) );
+        nGuesses.setText( Integer.toString( grid.getStrategy().nGuesses ) );
 	}
     
     /**

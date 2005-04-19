@@ -46,9 +46,15 @@ public class Composer extends Thread {
         maxUnwinds ,
         maxComplexity ,
         nSolvers ,
-        composeSolverThreshold ;
+        composeSolverThreshold ,
+        singleSectorCandidatesFilter ,
+        disjointSubsetsFilter ,
+        xWingsFilter ,
+        swordfishFilter ,
+        nishioFilter ;
     
-    boolean useNative ;
+    boolean useNative ,
+            logicalFilter ;
     
     MaskFactory maskFactory ;
 
@@ -108,7 +114,12 @@ public class Composer extends Thread {
                      int composeSolverThreshold ,
                      PrintStream debug ,
                      boolean useNative ,
-                     boolean leastCandidatesHybridFilter ) throws Exception {
+                     boolean leastCandidatesHybridFilter ,
+                     int singleSectorCandidatesFilter ,
+                     int disjointSubsetsFilter ,
+                     int xWingsFilter ,
+                     int swordfishFilter ,
+                     int nishioFilter ) throws Exception {
         this.gridContainer = gridContainer ;                       
         this.maxSolns = maxSolns ;
         this.maxMasks = maxMasks ;
@@ -119,7 +130,12 @@ public class Composer extends Thread {
         this.composeSolverThreshold = composeSolverThreshold ;
         this.debug = debug instanceof PrintStream ? new PrintWriter( debug ) : null ;
         this.useNative = useNative ;
-
+        this.singleSectorCandidatesFilter = singleSectorCandidatesFilter ;
+        this.disjointSubsetsFilter = disjointSubsetsFilter ;
+        this.xWingsFilter = xWingsFilter ;
+        this.swordfishFilter = swordfishFilter ;
+        this.nishioFilter = nishioFilter ;
+        
         maskSize = maskFactory.getFilledCells();
         cellsInRow = maskFactory.getCellsInRow();
         solvers = new Solver[nSolvers];
@@ -128,6 +144,11 @@ public class Composer extends Thread {
         solverGrids = new Grid[nSolvers];
         puzzles = new Vector();
         lch = new LeastCandidatesHybrid( false , true , true , true );
+        logicalFilter = singleSectorCandidatesFilter != 0 ||
+                        disjointSubsetsFilter != 0 ||
+                        xWingsFilter != 0 ||
+                        swordfishFilter != 0 ||
+                        nishioFilter != 0 ;
             
         int i = 0 ;
         while( i < nSolvers ){
@@ -147,28 +168,37 @@ public class Composer extends Thread {
      */
     
     public synchronized void addSolution( int solverIndex ){
+
+        boolean singleSectorCandidates = false ,
+                disjointSubsets = false ,
+                xWings = false ,
+                swordfish = false ,
+                nishio = false ,
+                logical ;
+
+        int puzzleComplexity ,
+            puzzleUnwinds ;
+
         // The grid might have been completed by the composeSolver,
         // in which case only certain cells should be read from the
         // solver grid.
+        int r , c ;
         Grid solution = (Grid) solverGrids[solverIndex].clone();
-        if( solverGrids[solverIndex].countFilledCells() != maskSize ){
-            int r , c ;
-            solverGrids[solverIndex].solve( lch , 1 );
-            r = 0 ;
-            while( r < cellsInRow ){
-                c = 0 ;
-                while( c < cellsInRow ){
-                    if( solverMasks[solverIndex][r][c] ){
-                        solution.data[r][c] = solverGrids[solverIndex].data[r][c] ;
-                    } else {
-                        solution.data[r][c] = 0 ;
-                    }
-                    ++ c ;
+        solverGrids[solverIndex].solve( lch , 1 );
+        r = 0 ;
+        while( r < cellsInRow ){
+            c = 0 ;
+            while( c < cellsInRow ){
+                if( solverMasks[solverIndex][r][c] ){
+                    solution.data[r][c] = solverGrids[solverIndex].data[r][c] ;
+                } else {
+                    solution.data[r][c] = 0 ;
                 }
-                ++ r ;
-            }            
-            lch.reset();
-        }
+                ++ c ;
+            }
+            ++ r ;
+        }            
+        lch.reset();
         // Ensure that he puzzle appears in standard form.
         Grid puzzle = (Grid) solution.clone(); 
         if( maxSolns != 1 ){
@@ -176,76 +206,108 @@ public class Composer extends Thread {
         }
         // Store (and report) the puzzle if it hasn't been seen before.
         if( ! puzzles.contains( puzzle ) ){
+            // Categorize the puzzle and filter it out if necessary.
+            puzzle.solve( lch , 2 );
+            puzzleComplexity = puzzle.complexity ;
+            puzzleUnwinds = puzzle.nUnwinds ;
+            lch.reset();
+            if( puzzleComplexity > maxComplexity ){
+                mostComplex = nSolns ;
+                maxPuzzleComplexity = puzzleComplexity ;                
+            }
+            logical = puzzleUnwinds == 1 ;
+            if( logicalFilter && ! logical ){
+                return ;
+            }          
+            puzzle.solve( lch , 1 );  
+            if( logical ){
+                singleSectorCandidates = lch.singleSectorCandidatesEliminations > 0 ; 
+                if( singleSectorCandidatesFilter == 1 && ! singleSectorCandidates || 
+                    singleSectorCandidatesFilter == -1 && singleSectorCandidates ){
+                    return ;
+                }
+                disjointSubsets = lch.disjointSubsetsEliminations > 0 ; 
+                if( disjointSubsetsFilter == 1 && ! disjointSubsets || 
+                    disjointSubsetsFilter == -1 && disjointSubsets ){
+                    return ;
+                }
+                xWings = lch.xWingsEliminations > 0 ; 
+                if( xWingsFilter == 1 && ! xWings || 
+                    xWingsFilter == -1 && xWings ){
+                    return ;
+                }
+                swordfish = lch.swordfishEliminations > 0 ; 
+                if( swordfishFilter == 1 && ! swordfish || 
+                    swordfishFilter == -1 && swordfish ){
+                    return ;
+                }
+                nishio = lch.nishioEliminations > 0 ; 
+                if( nishioFilter == 1 && ! nishio || 
+                    nishioFilter == -1 && nishio ){
+                    return ;
+                }
+            }
+            if( debug instanceof PrintWriter ){
+                double t = ( new Date().getTime() - startTime )/ 1000. ;
+                debug.println( "Puzzle " + ( 1 + nSolns ) +":\n");
+                debug.println( "Puzzle Complexity = " + puzzleComplexity );
+                debug.println( "Puzzle Unwinds = " + puzzleUnwinds );
+                debug.println( "Cumulative Composer Complexity = " + solvers[solverIndex].complexity );
+                debug.println( "Cumulative Composer Unwinds = " + solvers[solverIndex].nUnwinds );
+                debug.println( "Time = " + new DecimalFormat("#0.000").format( t ) + "s" );
+                boolean multipleCategories = false ;
+                StringBuffer sb = new StringBuffer();
+                if( logical ){
+                    if( singleSectorCandidates ){
+                        if( multipleCategories ){
+                            sb.append(":");
+                        }
+                        sb.append("Single Sector Candidates");
+                        multipleCategories = true ;
+                    }
+                    if( disjointSubsets ){
+                        if( multipleCategories ){
+                            sb.append(":");
+                        }
+                        sb.append("Disjoint Subsets");
+                        multipleCategories = true ;
+                    }
+                    if( xWings ){
+                        if( multipleCategories ){
+                            sb.append(":");
+                        }
+                        sb.append("X-Wings");
+                        multipleCategories = true ;
+                    }
+                    if( swordfish ){
+                        if( multipleCategories ){
+                            sb.append(":");
+                        }
+                        sb.append("Swordfish");
+                        multipleCategories = true ;
+                    }
+                    if( nishio ){
+                        if( multipleCategories ){
+                            sb.append(":");
+                        }
+                        sb.append("Nishio");
+                        multipleCategories = true ;
+                    }
+                    if( sb.length() > 0 ){
+                        debug.println( sb.toString() );
+                    }
+                }
+                int i = 0 ;
+                while( i < lch.getThreadLength() ){
+                    debug.print( ( 1 + i ) + ". " + lch.getReason(i) );
+                    ++ i ;
+                }
+            }
+            lch.reset();
             puzzles.addElement( puzzle );
-            if( !( gridContainer instanceof GridContainer ) ){
-                puzzle.solve( lch , 2 );
-                if( puzzle.complexity > maxComplexity ){
-                    mostComplex = nSolns ;
-                    maxPuzzleComplexity = puzzle.complexity ;                
-                }
-                if( debug instanceof PrintWriter ){
-                    double t = ( new Date().getTime() - startTime )/ 1000. ;
-                    debug.println( "Puzzle " + ( 1 + nSolns ) +":\n");
-                    debug.println( "Puzzle Complexity = " + puzzle.complexity );
-                    debug.println( "Puzzle Unwinds = " + puzzle.nUnwinds );
-                    debug.println( "Cumulative Composer Complexity = " + solvers[solverIndex].complexity );
-                    debug.println( "Cumulative Composer Unwinds = " + solvers[solverIndex].nUnwinds );
-                    debug.println( "Time = " + new DecimalFormat("#0.000").format( t ) + "s" );
-                    boolean multipleCategories = false ,
-                            logical = puzzle.nUnwinds == 1 ; 
-                    StringBuffer sb = new StringBuffer();
-                    puzzle.solve( lch , 1 );
-                    if( logical ){
-                        if( lch.singleSectorCandidatesEliminations > 0 ){
-                            if( multipleCategories ){
-                                sb.append(":");
-                            }
-                            sb.append("Single Sector Candidates");
-                            multipleCategories = true ;
-                        }
-                        if( lch.disjointSubsetsEliminations > 0 ){
-                            if( multipleCategories ){
-                                sb.append(":");
-                            }
-                            sb.append("Disjoint Subsets");
-                            multipleCategories = true ;
-                        }
-                        if( lch.xWingsEliminations > 0 ){
-                            if( multipleCategories ){
-                                sb.append(":");
-                            }
-                            sb.append("X-Wings");
-                            multipleCategories = true ;
-                        }
-                        if( lch.swordfishEliminations > 0 ){
-                            if( multipleCategories ){
-                                sb.append(":");
-                            }
-                            sb.append("Swordfish");
-                            multipleCategories = true ;
-                        }
-                        if( lch.nishioEliminations > 0 ){
-                            if( multipleCategories ){
-                                sb.append(":");
-                            }
-                            sb.append("Nishio");
-                            multipleCategories = true ;
-                        }
-                        if( sb.length() > 0 ){
-                            debug.println( sb.toString() );
-                        }
-                    }
-                    int i = 0 ;
-                    while( i < lch.getThreadLength() ){
-                        debug.print( ( 1 + i ) + ". " + lch.getReason(i) );
-                        ++ i ;
-                    }
-                }
-                lch.reset();
-                if( debug instanceof PrintWriter ){
-                    debug.println( puzzle.toString() );
-                    debug.flush();
-                }
+            if( debug instanceof PrintWriter ){
+                debug.println( puzzle.toString() );
+                debug.flush();
             }
             if( ++ nSolns == maxSolns ){
                 allSolutionsFound = true ;
@@ -386,7 +448,8 @@ public class Composer extends Thread {
      */
 
     public static void main( String[] args ){
-        final String usage = "Usage: Composer [-a across] [-d down] [-ms max solns|-mm max masks] [-mu max unwinds] [-mc max complexity] [-s solvers] [-c threshold] [-r] [-v] [-n] [-f] -i|#cells";
+        final String usage = "Usage: Composer [-a across] [-d down] [-ms max solns|-mm max masks] [-mu max unwinds] [-mc max complexity] [-s solvers] [-c threshold] [-r] [-v] [-n] [-f] -i|#cells" ,
+                     strategyTypes = "Valid strategy types are:\nSSC [Single Sector Candidates]\nDS [Disjoint Subsets]\nXWings\nSwordfish\nNishio";
         
         int boxesAcross = 3 ,
             boxesDown = 3 ,
@@ -396,7 +459,13 @@ public class Composer extends Thread {
             maxComplexity = Integer.MAX_VALUE ,
             nSolvers = defaultThreads ,
             filledCells = 0 ,
-            composeSolverThreshold = 0 ;
+            composeSolverThreshold = 0 ,
+            singleSectorCandidatesFilter = 0 ,
+            disjointSubsetsFilter = 0 ,
+            xwingsFilter = 0 ,
+            swordfishFilter = 0 ,
+            nishioFilter = 0 ,
+            sign ;
             
         boolean randomize = false ,
                 trace = false ,
@@ -411,6 +480,7 @@ public class Composer extends Thread {
         }           
         int i = 0 ;
         while( i < args.length - 1 ){
+            sign = 0 ;
             if( args[i].equals("-a") ){
                 try {
                     boxesAcross = Integer.parseInt( args[++i] ); 
@@ -480,9 +550,30 @@ public class Composer extends Thread {
                 } catch ( Exception e ) {
                     System.err.println("Native library could not be loaded");
                 }
+            } else if( args[i].charAt( 0 ) == '+' ) {
+                sign = 1 ;
+            } else if( args[i].charAt( 0 ) == '-' ) {
+                sign = -1 ;
             } else {
                 System.err.println( usage );
                 System.exit( 1 );                
+            }
+            if( sign != 0 ){
+                String strategy = args[i].substring( 1 );
+                if( strategy.equalsIgnoreCase("ssc") ){
+                    singleSectorCandidatesFilter = sign ;
+                } else if( strategy.equalsIgnoreCase("ds") ) {
+                    disjointSubsetsFilter = sign ;
+                } else if( strategy.equalsIgnoreCase("xwings") ) {
+                    xwingsFilter = sign ;
+                } else if( strategy.equalsIgnoreCase("swordfish") ){
+                    swordfishFilter = sign ;
+                } else if( strategy.equalsIgnoreCase("nishio") ){
+                    nishioFilter = sign ;
+                } else {
+                    System.err.println( strategyTypes );
+                    System.exit( 1 );
+                }
             }
             ++ i ;
         }
@@ -540,7 +631,12 @@ public class Composer extends Thread {
                           composeSolverThreshold , 
                           trace ? System.out : null ,
                           useNative ,
-                          leastCandidatesHybridFilter ).start();  
+                          leastCandidatesHybridFilter ,
+                          singleSectorCandidatesFilter ,
+                          disjointSubsetsFilter ,
+                          xwingsFilter ,
+                          swordfishFilter ,
+                          nishioFilter ).start();  
         } catch ( Exception e ) {
             System.out.println( e.getMessage() );
             System.exit( 3 );

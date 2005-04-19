@@ -26,7 +26,6 @@
 package com.act365.sudoku;
 
 import java.awt.*;
-import java.util.Date ;
 
 /**
  * The GridContainer class displays a Su Doku grid.
@@ -38,15 +37,9 @@ public class GridContainer extends com.act365.awt.Container {
     
     Grid grid ;
     
-    IStrategy strategy ;
+    LeastCandidatesHybrid strategy ;
     
     TextField[][] textFields ;
-    
-    double solveTime ;
-    
-    int hintX , 
-        hintY ,
-        hintValue ;
     
     Composer composer ;
     
@@ -56,6 +49,7 @@ public class GridContainer extends com.act365.awt.Container {
     
     public GridContainer( Grid grid ) {
         this.grid = grid ;
+        strategy = (LeastCandidatesHybrid) Strategy.create( Strategy.LEAST_CANDIDATES_HYBRID_II );
         removeAll();
         layoutComponents();
         validate();
@@ -103,9 +97,7 @@ public class GridContainer extends com.act365.awt.Container {
     
     public void solve(){  
     	read();
-        long now = new Date().getTime();
     	grid.solve( strategy , 1 );
-        solveTime = ( new Date().getTime() - now )/ 1000. ;
     	write();  
     }
 
@@ -118,27 +110,11 @@ public class GridContainer extends com.act365.awt.Container {
         
     public int evaluate(){
     	read();
+        IStrategy strategy = Strategy.create( Strategy.LEAST_CANDIDATES_HYBRID_II );
     	int nSolns = grid.solve( strategy , 2 );
     	strategy.reset();
     	
     	return nSolns ;
-    }
-    
-    /**
-     * Solves the grid and returns the first step of the solution.
-     * @return whether a solution could be found
-     */
-    
-    public boolean hint(){
-        read();
-        if( grid.solve( strategy , 1 ) == 1 ){
-            hintX = strategy.getThreadX( 0 );
-            hintY = strategy.getThreadY( 0 );
-            hintValue = grid.data[hintX][hintY];
-            strategy.reset();
-            return true ;
-        }
-        return false ;
     }
     
     /**
@@ -165,7 +141,10 @@ public class GridContainer extends com.act365.awt.Container {
     
     public void reset(){
     	grid.reset();
-        solveTime = 0 ;
+        try {
+            strategy.setup( grid );
+        } catch ( Exception e ) {
+        }
     	write();
     }
     
@@ -249,7 +228,12 @@ public class GridContainer extends com.act365.awt.Container {
                                      0 , 
                                      null ,
                                      false ,
-                                     grid.cellsInRow >= 12 );
+                                     grid.cellsInRow >= 12 ,
+                                     0 ,
+                                     0 ,
+                                     0 ,
+                                     0 ,
+                                     0 );
             composer.start();
         } catch ( Exception e ) {
         }
@@ -292,53 +276,10 @@ public class GridContainer extends com.act365.awt.Container {
     }
     
     /**
-     * Returns the time (in milliseconds) taken to complete the most recent solve.
+     * Returns the current strategy.
      */
     
-    public double getSolveTime(){
-        return solveTime ;
-    }
-    
-    /**
-     * Returns hint x-coordinate in the range [1,cellsInRow]. 
-     */
-    
-    public int getHintX(){
-        return hintX + 1 ;
-    }
-    
-    /**
-     * Returns hint y-coordinate in the range [1,cellsInRow]. 
-     */
-    
-    public int getHintY(){
-        return hintY + 1 ;
-    }
-    
-    /**
-     * Returns hint value in the range [1,cellsInRow]. 
-     */
-    
-    public int getHintValue(){
-        return hintValue ;
-    }
-    
-    /**
-     * Sets the strategy to be used to solve the grid.
-     * @see Strategy
-     * @param strategyCode - strategy code as defined in Strategy class
-     * 
-     */
-    
-    public void setStrategy( int strategyCode ){
-        strategy = Strategy.create( strategyCode );
-    }
-
-    /**
-     * Returns the currently selected stratey object.
-     */
-    
-    public IStrategy getStrategy(){
+    public LeastCandidatesHybrid getStrategy(){
         return strategy ;    
     }
     

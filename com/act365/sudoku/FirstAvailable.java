@@ -145,7 +145,7 @@ public class FirstAvailable extends StrategyBase implements IStrategy {
      */
     
 	public boolean unwind( int newNMoves , boolean reset ) {
-        if( newNMoves == - 1 ){
+        if( newNMoves < 0 ){
             return false ;
         } 
         -- nMoves ;

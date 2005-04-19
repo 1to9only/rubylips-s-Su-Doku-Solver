@@ -217,33 +217,34 @@ public abstract class StrategyBase {
      */
     
     public boolean unwind( int newNMoves , boolean reset ) {
-        // Unwind thread.
-        if( newNMoves >= 0 ){
-            if( explain && reset ){
-                reasons[newNMoves].append("The move (");
-                reasons[newNMoves].append( 1 + xMoves[newNMoves] );
-                reasons[newNMoves].append(",");
-                reasons[newNMoves].append( 1 + yMoves[newNMoves] );
-                reasons[newNMoves].append("):=");
-                reasons[newNMoves].append( 1 + values[newNMoves] );
-                reasons[newNMoves].append(" would lead to a contradiction.\n");
-                int i = newNMoves + 1 ;
-                while( i < nMoves ){
-                    reasons[i++] = new StringBuffer();
-                }
-            }
-            state.popState( newNMoves );
-            state.eliminateMove( xMoves[newNMoves] , yMoves[newNMoves] , values[newNMoves] );
+        if( newNMoves < 0 ){
+            return false ;
         }
+        // Unwind thread.
+        if( explain && reset ){
+            reasons[newNMoves].append("The move (");
+            reasons[newNMoves].append( 1 + xMoves[newNMoves] );
+            reasons[newNMoves].append(",");
+            reasons[newNMoves].append( 1 + yMoves[newNMoves] );
+            reasons[newNMoves].append("):=");
+            reasons[newNMoves].append( 1 + values[newNMoves] );
+            reasons[newNMoves].append(" would lead to a contradiction.\n");
+            int i = newNMoves + 1 ;
+            while( i < nMoves ){
+                reasons[i++] = new StringBuffer();
+            }
+        }
+        state.popState( newNMoves );
+        state.eliminateMove( xMoves[newNMoves] , yMoves[newNMoves] , values[newNMoves] );
         if( reset ){
-            int i = Math.max( newNMoves , 0 );
+            int i = newNMoves ;
             while( i < nMoves ){
                 grid.data[xMoves[i]][yMoves[i]] = 0 ;
                 ++ i ;
             }
         }
         nMoves = newNMoves ;
-        return nMoves >= 0 ;
+        return true ;
     }
     
     /**
