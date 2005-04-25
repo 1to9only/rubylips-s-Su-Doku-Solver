@@ -233,7 +233,9 @@ public class GridContainer extends com.act365.awt.Container {
                                      0 ,
                                      0 ,
                                      0 ,
-                                     0 );
+                                     0 ,
+                                     true ,
+                                     false );
             composer.start();
         } catch ( Exception e ) {
         }

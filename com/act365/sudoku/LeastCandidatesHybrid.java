@@ -62,9 +62,6 @@ public class LeastCandidatesHybrid extends StrategyBase implements IStrategy {
     
     // Arrays defined as members in order to improve performance.
 
-    transient int disjointSubsetsStartSector ,
-                  singleSectorCandidatesStartValue ;
-        
     transient int[] x , y , linkedValues , linkedCells ;
     
     transient int[] stringR0 , stringC0 , stringR1 , stringC1 , stringLength ;
@@ -173,14 +170,11 @@ public class LeastCandidatesHybrid extends StrategyBase implements IStrategy {
         // The code is only executed for Least Candidates Hybrid II. 
         if( state instanceof IState && score > 1 ){
             try {
-                disjointSubsetsStartSector = 0 ;
-                singleSectorCandidatesStartValue = 0 ;
-                while( true ){
+               while( true ){
                     if( useSingleSectorCandidates && singleSectorCandidates( sb ) ){
                         if( singleCandidature() ){
                             break ;
                         } else {
-                            disjointSubsetsStartSector = 0 ;
                             continue ;
                         }
                     }
@@ -188,7 +182,6 @@ public class LeastCandidatesHybrid extends StrategyBase implements IStrategy {
                         if( singleCandidature() ){
                             break ;
                         } else {
-                            singleSectorCandidatesStartValue = 0 ;
                             continue ;
                         }
                     }
@@ -196,8 +189,6 @@ public class LeastCandidatesHybrid extends StrategyBase implements IStrategy {
                         if( singleCandidature() ){
                             break ;
                         } else {
-                            singleSectorCandidatesStartValue = 0 ;
-                            disjointSubsetsStartSector = 0 ;
                             continue ;
                         }
                     }
@@ -205,8 +196,6 @@ public class LeastCandidatesHybrid extends StrategyBase implements IStrategy {
                         if( singleCandidature() ){
                             break ;
                         } else {
-                            singleSectorCandidatesStartValue = 0 ;
-                            disjointSubsetsStartSector = 0 ;
                             continue ;
                         }
                     }
@@ -214,8 +203,6 @@ public class LeastCandidatesHybrid extends StrategyBase implements IStrategy {
                         if( singleCandidature() ){
                             break ;
                         } else {
-                            singleSectorCandidatesStartValue = 0 ;
-                            disjointSubsetsStartSector = 0 ;
                             continue ;
                         }
                     }
@@ -313,7 +300,7 @@ public class LeastCandidatesHybrid extends StrategyBase implements IStrategy {
         CellState cellState = (CellState) lcc.state ;
         NumberState numberState = (NumberState) lcn.state ; 
         int s , i , j , k , l , subsetSize , unionSize , nUnfilled , nUnconsideredValues ;
-        s = disjointSubsetsStartSector ;
+        s = 0 ;
         while( s < 3 * grid.cellsInRow ){
             nUnfilled = 0 ;
             i = 0 ;
@@ -427,7 +414,6 @@ public class LeastCandidatesHybrid extends StrategyBase implements IStrategy {
                             sb.append( 1 + y[i] );
                             sb.append(") in some order.\n");
                         }
-                        disjointSubsetsStartSector = s ;
                         return true ;
                     }
                     if( linkedValues[0] < grid.cellsInRow - 1 ){
@@ -490,7 +476,6 @@ public class LeastCandidatesHybrid extends StrategyBase implements IStrategy {
             }
             ++ s ;
         }
-        disjointSubsetsStartSector = 0 ;
         return false ;
     }
     
@@ -508,7 +493,7 @@ public class LeastCandidatesHybrid extends StrategyBase implements IStrategy {
         NumberState numberState = (NumberState) lcn.state ; 
         boolean anyMoveEliminated ;
         int i , j , s , value , box , row , column , x0 , y0 , xLower , xUpper , yLower , yUpper ;
-        value = singleSectorCandidatesStartValue ;
+        value = 0 ;
         while( value < grid.cellsInRow ){
             s = 0 ;
             while( s < 2 * grid.cellsInRow ){
@@ -587,7 +572,6 @@ public class LeastCandidatesHybrid extends StrategyBase implements IStrategy {
                             }
                             sb.append(".\n");
                         }
-                        singleSectorCandidatesStartValue = value ;
                         return true ;
                     }
                 }
@@ -677,7 +661,6 @@ public class LeastCandidatesHybrid extends StrategyBase implements IStrategy {
                             sb.append( 1 + ( s - 2 * grid.cellsInRow )% grid.boxesAcross );
                             sb.append("].\n");
                         }
-                        singleSectorCandidatesStartValue = value ;
                         return true ;
                     }
                 }
@@ -685,7 +668,6 @@ public class LeastCandidatesHybrid extends StrategyBase implements IStrategy {
             }
             ++ value ;
         }
-        singleSectorCandidatesStartValue = 0 ;
         return false ;
     }
     

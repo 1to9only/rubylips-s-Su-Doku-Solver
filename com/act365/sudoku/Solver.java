@@ -241,10 +241,10 @@ public class Solver extends Thread {
                 count = grid.countFilledCells();
                 if( composeSolver instanceof IStrategy && count >= composeSolverThreshold ){
                     nComposeSolns = solve( composeSolver , null , 0 , 2 , false , 0 , 0 );
+                    composeSolver.reset();
                     if( nComposeSolns == 0 ){
                         nComposeSolns = 2 ;
                         // No solutions exist - that's no good.
-                        composeSolver.reset();
                         lastWrittenMove = strategy.getLastWrittenMove();
                         complexity += strategy.getThreadLength() - lastWrittenMove ;
                         if( countUnwinds && ( ++ nUnwinds == maxUnwinds || complexity >= maxComplexity ) || ! strategy.unwind( lastWrittenMove , true ) ){
@@ -254,15 +254,21 @@ public class Solver extends Thread {
                     }
                 }
                 if( count == grid.cellsInRow * grid.cellsInRow || nComposeSolns == 1 ){
-                    nComposeSolns = 2 ;
                     // Grid has been solved.
-                    if( composeSolver instanceof IStrategy && composer instanceof Composer ){
+                    if( nComposeSolns == 1 ){
                         composer.addSolution( index );
+                        nComposeSolns = 2 ;
                     }
                     if( debug instanceof PrintWriter ){
                         debug.println( ( 1 + nSolns ) + ".");
                         debug.println( grid.toString() );
-                        debug.flush();
+                        int i = 0 ;
+                        while( i < strategy.getThreadLength() ){
+                            debug.print( ( 1 + i ) + ". " + strategy.getReason(i) );
+                            ++ i ;
+                        }      
+                        debug.println();  
+                        debug.flush();                
                     }
                     if( ++ nSolns == maxSolns ){ 
                         return nSolns ;

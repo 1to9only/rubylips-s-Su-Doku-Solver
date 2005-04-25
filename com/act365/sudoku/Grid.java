@@ -749,4 +749,34 @@ public class Grid implements Cloneable , Serializable {
         //
         return this ;
     }
+    
+    /**
+     * Writes the current grid with its associated labels to a stream
+     * in XML format.
+     */
+
+    public void toXML( PrintWriter output , int serial , String grade ) {
+        int i , j ;
+        output.println("<puzzle>");
+        output.println("<serial>" + serial + "</serial>");
+        output.println("<grade>" + grade + "</grade>");
+        output.println("<solvers>0000</solvers>");
+        output.println("<question>");       
+        i = 0 ;
+        while( i < cellsInRow ){
+            j = 0 ;
+            while( j < cellsInRow ){
+                if( data[i][j] > 0 ){
+                    output.print( (char)( '0' + data[i][j] ) );                    
+                } else {
+                    output.print('.');
+                }
+                ++ j ; 
+            }
+            output.println();
+            ++ i ;
+        }
+        output.println("</question>");
+        output.println("</puzzle>");                
+    }
 }
