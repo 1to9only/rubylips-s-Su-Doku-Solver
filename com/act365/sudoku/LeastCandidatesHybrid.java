@@ -386,11 +386,11 @@ public class LeastCandidatesHybrid extends StrategyBase implements IStrategy {
                     if( anyMoveEliminated ){
                         if( explain ){
                             sb.append("The values ");
-                            sb.append( 1 + linkedValues[0] );
+                            sb.append( SuDokuUtils.toString( 1 + linkedValues[0] ) );
                             i = 1 ;
                             while( i < subsetSize - 1 ){
                                 sb.append(", ");
-                                sb.append( 1 + linkedValues[i++] );
+                                sb.append( SuDokuUtils.toString( 1 + linkedValues[i++] ) );
                             }
                             sb.append(" and ");
                             sb.append( 1 + linkedValues[i] );
@@ -557,7 +557,7 @@ public class LeastCandidatesHybrid extends StrategyBase implements IStrategy {
                     if( anyMoveEliminated ){
                         if( explain ){
                             sb.append("The value ");
-                            sb.append( 1 + value );
+                            sb.append( SuDokuUtils.toString( 1 + value ) );
                             sb.append(" in Box [");
                             sb.append( 1 + box / grid.boxesAcross );
                             sb.append(",");
@@ -646,7 +646,7 @@ public class LeastCandidatesHybrid extends StrategyBase implements IStrategy {
                     if( anyMoveEliminated ){
                         if( explain ){
                             sb.append("The value ");
-                            sb.append( 1 + value );
+                            sb.append( SuDokuUtils.toString( 1 + value ) );
                             sb.append(" in ");
                             if( column == -1 ){
                                 sb.append("Row ");
@@ -954,7 +954,7 @@ public class LeastCandidatesHybrid extends StrategyBase implements IStrategy {
         }                    
         if( anyMoveEliminated ){
             if( explain ){
-                sb.append( 1 + v );
+                sb.append( SuDokuUtils.toString( 1 + v ) );
                 sb.append("s must appear in the cells (");
                 sb.append( 1 + stringR0[i] );
                 sb.append(",");
@@ -1198,9 +1198,9 @@ public class LeastCandidatesHybrid extends StrategyBase implements IStrategy {
                             sb.append(",");
                             sb.append( j + 1 );
                             sb.append("):= ");
-                            sb.append( v + 1 );
+                            sb.append( SuDokuUtils.toString( v + 1 ) );
                             sb.append(" would make it impossible to place the remaining ");
-                            sb.append( v + 1 );
+                            sb.append( SuDokuUtils.toString( v + 1 ) );
                             sb.append("s.\n");
                         }
                         return true ;

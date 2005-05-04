@@ -25,6 +25,10 @@
 
 package com.act365.sudoku;
 
+import java.text.DateFormat ;
+import java.util.Date ;
+import java.util.StringTokenizer ;
+
 /**
  * SuDokuUtils contains utility functions that are called from several other classes.
  */
@@ -32,11 +36,28 @@ package com.act365.sudoku;
 public class SuDokuUtils {
 
     /**
+     * Controls whether integers greater than or equal to 10 are displayed 
+     * as numbers or letters.
+     */
+    
+    public final static int NUMERIC      = 0 ,
+                            ALPHANUMERIC = 1 ;
+
+    public final static String[] labels = { "Numeric from 1", "Alphanumeric from 0" };
+    
+    /**
+     * The default display format for values greater than or equal to 10.
+     */
+    
+    public static int defaultFormat = NUMERIC ;
+                                
+    /**
      * Creates a string representation of a two-dimensional integer array.
      * @param maxDatum maximum permitted value in the data array
+     * @param format format for numbers greater than or equal to 10
      */
 
-    public static String toString( int[][] data , int boxesAcross , int maxDatum ){
+    public static String toString( int[][] data , int boxesAcross , int maxDatum , int format ){
         
         final int cellsInRow = data.length ,
                   boxesDown = data.length / boxesAcross ;
@@ -44,16 +65,23 @@ public class SuDokuUtils {
         StringBuffer sb = new StringBuffer();
         
         int i , j , k , v ;
-        int number = maxDatum , fieldWidth = 1 , numberWidth ;
-        while( ( number /= 10 ) >= 1 ){
-            ++ fieldWidth ;
+        int number = maxDatum , fieldWidth = 1 , numberWidth , boxWidth ;
+        if( format == NUMERIC ){
+            while( ( number /= 10 ) >= 1 ){
+                ++ fieldWidth ;
+            }
         }
+        boxWidth = cellsInRow / boxesAcross *( fieldWidth + 1 ) + 2 ;
         i = 0 ;
         while( i < cellsInRow ){
             if( i > 0 && i % boxesAcross == 0 ){
                 k = 0 ;
                 while( k < ( fieldWidth + 1 )* cellsInRow + ( boxesAcross - 1 )* 2 ){
-                    sb.append('-');
+                    if( k % boxWidth == boxWidth - 1 ){
+                        sb.append('+');
+                    } else {
+                        sb.append('-');
+                    }
                     ++ k ;
                 }
                 sb.append(" \n");
@@ -67,14 +95,27 @@ public class SuDokuUtils {
                 if( data[i][j] > 0 ){
                     numberWidth = 1 ;
                     number = data[i][j];
-                    while( ( number /= 10 ) >= 1 ){
-                        ++ numberWidth ;
+                    if( format == NUMERIC ){
+                        while( ( number /= 10 ) >= 1 ){
+                            ++ numberWidth ;
+                        }
                     }
                     while( k < 1 + fieldWidth - numberWidth ){
                         sb.append(' ');
                         ++ k ;
                     }
-                    sb.append( data[i][j] );
+                    switch( format ){
+                        case NUMERIC:
+                            sb.append( data[i][j] );
+                            break;
+                        case ALPHANUMERIC:
+                            if( data[i][j] > 10 ){
+                                sb.append( (char)( 'A' + data[i][j] - 11 ) );
+                            } else {
+                                sb.append( data[i][j] - 1 );
+                            }
+                            break;
+                    }
                 } else {
                     sb.append(' ');
                     while( k < fieldWidth ){
@@ -90,13 +131,176 @@ public class SuDokuUtils {
         
         return sb.toString();
     }
-    
+        
+    /**
+     * Creates a string representation of a two-dimensional integer array.
+     * @param maxDatum maximum permitted value in the data array
+     */
+
+    public static String toString( int[][] data , int boxesAcross , int maxDatum ){
+        return toString( data , boxesAcross , maxDatum , defaultFormat );
+    }    
+
     /**
      * Creates a string representation of a two-dimensional integer array
      * with a maximum value equal to the grid size.
      */
 
     public static String toString( int[][] data , int boxesAcross ){
-        return toString( data , boxesAcross , data.length );
+        return toString( data , boxesAcross , data.length , defaultFormat );
+    }
+    
+    /**
+     * Populates a data array according to a string in the given format.
+     */
+
+    public static void populate( int[][] data , String s , int format ){        
+        StringTokenizer st = new StringTokenizer( s , " \t\n\r*|¦-+");
+        String token ;
+        int i , j ;
+        char c ;
+        i = 0 ;
+        while( i < data.length ){
+            j = 0 ;
+            while( j < data[0].length ){
+                token = st.nextToken();
+                data[i][j++] = parse( token );
+            }
+            ++ i ;
+        }
+    }
+
+    /**
+     * Populates a data array according to a string in the default format.
+     */
+
+    public static void populate( int[][] data , String s ){
+        populate( data , s , defaultFormat );
+    }        
+    
+    /**
+     * Converts a string representation of a cell in the given format 
+     * into a data value.
+     */
+    
+    public static int parse( String s , int format ){
+        int datum = 0 ;
+        char c ;
+        switch( format ){
+        case NUMERIC:
+            try {
+                datum = Integer.parseInt( s );
+            } catch( NumberFormatException e ) {
+            }
+            break;
+        case ALPHANUMERIC:  
+            if( s.length() == 1 ){
+                c = s.charAt( 0 );
+                if( c >= 'A' && c <= 'Z' ){
+                    datum = c - 'A' + 11 ;
+                    break ;
+                } else if( c >= 'a' && c <= 'z' ){
+                    datum = c - 'a' + 11 ;
+                    break ;
+                }
+            }
+            try {
+                datum = 1 + Integer.parseInt( s );
+            } catch( NumberFormatException e ) {
+            }
+            break;
+        }
+        return datum ;
+    }
+    
+    /**
+     * Converts a string representation of a cell in the default format 
+     * into a data value.
+     */
+    
+    public static int parse( String s ){
+        return parse( s , defaultFormat );
+    }
+    
+    /**
+     * Writes out a single item of data in the specified format.
+     */
+
+    public static String toString( int datum , int format ){
+        if( datum > 0 ){
+            switch( format ){
+            case NUMERIC:
+                return Integer.toString( datum );
+            case ALPHANUMERIC:
+                if( datum > 10 ){
+                    return Character.toString( (char)( 'A' + datum - 11 ) );
+                } else {
+                    return Integer.toString( datum - 1 );                        
+                }
+            }
+        }
+        return new String();
+    }
+    
+    /**
+     * Writes out a single item of data in the default format.
+     */
+
+    public static String toString( int datum ){
+        return toString( datum , defaultFormat );
+    }
+    
+    /**
+     * Writes out the XML header for Pappocom library books.
+     */
+
+    public static String libraryBookHeader( String className ,
+                                            int cellsInRow ,
+                                            int boxesAcross ,
+                                            String[] featuredGrades ){
+        
+        StringBuffer sb = new StringBuffer();
+        
+        sb.append("<?xml version=\"1.0\" encoding=\"UTF-8\" standalone=\"no\"?>\n");
+        sb.append("<sudoku-book>\n");
+        sb.append("<note>Generated by ");
+        sb.append( className );
+        sb.append(" on ");
+        sb.append( DateFormat.getDateTimeInstance().format( new Date() ) );
+        sb.append(".</note>\n");
+        sb.append("<user>0</user>\n");
+        sb.append("<last>000000000000</last>\n");
+        sb.append("<checked>000000000000</checked>\n");
+        sb.append("<xtra>0</xtra>\n");            
+        sb.append("<puzzle-type>");
+        sb.append( cellsInRow == 9 && boxesAcross == 3 ? '0' : '1' );
+        sb.append("</puzzle-type>\n");
+        sb.append("<cells-in-row>");
+        sb.append( cellsInRow );
+        sb.append("</cells-in-row>\n");
+        sb.append("<boxes-across>");
+        sb.append( boxesAcross );
+        sb.append("</boxes-across>\n");
+        sb.append("<boxes-down>");
+        sb.append( cellsInRow / boxesAcross );
+        sb.append("</boxes-down>\n");
+            
+        int i = 0 ;
+        while( i < featuredGrades.length ){
+            sb.append("<featuredGrade>");
+            sb.append( featuredGrades[i] );
+            sb.append("</featuredGrade>\n");
+            ++ i ;
+        }
+        
+        return sb.toString();
+    }
+    
+    /**
+     * Writes out the XML header for Pappocom library books.
+     */
+
+    public static String libraryBookFooter() {
+        return "</sudoku-book>\n" ;
     }
 }

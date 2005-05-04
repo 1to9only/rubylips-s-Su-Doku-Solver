@@ -46,9 +46,12 @@ public class ControlContainer extends com.act365.awt.Container
      
 	int boxesAcross ,
 		boxesDown ,
+        cellsInRow ,
 		minFilledCellsValue ;
     
     boolean isApplet ;
+    
+    Class appClass ;
     
     GridContainer grid ;
         
@@ -66,18 +69,19 @@ public class ControlContainer extends com.act365.awt.Container
 		   compose ,
            interrupt ,
            copy ,
-           paste ,
-           shuffle ;
+           paste ;
 
     Label solns ,
-          complexity ,
           singleSectorCandidatesEliminations ,
           disjointSubsetsEliminations ,
           xWingsEliminations ,
           swordfishEliminations ,
           nishioEliminations ,
           nGuesses ;
-          
+
+    Choice format ,
+           puzzleType ;
+              
     Checkbox singleSectorCandidates ,
              disjointSubsets ,
              xWings ,
@@ -92,15 +96,25 @@ public class ControlContainer extends com.act365.awt.Container
      * GridContainer.
      */
     
-    public ControlContainer( GridContainer grid , boolean isApplet ){
+    public ControlContainer( GridContainer grid , Class appClass ){
+        
+        int i ;
         
         // Set state variables.
         this.grid = grid ;
-        if( ( this.isApplet = isApplet ) ){
+        this.appClass = appClass ;
+        try {
+            Class suDokuApplet = Class.forName("com.act365.sudoku.SuDokuApplet");
+            isApplet = appClass.equals( suDokuApplet );
+        } catch ( ClassNotFoundException e ) {
+            isApplet = false ;
+        }
+        if( isApplet ){
             clipboard = new SuDokuClipboard();    
         }
         boxesAcross = grid.getBoxesAcross();
         boxesDown = grid.getBoxesDown();
+        cellsInRow = boxesAcross * boxesDown ;
         minFilledCellsValue = defaultMinFilledCellsValue ;
         
         // Add the Solve controls.
@@ -111,20 +125,29 @@ public class ControlContainer extends com.act365.awt.Container
         reset = new Button("Reset");
         reset.addActionListener( this );
     
+        // Add the Evaluate controls
+        evaluate = new Button("Evaluate");
+        evaluate.addActionListener( this );
+        solns = new Label();
+        format = new Choice();
+        i = 0 ;
+        while( i < SuDokuUtils.labels.length ){
+            format.add( SuDokuUtils.labels[i++] );
+        }
+        format.addItemListener( this );
+            
         // Add the Copy/Paste controls.
         copy = new Button("Copy");
         copy.addActionListener( this );
         paste = new Button("Paste");
         paste.addActionListener( this );
-        shuffle = new Button("Shuffle");
-        shuffle.addActionListener( this );
+        puzzleType = new Choice();
+        i = 0 ;
+        while( i < Grid.puzzleTypes.length ){
+            puzzleType.add( Grid.puzzleTypes[i++] );
+        }
+        puzzleType.addItemListener( this );
         
-        // Add the Evaluate controls
-        evaluate = new Button("Evaluate");
-        evaluate.addActionListener( this );
-        solns = new Label();
-        complexity = new Label();
-            
         // Add the Resize controls.
         resize = new Button("Resize");
         resize.addActionListener( this );
@@ -171,12 +194,11 @@ public class ControlContainer extends com.act365.awt.Container
         addComponent( evaluate , 0 , 1 , 3 , 1 , 1 , 0 );
         addComponent( new Label("Solutions") , 4 , 1 , 2 , 1 , 1 , 0 );
         addComponent( solns , 6 , 1 , 1 , 1 , 1 , 0 );
-        addComponent( new Label("Complexity") , 8 , 1 , 2 , 1 , 1 , 0 );
-        addComponent( complexity , 10 , 1 , 1 , 1 , 1 , 0 );
+        addComponent( format , 8 , 1 , 3 , 1 , 1 , 0 );
         
         addComponent( copy , 0 , 2 , 3 , 1 , 1 , 0 );
         addComponent( paste , 4 , 2 , 3 , 1 , 1 , 0 );
-        addComponent( shuffle , 8 , 2 , 3 , 1 , 1 , 0 );
+        addComponent( puzzleType , 8 , 2 , 3 , 1 , 1 , 0 );
         
 		addComponent( resize , 0 , 3 , 3 , 1 , 1 , 0 );
 		addComponent( new Label("Across") , 4 , 3 , 2 , 1 , 1 , 0 );
@@ -242,11 +264,22 @@ public class ControlContainer extends com.act365.awt.Container
             reasoningArea.setText( null );
             write();
         } else if( evt.getSource() == copy ) {
+            StringBuffer sb = new StringBuffer();
+            switch( Grid.defaultPuzzleType ){
+                case Grid.PLAIN_TEXT:
+                    sb.append( grid.toString() );
+                    break;
+                case Grid.LIBRARY_BOOK:
+                    sb.append( SuDokuUtils.libraryBookHeader( appClass.getName() , cellsInRow , boxesAcross , Grid.featuredGrades ) );
+                    sb.append( grid.toString() );
+                    sb.append( SuDokuUtils.libraryBookFooter() );
+                    break;
+            }
             if( isApplet ){
                 clipboard.show();
-                clipboard.setText( grid.toString() );
+                clipboard.setText( sb.toString() );
             } else {
-                getToolkit().getSystemClipboard().setContents( new StringSelection( grid.toString() ) , this );
+                getToolkit().getSystemClipboard().setContents( new StringSelection( sb.toString() ) , this );
             }
         } else if( evt.getSource() == paste ){
             String pasteText = null ;
@@ -268,13 +301,12 @@ public class ControlContainer extends com.act365.awt.Container
                     grid.paste( pasteText );
                     boxesAcross = grid.getBoxesAcross();
                     boxesDown = grid.getBoxesDown();
+                    cellsInRow = boxesAcross * boxesDown ;
                     write();
                 } catch ( Exception e ) { 
                     grid.reset();
                 }
             }
-        } else if( evt.getSource() == shuffle ){
-            grid.shuffle();
 		} else if( evt.getSource() == resize ){
 			read();
 			grid.setBoxes( boxesAcross , boxesDown );
@@ -283,19 +315,15 @@ public class ControlContainer extends com.act365.awt.Container
 			switch( grid.evaluate() ){
 				case 0 :
 				    solns.setText("None");
-				    complexity.setText("");
 				    break;
 				case 1 :
 				    solns.setText("Unique");
-				    complexity.setText( Integer.toString( grid.getComplexity() ) );
 				    break;
 				case 2 :
 				    solns.setText("Multiple");
-				    complexity.setText("");
 				    break;
 				default:
 				    solns.setText("Error");
-				    complexity.setText("");
 				    break;	    
 			}
 		} else if( evt.getSource() == compose ) {
@@ -376,6 +404,10 @@ public class ControlContainer extends com.act365.awt.Container
             grid.getStrategy().useNishio = nishio.getState();
         } else if( evt.getSource() == guess ) {
             grid.getStrategy().useGuesses = guess.getState();
+        } else if( evt.getSource() == format ) {
+            SuDokuUtils.defaultFormat = format.getSelectedIndex();
+        } else if( evt.getSource() == puzzleType ){
+            Grid.defaultPuzzleType = puzzleType.getSelectedIndex();
         }
     }
     
@@ -396,6 +428,7 @@ public class ControlContainer extends com.act365.awt.Container
 			minFilledCellsValue = Integer.parseInt( minFilledCells.getText() );
 		} catch ( NumberFormatException e ) {        	
 		}		
+        cellsInRow = boxesAcross * boxesDown ;
 	}
 	
 	/**

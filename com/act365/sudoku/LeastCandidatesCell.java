@@ -121,7 +121,7 @@ public class LeastCandidatesCell extends StrategyBase implements IStrategy {
                             if( explain ){
                                 sb = new StringBuffer();
                                 sb.append("The value ");
-                                sb.append( k + 1 );
+                                sb.append( SuDokuUtils.toString( k + 1 ) );
                                 sb.append(" is ");
                                 if( score > 1 ){
                                     sb.append("one of ");

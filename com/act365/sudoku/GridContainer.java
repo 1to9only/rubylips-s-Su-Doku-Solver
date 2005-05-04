@@ -149,15 +149,6 @@ public class GridContainer extends com.act365.awt.Container {
     }
     
     /**
-     * Shuffles the grid.
-     */
-    
-    public void shuffle(){
-        grid.shuffle();
-        write();
-    }
-    
-    /**
      * Sets the underlying grid to be a clone of the given grid.   
      * @param grid new grid
      */
@@ -297,11 +288,7 @@ public class GridContainer extends com.act365.awt.Container {
         while( c < grid.cellsInRow ){
             r = 0 ;
             while( r < grid.cellsInRow ){ 
-                if( grid.data[r][c] > 0 ){
-                    textFields[r][c].setText( Integer.toString( grid.data[r][c] ) );   
-                } else {
-                    textFields[r][c].setText("");   
-                }
+                textFields[r][c].setText( SuDokuUtils.toString( grid.data[r][c] ) );   
                 ++ r ;
             }
             ++ c ;
@@ -313,24 +300,15 @@ public class GridContainer extends com.act365.awt.Container {
      */
     
     void read(){
-        
-        int r , c ;
-        
-        c = 0 ;
-        while( c < grid.cellsInRow ){
-            r = 0 ;
-            while( r < grid.cellsInRow ){       
-                try {
-                    grid.data[r][c] = Integer.parseInt( textFields[r][c].getText() );
-                } catch ( NumberFormatException e ) {
-                    grid.data[r][c] = 0 ;   
-                }
-                if( grid.data[r][c] < 0 || grid.data[r][c] > grid.cellsInRow ){
-                    grid.data[r][c] = 0 ;   
-                }
-                ++ r ;
+        int r , c ;        
+        r = 0 ;
+        while( r < grid.cellsInRow ){
+            c = 0 ;
+            while( c < grid.cellsInRow ){ 
+                grid.data[r][c] = SuDokuUtils.parse( textFields[r][c].getText() );      
+                ++ c ;
             }
-            ++ c ;
+            ++ r ;
         }
     }
     

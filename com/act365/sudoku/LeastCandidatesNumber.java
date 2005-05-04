@@ -191,7 +191,7 @@ public class LeastCandidatesNumber extends StrategyBase implements IStrategy {
                                     sb.append("the only candidate ");
                                 }                                                             
                                 sb.append("for the value ");
-                                sb.append( i + 1 );
+                                sb.append( SuDokuUtils.toString( i + 1 ) );
                                 sb.append(" in ");
                                 if( j < grid.cellsInRow ){
                                     sb.append("Row ");

@@ -34,6 +34,17 @@ import java.util.* ;
 
 public class Grid implements Cloneable , Serializable {
 
+    // Puzzle types
+    
+    public final static int PLAIN_TEXT   = 0 ,
+                            LIBRARY_BOOK = 1 ;
+    
+    public final static String[] puzzleTypes = { "Plain Text", "Library Book" };
+    
+    public static int defaultPuzzleType = PLAIN_TEXT ;
+    
+    public final static String[] featuredGrades = {"Ungraded"};
+    
     // Constants that define the grid size. The nomenclature is taken from
     // the Sudoku XML schema.
     
@@ -125,7 +136,7 @@ public class Grid implements Cloneable , Serializable {
         String token ;
             
         while( ! ( token = st.nextToken() ).equals("\n") ){
-            if( token.equals("*") || token.equals("|") ){
+            if( token.equals("*") || token.equals("|") || token.equals("¦") ){
                 ++ boxesAcross ;
             } else if( boxesAcross == 1 ){
                 ++ boxesDown ;
@@ -134,26 +145,7 @@ public class Grid implements Cloneable , Serializable {
         
         resize( boxesAcross , boxesDown );
         
-        // Populate the grid.
-        
-        int i , j ;
-
-        st = new StringTokenizer( s , " \t\n\r*|-");
-
-        i = 0 ;
-        while( i < cellsInRow ){
-            j = 0 ;
-            while( j < cellsInRow ){
-                try {
-                    data[i][j] = Integer.parseInt( st.nextToken() );
-                } catch( NumberFormatException e ) {
-                    data[i][j] = 0 ;
-                }
-                ++ j ;  
-            }
-            ++ i ;
-        }
-        
+        SuDokuUtils.populate( data , s );        
         return this ;
     }
     
@@ -232,55 +224,7 @@ public class Grid implements Cloneable , Serializable {
      */
     
     public String toString() {
-        
-        StringBuffer sb = new StringBuffer();
-        
-        int i , j , k ;        
-        int number = cellsInRow , fieldWidth = 1 , numberWidth ;
-        while( ( number /= 10 ) >= 1 ){
-            ++ fieldWidth ;
-        }
-        i = 0 ;
-        while( i < cellsInRow ){
-            if( i > 0 && i % boxesAcross == 0 ){
-                k = 0 ;
-                while( k < ( fieldWidth + 1 )* cellsInRow + ( boxesAcross - 1 )* 2 ){
-                    sb.append('-');
-                    ++ k ;
-                }
-                sb.append(" \n");
-            }
-            j = 0 ;
-            while( j < cellsInRow ){
-                if( j > 0 && j % boxesDown == 0 ){
-                    sb.append(" |");
-                }
-                k = 0 ;
-                if( data[i][j] > 0 ){
-                    numberWidth = 1 ;
-                    number = data[i][j];
-                    while( ( number /= 10 ) >= 1 ){
-                        ++ numberWidth ;
-                    }
-                    while( k < fieldWidth - numberWidth + 1 ){
-                        sb.append(' ');
-                        ++ k ;
-                    }
-                    sb.append( data[i][j] );
-                } else {
-                    sb.append(' ');
-                    while( k < fieldWidth ){
-                        sb.append('.');
-                        ++ k ;
-                    }
-                }
-                ++ j ;
-            }
-            sb.append(" \n");
-            ++ i ;
-        }
-        
-        return sb.toString();
+        return defaultPuzzleType == PLAIN_TEXT ? SuDokuUtils.toString( data , boxesAcross ) : toXML( 1 , featuredGrades[0] );
     }
     
     /**
@@ -751,32 +695,39 @@ public class Grid implements Cloneable , Serializable {
     }
     
     /**
-     * Writes the current grid with its associated labels to a stream
-     * in XML format.
+     * Writes the current grid with its associated labels in XML format to a string.
      */
 
-    public void toXML( PrintWriter output , int serial , String grade ) {
+    public String toXML( int serial , String grade ) {
+        
+        StringBuffer sb = new StringBuffer();
+        
         int i , j ;
-        output.println("<puzzle>");
-        output.println("<serial>" + serial + "</serial>");
-        output.println("<grade>" + grade + "</grade>");
-        output.println("<solvers>0000</solvers>");
-        output.println("<question>");       
+        sb.append("<puzzle>\n");
+        sb.append("<serial>" + serial + "</serial>\n");
+        sb.append("<grade>" + grade + "</grade>\n");
+        sb.append("<solvers>0000</solvers>\n");
+        sb.append("<question>\n");       
         i = 0 ;
         while( i < cellsInRow ){
             j = 0 ;
             while( j < cellsInRow ){
                 if( data[i][j] > 0 ){
-                    output.print( (char)( '0' + data[i][j] ) );                    
+                    if( cellsInRow >= 10 && data[i][j] < 10 ){
+                        sb.append('0');
+                    }
+                    sb.append( data[i][j] );                    
                 } else {
-                    output.print('.');
+                    sb.append('.');
                 }
                 ++ j ; 
             }
-            output.println();
+            sb.append('\n');
             ++ i ;
         }
-        output.println("</question>");
-        output.println("</puzzle>");                
+        sb.append("</question>\n");
+        sb.append("</puzzle>\n");    
+        
+        return sb.toString();            
     }
 }
