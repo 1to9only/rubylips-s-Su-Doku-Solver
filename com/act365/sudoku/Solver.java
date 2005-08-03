@@ -247,7 +247,7 @@ public class Solver extends Thread {
                         // No solutions exist - that's no good.
                         lastWrittenMove = strategy.getLastWrittenMove();
                         complexity += strategy.getThreadLength() - lastWrittenMove ;
-                        if( countUnwinds && ( ++ nUnwinds == maxUnwinds || complexity >= maxComplexity ) || ! strategy.unwind( lastWrittenMove , true ) ){
+                        if( countUnwinds && ( ++ nUnwinds == maxUnwinds || complexity >= maxComplexity ) || ! strategy.unwind( lastWrittenMove , true , true ) ){
                             return nSolns ;
                         }
                         continue ;
@@ -275,7 +275,7 @@ public class Solver extends Thread {
                     }
                     lastWrittenMove = strategy.getLastWrittenMove();
                     complexity += strategy.getThreadLength() - lastWrittenMove ;
-                    if( countUnwinds && ( ++ nUnwinds == maxUnwinds || complexity >= maxComplexity ) || ! strategy.unwind( lastWrittenMove , true ) ){
+                    if( countUnwinds && ( ++ nUnwinds == maxUnwinds || complexity >= maxComplexity ) || ! strategy.unwind( lastWrittenMove , true , true ) ){
                         return nSolns ;
                     }
                 } else if( composeSolver instanceof IStrategy  && count >= composeSolverThreshold ){
@@ -294,7 +294,7 @@ public class Solver extends Thread {
                         composeSolver.reset();
                         lastWrittenMove = strategy.getLastWrittenMove();
                         complexity += strategy.getThreadLength() - lastWrittenMove ;
-                        if( countUnwinds && ( ++ nUnwinds == maxUnwinds || complexity >= maxComplexity ) || ! strategy.unwind( lastWrittenMove , true ) ){
+                        if( countUnwinds && ( ++ nUnwinds == maxUnwinds || complexity >= maxComplexity ) || ! strategy.unwind( lastWrittenMove , true , true ) ){
                             return nSolns ;
                         }
                     }
@@ -303,7 +303,7 @@ public class Solver extends Thread {
                 // Stuck
                 lastWrittenMove = strategy.getLastWrittenMove();
                 complexity += strategy.getThreadLength() - lastWrittenMove ;
-                if( countUnwinds && ( ++ nUnwinds == maxUnwinds || complexity >= maxComplexity ) || ! strategy.unwind( lastWrittenMove , true ) ){
+                if( countUnwinds && ( ++ nUnwinds == maxUnwinds || complexity >= maxComplexity ) || ! strategy.unwind( lastWrittenMove , true , true ) ){
                     return nSolns ;
                 }
             }

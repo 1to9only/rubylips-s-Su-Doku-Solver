@@ -80,7 +80,7 @@ public class ControlContainer extends com.act365.awt.Container
           nGuesses ;
 
     Choice format ,
-           puzzleType ;
+           copyType ;
               
     Checkbox singleSectorCandidates ,
              disjointSubsets ,
@@ -141,12 +141,12 @@ public class ControlContainer extends com.act365.awt.Container
         copy.addActionListener( this );
         paste = new Button("Paste");
         paste.addActionListener( this );
-        puzzleType = new Choice();
+        copyType = new Choice();
         i = 0 ;
-        while( i < Grid.puzzleTypes.length ){
-            puzzleType.add( Grid.puzzleTypes[i++] );
+        while( i < SuDokuUtils.copyTypes.length ){
+            copyType.add( SuDokuUtils.copyTypes[i++] );
         }
-        puzzleType.addItemListener( this );
+        copyType.addItemListener( this );
         
         // Add the Resize controls.
         resize = new Button("Resize");
@@ -198,7 +198,7 @@ public class ControlContainer extends com.act365.awt.Container
         
         addComponent( copy , 0 , 2 , 3 , 1 , 1 , 0 );
         addComponent( paste , 4 , 2 , 3 , 1 , 1 , 0 );
-        addComponent( puzzleType , 8 , 2 , 3 , 1 , 1 , 0 );
+        addComponent( copyType , 8 , 2 , 3 , 1 , 1 , 0 );
         
 		addComponent( resize , 0 , 3 , 3 , 1 , 1 , 0 );
 		addComponent( new Label("Across") , 4 , 3 , 2 , 1 , 1 , 0 );
@@ -265,14 +265,18 @@ public class ControlContainer extends com.act365.awt.Container
             write();
         } else if( evt.getSource() == copy ) {
             StringBuffer sb = new StringBuffer();
-            switch( Grid.defaultPuzzleType ){
-                case Grid.PLAIN_TEXT:
+            grid.read();
+            switch( SuDokuUtils.defaultCopyType ){
+                case SuDokuUtils.PLAIN_TEXT:
                     sb.append( grid.toString() );
                     break;
-                case Grid.LIBRARY_BOOK:
-                    sb.append( SuDokuUtils.libraryBookHeader( appClass.getName() , cellsInRow , boxesAcross , Grid.featuredGrades ) );
+                case SuDokuUtils.LIBRARY_BOOK:
+                    sb.append( SuDokuUtils.libraryBookHeader( appClass.getName() , cellsInRow , boxesAcross , SuDokuUtils.featuredGrades ) );
                     sb.append( grid.toString() );
                     sb.append( SuDokuUtils.libraryBookFooter() );
+                    break;
+                default:
+                    sb.append( grid.strategy.printState( SuDokuUtils.defaultCopyType ) );
                     break;
             }
             if( isApplet ){
@@ -357,6 +361,7 @@ public class ControlContainer extends com.act365.awt.Container
             }
         }
         grid.unsolve( lastMove );
+        grid.strategy.unwind( lastMove , false , false );
     }
     
     /**
@@ -406,8 +411,8 @@ public class ControlContainer extends com.act365.awt.Container
             grid.getStrategy().useGuesses = guess.getState();
         } else if( evt.getSource() == format ) {
             SuDokuUtils.defaultFormat = format.getSelectedIndex();
-        } else if( evt.getSource() == puzzleType ){
-            Grid.defaultPuzzleType = puzzleType.getSelectedIndex();
+        } else if( evt.getSource() == copyType ){
+            SuDokuUtils.defaultCopyType = copyType.getSelectedIndex();
         }
     }
     

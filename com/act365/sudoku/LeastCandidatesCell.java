@@ -117,7 +117,7 @@ public class LeastCandidatesCell extends StrategyBase implements IStrategy {
                         if( ! cellState.eliminated[i][j][k] ){
                             xCandidates[nCandidates] = i ;
                             yCandidates[nCandidates] = j ;
-                            valueCandidates[nCandidates] = k + 1 ;
+                            valueCandidates[nCandidates] = (byte)( k + 1 );
                             if( explain ){
                                 sb = new StringBuffer();
                                 sb.append("The value ");

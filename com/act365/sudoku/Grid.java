@@ -34,17 +34,6 @@ import java.util.* ;
 
 public class Grid implements Cloneable , Serializable {
 
-    // Puzzle types
-    
-    public final static int PLAIN_TEXT   = 0 ,
-                            LIBRARY_BOOK = 1 ;
-    
-    public final static String[] puzzleTypes = { "Plain Text", "Library Book" };
-    
-    public static int defaultPuzzleType = PLAIN_TEXT ;
-    
-    public final static String[] featuredGrades = {"Ungraded"};
-    
     // Constants that define the grid size. The nomenclature is taken from
     // the Sudoku XML schema.
     
@@ -54,7 +43,7 @@ public class Grid implements Cloneable , Serializable {
     
     // Grid data
     
-    int[][] data ;
+    byte[][] data ;
 
     // Transient data
     
@@ -114,7 +103,7 @@ public class Grid implements Cloneable , Serializable {
         
 	    cellsInRow = boxesAcross * boxesDown ;
 
-	    data = new int[cellsInRow][cellsInRow];
+	    data = new byte[cellsInRow][cellsInRow];
 	  
 	    nUnwinds = 0 ;                	
     }    
@@ -224,7 +213,7 @@ public class Grid implements Cloneable , Serializable {
      */
     
     public String toString() {
-        return defaultPuzzleType == PLAIN_TEXT ? SuDokuUtils.toString( data , boxesAcross ) : toXML( 1 , featuredGrades[0] );
+        return SuDokuUtils.defaultCopyType == SuDokuUtils.PLAIN_TEXT ? SuDokuUtils.toString( data , boxesAcross ) : toXML( 1 , SuDokuUtils.featuredGrades[0] );
     }
     
     /**
@@ -285,7 +274,8 @@ public class Grid implements Cloneable , Serializable {
      */    
     
     Grid halfRotate(){
-        int i , j , tmp ;
+        int i , j ;
+        byte tmp ;
         i = 0 ;
         while( i < cellsInRow / 2 ){
             j = 0 ;
@@ -319,7 +309,8 @@ public class Grid implements Cloneable , Serializable {
         if( boxesAcross != boxesDown ){
             return this ;
         }
-        int i , j , tmp ;
+        int i , j ;
+        byte tmp ;
         final int jMax = cellsInRow / 2 + ( cellsInRow % 2 == 1 ? 1 : 0 ); 
         i = 0 ;
         while( i < cellsInRow / 2 ){
@@ -343,7 +334,8 @@ public class Grid implements Cloneable , Serializable {
      */
 
     Grid reflectLeftRight(){
-        int i , j , tmp ;
+        int i , j ;
+        byte tmp ;
         i = 0 ;
         while( i < cellsInRow / 2 ){
             j = 0 ;
@@ -373,7 +365,8 @@ public class Grid implements Cloneable , Serializable {
      */
 
     Grid reflectTopBottom(){
-        int i , j , tmp ;
+        int i , j ;
+        byte tmp ;
         j = 0 ;
         while( j < cellsInRow / 2 ){
             i = 0 ;
@@ -408,7 +401,8 @@ public class Grid implements Cloneable , Serializable {
         if( boxesAcross != boxesDown ){
             return this ;
         }
-        int i , j , tmp ;
+        int i , j ;
+        byte tmp ;
         i = 0 ;
         while( i < cellsInRow ){
             j = i + 1 ;
@@ -434,7 +428,8 @@ public class Grid implements Cloneable , Serializable {
         if( boxesAcross != boxesDown ){
             return this ;
         }
-        int i , j , tmp ;
+        int i , j ;
+        byte tmp ;
         i = 0 ;
         while( i < cellsInRow ){
             j = 0 ;
@@ -616,7 +611,7 @@ public class Grid implements Cloneable , Serializable {
                     i = 0 ;
                     while( i < subSize ){
                         if( data[r][c] == substitute[i] ){
-                            data[r][c] = i + 1 ;
+                            data[r][c] = (byte)( i + 1 );
                             break ;
                         }
                         ++ i ;
@@ -638,14 +633,14 @@ public class Grid implements Cloneable , Serializable {
         Random generator = new Random();
         // Rearrange the data within the grid.
         int i , j , size = cellsInRow ;
-        int[] substitute = new int[cellsInRow];
+        byte[] substitute = new byte[cellsInRow];
         while( size > 0 ){
             i = -1 ;
             pick = Math.abs( generator.nextInt() % size );
             while( pick -- >= 0 ){
                 while( substitute[++i] > 0 );
             }
-            substitute[i] = size -- ;
+            substitute[i] = (byte) size -- ;
         }
         i = 0 ;
         while( i < cellsInRow ){

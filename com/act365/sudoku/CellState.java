@@ -42,13 +42,13 @@ public class CellState implements IState {
     
     boolean[][][] eliminated ;
     
-    int[][] nEliminated ;
+    byte[][] nEliminated ;
     
     // Thread
     
     boolean[][][][] threadEliminated ;
     
-    int[][][] threadNEliminated ;
+    byte[][][] threadNEliminated ;
     
 	/**
      * Sets the state grid to the appropriate size.
@@ -67,10 +67,10 @@ public class CellState implements IState {
         int i , j , k ;
         if( resize ){
             eliminated = new boolean[cellsInRow][cellsInRow][cellsInRow];
-            nEliminated = new int[cellsInRow][cellsInRow];
+            nEliminated = new byte[cellsInRow][cellsInRow];
     
             threadEliminated = new boolean[cellsInRow*cellsInRow][cellsInRow][cellsInRow][cellsInRow];
-            threadNEliminated = new int[cellsInRow*cellsInRow][cellsInRow][cellsInRow];
+            threadNEliminated = new byte[cellsInRow*cellsInRow][cellsInRow][cellsInRow];
         } else {
             i = 0 ;
             while( i < cellsInRow ){
@@ -141,11 +141,11 @@ public class CellState implements IState {
 	 * @see com.act365.sudoku.IState#addMove(int, int, int)
 	 */
 	
-    public void addMove(int x, int y, int value ) throws Exception {
+    public void addMove(int x, int y, int value ) throws MoveException {
         int i , j ;
         // Check that it's a valid candidate.
         if( eliminated[x][y][value] ){
-            throw new Exception("The move (" + ( 1 + x ) + "," + ( 1 + y ) + "):=" + ( 1 + value ) + " has already been eliminated");
+            throw new MoveAlreadyEliminatedException( x , y , value );
         }
         // Eliminate other candidates for the current cell.
         i = 0 ;
@@ -157,7 +157,7 @@ public class CellState implements IState {
             ++ i ;
         }
         if( nEliminated[x][y] != cellsInRow - 1 ){
-            throw new Exception("Couldn't eliminate at cell (" + ( 1 + x ) + "," + ( 1 + y ) + ")" );
+            throw new MoveCantBeEliminatedException( x , y , value );
         }
         // Eliminate other candidates for the current row.
         j = 0 ;
@@ -212,6 +212,37 @@ public class CellState implements IState {
      */
     
     public String toString() {
-        return SuDokuUtils.toString( nEliminated , boxesAcross );
+        boolean multipleValues ;
+        int i , j , v , length ;
+        int[] maxLength = new int[cellsInRow];
+        StringBuffer sb = new StringBuffer();
+        String[][] candidates = new String[cellsInRow][cellsInRow];
+        i = 0 ;
+        while( i < cellsInRow ){
+            j = 0 ;
+            while( j < cellsInRow ){
+                sb.delete( 0 , sb.length() );
+                multipleValues = false ;
+                v = 0 ;
+                while( v < cellsInRow ){
+                    if( ! eliminated[i][j][v] ){
+                        if( multipleValues ){
+                            sb.append('|');
+                        } else {
+                            multipleValues = true ;
+                        }
+                        sb.append( SuDokuUtils.toString( 1 + v ) );
+                    }
+                    ++ v ;
+                }
+                if( ( length = sb.length() ) > maxLength[j] ){
+                    maxLength[j] = length ;
+                }
+                candidates[i][j] = sb.toString();
+                ++ j ;
+            }
+            ++ i ;
+        }
+        return SuDokuUtils.toString( candidates , boxesAcross , maxLength );
     }
 }

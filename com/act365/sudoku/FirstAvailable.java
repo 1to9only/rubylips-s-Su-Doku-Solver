@@ -38,7 +38,8 @@ public class FirstAvailable extends StrategyBase implements IStrategy {
     
     // Cursor position
     
-    int x , y , value ;
+    int x , y ;
+    byte value ;
     
     /**
      * Creates a new FirstAvailable instance.
@@ -59,7 +60,7 @@ public class FirstAvailable extends StrategyBase implements IStrategy {
 
         xCandidates = new int[1];
         yCandidates = new int[1];
-        valueCandidates = new int[1];
+        valueCandidates = new byte[1];
 
         x = 0 ;
         y = 0 ;
@@ -93,7 +94,7 @@ public class FirstAvailable extends StrategyBase implements IStrategy {
             }
         }
         // Find the smallest valid increase in value for the cell.
-        int originalValue = grid.data[x][y] ;
+        byte originalValue = grid.data[x][y] ;
         while( ( value = ++ grid.data[x][y] ) <= grid.cellsInRow && ! isSound() );
         grid.data[x][y] = originalValue ;
         if( value <= grid.cellsInRow ){

@@ -175,7 +175,7 @@ public class LeastCandidatesNumber extends StrategyBase implements IStrategy {
                             }
                             xCandidates[nCandidates] = x ;
                             yCandidates[nCandidates] = y ;
-                            valueCandidates[nCandidates] = i + 1 ;
+                            valueCandidates[nCandidates] = (byte)( i + 1 );
                             if( explain ){
                                 sb = new StringBuffer();
                                 sb.append("The cell (");

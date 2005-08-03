@@ -104,7 +104,7 @@ public class MostCandidates extends StrategyBase implements IStrategy {
                     if( ! invulnerableState.eliminated[v][i][j] && invulnerableState.nInvulnerable[v][i][j] == minEliminated ){
                         xCandidates[nCandidates] = i ;
                         yCandidates[nCandidates] = j ;
-                        valueCandidates[nCandidates] = v + 1 ;
+                        valueCandidates[nCandidates] = (byte)( v + 1 );
                         ++ nCandidates ;
                         if( ! randomize ){
                             return nCandidates ;

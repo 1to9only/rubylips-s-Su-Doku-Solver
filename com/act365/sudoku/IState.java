@@ -56,7 +56,7 @@ public interface IState {
      * Updates the state grid to account for the move (x,y):=v.
      */
     
-    public void addMove( int x , int y , int v ) throws Exception ;
+    public void addMove( int x , int y , int v ) throws MoveException ;
     
     /**
      * Updates the state grid to account for the fact that the 

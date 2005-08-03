@@ -50,14 +50,34 @@ public class SuDokuUtils {
      */
     
     public static int defaultFormat = NUMERIC ;
-                                
+
+    // Copy types
+    
+    public final static int PLAIN_TEXT          = 0 ,
+                            LIBRARY_BOOK        = 1 ,
+                            CELL_STATE          = 2 ,
+                            NUMBER_STATE        = 3 ,
+                            NEIGHBOUR_STATE     = 4 ,
+                            LINEAR_SYSTEM_STATE = 5 ;
+    
+    public final static String[] copyTypes = { "Plain Text Puzzle", 
+                                               "Library Book Puzzle" , 
+                                               "Cell State" ,
+                                               "Number State" ,
+                                               "Neighbour State" ,
+                                               "Linear System State" };
+    
+    public static int defaultCopyType = PLAIN_TEXT ;
+    
+    public final static String[] featuredGrades = {"Ungraded"};
+                                    
     /**
      * Creates a string representation of a two-dimensional integer array.
      * @param maxDatum maximum permitted value in the data array
      * @param format format for numbers greater than or equal to 10
      */
 
-    public static String toString( int[][] data , int boxesAcross , int maxDatum , int format ){
+    public static String toString( byte[][] data , int boxesAcross , int maxDatum , int format ){
         
         final int cellsInRow = data.length ,
                   boxesDown = data.length / boxesAcross ;
@@ -131,13 +151,13 @@ public class SuDokuUtils {
         
         return sb.toString();
     }
-        
+
     /**
      * Creates a string representation of a two-dimensional integer array.
      * @param maxDatum maximum permitted value in the data array
      */
 
-    public static String toString( int[][] data , int boxesAcross , int maxDatum ){
+    public static String toString( byte[][] data , int boxesAcross , int maxDatum ){
         return toString( data , boxesAcross , maxDatum , defaultFormat );
     }    
 
@@ -146,15 +166,71 @@ public class SuDokuUtils {
      * with a maximum value equal to the grid size.
      */
 
-    public static String toString( int[][] data , int boxesAcross ){
+    public static String toString( byte[][] data , int boxesAcross ){
         return toString( data , boxesAcross , data.length , defaultFormat );
     }
     
     /**
+     * Creates a string representation of a two-dimensional string array.
+     * @param maxLength length of the longest string in the array
+     */
+
+    public static String toString( String[][] data , int boxesAcross , int[] maxLength ){
+        
+        final int cellsInRow = data.length ,
+                  boxesDown = data.length / boxesAcross ;
+                  
+        StringBuffer sb = new StringBuffer();
+        
+        int i , j , k , v , length ;
+        i = 0 ;
+        while( i < cellsInRow ){
+            if( i > 0 && i % boxesAcross == 0 ){
+                j = 0 ;
+                while( j < cellsInRow ){
+                    k = 0 ;
+                    while( k < maxLength[j] + 2 ){
+                        sb.append('-');
+                        ++ k ;
+                    }
+                    if( ++ j < cellsInRow && j % boxesDown == 0 ){
+                        sb.append("-+");
+                    }
+                }
+                sb.append(" \n");
+            }
+            j = 0 ;
+            while( j < cellsInRow ){
+                k = 0 ;
+                if( ( length = data[i][j].length() ) > 0 ){
+                    while( k < 2 + maxLength[j] - length ){
+                        sb.append(' ');
+                        ++ k ;
+                    }
+                    sb.append( data[i][j] );
+                } else {
+                    sb.append("  ");
+                    while( k < maxLength[j] ){
+                        sb.append('.');
+                        ++ k ;
+                    }
+                }
+                if( ++ j < cellsInRow && j % boxesDown == 0 ){
+                    sb.append(" |");
+                }
+            }
+            sb.append(" \n");
+            ++ i ;
+        }
+        
+        return sb.toString();
+    }
+        
+    /**
      * Populates a data array according to a string in the given format.
      */
 
-    public static void populate( int[][] data , String s , int format ){        
+    public static void populate( byte[][] data , String s , int format ){        
         StringTokenizer st = new StringTokenizer( s , " \t\n\r*|¦-+");
         String token ;
         int i , j ;
@@ -174,7 +250,7 @@ public class SuDokuUtils {
      * Populates a data array according to a string in the default format.
      */
 
-    public static void populate( int[][] data , String s ){
+    public static void populate( byte[][] data , String s ){
         populate( data , s , defaultFormat );
     }        
     
@@ -183,13 +259,13 @@ public class SuDokuUtils {
      * into a data value.
      */
     
-    public static int parse( String s , int format ){
-        int datum = 0 ;
+    public static byte parse( String s , int format ){
+        byte datum = 0 ;
         char c ;
         switch( format ){
         case NUMERIC:
             try {
-                datum = Integer.parseInt( s );
+                datum = Byte.parseByte( s );
             } catch( NumberFormatException e ) {
             }
             break;
@@ -197,15 +273,15 @@ public class SuDokuUtils {
             if( s.length() == 1 ){
                 c = s.charAt( 0 );
                 if( c >= 'A' && c <= 'Z' ){
-                    datum = c - 'A' + 11 ;
+                    datum = (byte)( c - 'A' + 11 );
                     break ;
                 } else if( c >= 'a' && c <= 'z' ){
-                    datum = c - 'a' + 11 ;
+                    datum = (byte)( c - 'a' + 11 );
                     break ;
                 }
             }
             try {
-                datum = 1 + Integer.parseInt( s );
+                datum = (byte)( 1 + Byte.parseByte( s ) );
             } catch( NumberFormatException e ) {
             }
             break;
@@ -218,7 +294,7 @@ public class SuDokuUtils {
      * into a data value.
      */
     
-    public static int parse( String s ){
+    public static byte parse( String s ){
         return parse( s , defaultFormat );
     }
     

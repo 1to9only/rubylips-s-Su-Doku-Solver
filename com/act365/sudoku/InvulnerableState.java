@@ -36,20 +36,21 @@ public class InvulnerableState implements IState {
     
     int boxesAcross ,
         boxesDown ,
-        cellsInRow ,
-        maxScore ;
+        cellsInRow ;
+        
+    byte maxScore ;
         
     // State variables
     
     boolean[][][] eliminated ;
     
-    int[][][] nInvulnerable ;
+    byte[][][] nInvulnerable ;
     
     // Thread
     
     boolean[][][][] threadEliminated ;
     
-    int[][][][] threadNInvulnerable ;
+    byte[][][][] threadNInvulnerable ;
     
     // Temporary vars used to store partially-calculated 
     // values for efficiency reasons.
@@ -69,15 +70,15 @@ public class InvulnerableState implements IState {
         final boolean resize = cellsInRow != boxesAcross * boxesDown ;
 
         cellsInRow = boxesAcross * boxesDown ;
-        maxScore = 3 * cellsInRow - boxesAcross - boxesDown ;
+        maxScore = (byte)( 3 * cellsInRow - boxesAcross - boxesDown );
         
         int i , j , k ;
         if( resize ){
             eliminated = new boolean[cellsInRow][cellsInRow][cellsInRow];
-            nInvulnerable = new int[cellsInRow][cellsInRow][cellsInRow];
+            nInvulnerable = new byte[cellsInRow][cellsInRow][cellsInRow];
     
             threadEliminated = new boolean[cellsInRow*cellsInRow][cellsInRow][cellsInRow][cellsInRow];
-            threadNInvulnerable = new int[cellsInRow*cellsInRow][cellsInRow][cellsInRow][cellsInRow];
+            threadNInvulnerable = new byte[cellsInRow*cellsInRow][cellsInRow][cellsInRow][cellsInRow];
         } else {
             i = 0 ;
             while( i < cellsInRow ){
@@ -148,11 +149,11 @@ public class InvulnerableState implements IState {
      * @see com.act365.sudoku.IState#addMove(int, int, int)
      */
 
-	public void addMove(int x, int y, int value ) throws Exception {
+	public void addMove(int x, int y, int value ) throws MoveException {
         int i , j , v , cx , cy ;
         // Check that it's a valid candidate.
         if( eliminated[value][x][y] ){
-            throw new Exception("The move (" + ( 1 + x ) + "," + ( 1 + y ) + "):=" + ( 1 + value ) + " has already been eliminated");
+            throw new MoveAlreadyEliminatedException( x , y , value );
         }
         // Calc temp values.
         lowerX = ( x / boxesAcross )* boxesAcross ;
@@ -382,9 +383,11 @@ public class InvulnerableState implements IState {
         
         int v = 0 ;
         while( v < cellsInRow ){
-            sb.append( v + 1 );
-            sb.append(".\n");
-            sb.append( SuDokuUtils.toString( nInvulnerable[v] , boxesAcross , maxScore ) );
+            sb.append("Value ");
+            sb.append( SuDokuUtils.toString( v + 1 ) );
+            sb.append(":\n\n");
+            sb.append( SuDokuUtils.toString( nInvulnerable[v] , boxesAcross , (int) maxScore ) );
+            sb.append('\n');
             ++ v ;
         }
         

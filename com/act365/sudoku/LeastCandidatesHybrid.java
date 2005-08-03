@@ -38,12 +38,17 @@ public class LeastCandidatesHybrid extends StrategyBase implements IStrategy {
 
     IStrategy better ;
 
+    InvulnerableState invulnerableState ;
+    
+    LinearSystemState linearSystemState ;
+    
     boolean useDisjointSubsets ,
             useSingleSectorCandidates ,
             useXWings ,
             useSwordfish ,
             useNishio ,
-            useGuesses ;
+            useGuesses ,
+            checkInvulnerable ;
             
     int singleCandidatureCalls ,
         disjointSubsetsCalls ,
@@ -58,17 +63,25 @@ public class LeastCandidatesHybrid extends StrategyBase implements IStrategy {
         nishioCalls ,
         nishioEliminations ,
         nGuesses ,
-        maxStrings ;
+        maxStrings ,
+        maxStringLength ,
+        nEliminated ;
     
+    int[] eliminatedX ,
+          eliminatedY ,
+          eliminatedValues ;
+          
     // Arrays defined as members in order to improve performance.
 
     transient int[] x , y , linkedValues , linkedCells ;
     
     transient int[] stringR0 , stringC0 , stringR1 , stringC1 , stringLength ;
     
+    transient boolean[][] isStringAscending ;
+    
     transient boolean[] union ;
             
-    transient int[][] mask ;
+    transient int[][] mask , stringRoute ;
 
     /**
      * Sets up a LeastCandidatesHybrid II strategy with an optional random element.
@@ -85,14 +98,13 @@ public class LeastCandidatesHybrid extends StrategyBase implements IStrategy {
         super( randomize , explain );
         lcn = new LeastCandidatesNumber( randomize || checkInvulnerable , randomize , explain );
         lcc = new LeastCandidatesCell( randomize || checkInvulnerable , randomize , explain );        
-        if( checkInvulnerable ){
-            state = new InvulnerableState();
+        if( ( this.checkInvulnerable = checkInvulnerable ) ){
+            invulnerableState = new InvulnerableState();
+            linearSystemState = new LinearSystemState();
         }
         useDisjointSubsets = true ;
         useSingleSectorCandidates = true ;
-        useXWings = useAllLogicalMethods ;
-        useSwordfish = useAllLogicalMethods ;
-        useNishio = useAllLogicalMethods ;
+        useXWings = useSwordfish = useNishio = useAllLogicalMethods ;
         useGuesses = true ;
     }
 
@@ -114,7 +126,29 @@ public class LeastCandidatesHybrid extends StrategyBase implements IStrategy {
         super.setup( grid );
         lcn.setup( grid );
         lcc.setup( grid );
-        if( state instanceof IState ){
+        if( checkInvulnerable ){
+            invulnerableState.setup( grid.boxesAcross , grid.boxesDown );
+            linearSystemState.setup( grid.boxesAcross , grid.boxesDown );
+            int i , j ;
+            i = 0 ;
+            while( i < grid.cellsInRow ){
+                j = 0 ;
+                while( j < grid.cellsInRow ){
+                    if( grid.data[i][j] > 0 ){
+                        invulnerableState.addMove( i , j , grid.data[i][j] - 1 );
+                        linearSystemState.addMove( i , j , grid.data[i][j] - 1 );
+                    }
+                    ++ j ;
+                }
+                ++ i ;
+            }
+            if( explain ){
+                invulnerableState.pushState( 0 );
+                linearSystemState.pushState( 0 );
+                eliminatedX = new int[grid.cellsInRow];
+                eliminatedY = new int[grid.cellsInRow];
+                eliminatedValues = new int[grid.cellsInRow];
+            }
             if( useDisjointSubsets ){
                 x = new int[grid.cellsInRow];
                 y = new int[grid.cellsInRow];
@@ -126,11 +160,16 @@ public class LeastCandidatesHybrid extends StrategyBase implements IStrategy {
                 // The following array size isn't a theoretical upper limit 
                 // but should prove adequate.
                 maxStrings = grid.cellsInRow * grid.cellsInRow * grid.cellsInRow ;
+                maxStringLength = 10 ; // Could be made final
                 stringR0 = new int[maxStrings];
                 stringC0 = new int[maxStrings];
                 stringR1 = new int[maxStrings];
                 stringC1 = new int[maxStrings];
                 stringLength = new int[maxStrings];
+                if( explain ){
+                    stringRoute = new int[maxStrings][maxStringLength];
+                    isStringAscending = new boolean[maxStrings][maxStringLength];
+                }
             }
             if( useNishio ){
                 mask = new int[grid.cellsInRow][grid.cellsInRow];
@@ -144,6 +183,7 @@ public class LeastCandidatesHybrid extends StrategyBase implements IStrategy {
         swordfishCalls = swordfishEliminations = 0 ;
         nishioCalls = nishioEliminations = 0 ;
         nGuesses = 0 ;
+        nEliminated = 0 ;
     }
     
 	/**
@@ -168,10 +208,14 @@ public class LeastCandidatesHybrid extends StrategyBase implements IStrategy {
         // When no indisputable candidate exists, employ the various
         // rules in order to try to eliminate candidates.
         // The code is only executed for Least Candidates Hybrid II. 
-        if( state instanceof IState && score > 1 ){
+        if( checkInvulnerable && score > 1 ){
+            nEliminated = 0 ;
             try {
                while( true ){
                     if( useSingleSectorCandidates && singleSectorCandidates( sb ) ){
+                        if( explain && nEliminated > 0 ){
+                            appendEliminations( sb );
+                        }
                         if( singleCandidature() ){
                             break ;
                         } else {
@@ -179,6 +223,9 @@ public class LeastCandidatesHybrid extends StrategyBase implements IStrategy {
                         }
                     }
                     if( useDisjointSubsets && disjointSubsets( sb ) ){
+                        if( explain && nEliminated > 0 ){
+                            appendEliminations( sb );
+                        }
                         if( singleCandidature() ){
                             break ;
                         } else {
@@ -186,27 +233,36 @@ public class LeastCandidatesHybrid extends StrategyBase implements IStrategy {
                         }
                     }
                     if( useXWings && xWings( sb ) ){
+                        if( explain && nEliminated > 0 ){
+                            appendEliminations( sb );
+                        }
                         if( singleCandidature() ){
                             break ;
                         } else {
                             continue ;
                         }
                     }
-                    if( useSwordfish && swordfish( sb ) ){
-                        if( singleCandidature() ){
-                            break ;
-                        } else {
-                            continue ;
-                        }
-                    }
-                    if( useNishio && nishio( sb ) ){
-                        if( singleCandidature() ){
-                            break ;
-                        } else {
-                            continue ;
-                        }
-                    }
-                    break ;
+                   if( useSwordfish && swordfish( sb ) ){
+                       if( explain && nEliminated > 0 ){
+                           appendEliminations( sb );
+                       }
+                       if( singleCandidature() ){
+                           break ;
+                       } else {
+                           continue ;
+                       }
+                   }
+                   if( useNishio && nishio( sb ) ){
+                       if( explain && nEliminated > 0 ){
+                           appendEliminations( sb );
+                       }
+                       if( singleCandidature() ){
+                           break ;
+                       } else {
+                           continue ;
+                       }
+                   }
+                   break ;
                 }
             } catch ( Exception e ) {
                 score = 0 ;
@@ -234,8 +290,7 @@ public class LeastCandidatesHybrid extends StrategyBase implements IStrategy {
             ++ nCandidates ;    
         }        
         
-        if( state instanceof IState ){
-            InvulnerableState invulnerableState = (InvulnerableState) state ;
+        if( checkInvulnerable ){
             int i , minInvulnerable = Integer.MAX_VALUE ;
             i = 0 ;
             while( i < better.getNumberOfCandidates() ){
@@ -266,6 +321,70 @@ public class LeastCandidatesHybrid extends StrategyBase implements IStrategy {
         return nCandidates ;
 	}
 
+    /**
+     * Eliminates the move (x,y):=v from all state grids.
+     */
+
+    void eliminateMove( int x , int y , int v ){
+        ((NumberState) lcn.state ).eliminateMove( x , y , v );
+        ((CellState) lcc.state ).eliminateMove( x , y , v );
+        invulnerableState.eliminateMove( x , y , v );
+        linearSystemState.eliminateMove( x , y , v );
+        if( explain ){
+            eliminatedX[nEliminated] = x ;
+            eliminatedY[nEliminated] = y ;
+            eliminatedValues[nEliminated] = v ;
+            ++ nEliminated ;            
+        }
+    }
+    
+    /**
+     * Appends a summary of moves eliminated in the current 
+     * cycle to the given string buffer.
+     */
+
+    void appendEliminations( StringBuffer sb ){
+        sb.append("- The move");
+        if( nEliminated > 1 ){
+            sb.append('s');
+        }
+        int i = 0 ;
+        while( i < nEliminated ){
+            if( i == 0 ){
+                sb.append(" (");
+            } else if( i < nEliminated - 1 ) {
+                sb.append(", (");
+            } else {
+                sb.append(" and (");
+            }
+            sb.append( 1 + eliminatedX[i] );
+            sb.append(',');
+            sb.append( 1 + eliminatedY[i] );
+            sb.append("):=");
+            sb.append( SuDokuUtils.toString( 1 + eliminatedValues[i] ));
+            ++ i ;
+        }
+        sb.append(" ha");
+        if( nEliminated == 1 ){
+            sb.append('s');
+        } else {
+            sb.append("ve");
+        }
+        sb.append(" been eliminated.\n");
+        nEliminated = 0 ;
+    }
+    
+    /**
+     * Adds the move (x,y):=v to all state grids.
+     */
+/*
+    void addMove( int x , int y , int v ) throws Exception {
+        ((NumberState) lcn.state ).addMove( x , y , v );
+        ((CellState) lcc.state ).addMove( x , y , v );
+        invulnerableState.addMove( x , y , v );
+        linearSystemState.addMove( x , y , v );
+    }
+*/    
     /**
      * Determines which underlying strategy to prefer.  
      * @return whether an undisputed candidate has been found
@@ -374,9 +493,7 @@ public class LeastCandidatesHybrid extends StrategyBase implements IStrategy {
                                 }
                                 ++ k ;
                             }
-                            numberState.eliminateMove( x[i] , y[i] , j );
-                            cellState.eliminateMove( x[i] , y[i] , j );
-                            state.eliminateMove( x[i] , y[i] , j );
+                            eliminateMove( x[i] , y[i] , j );
                             anyMoveEliminated = true ;
                             ++ disjointSubsetsEliminations ; 
                             ++ j ;
@@ -544,9 +661,7 @@ public class LeastCandidatesHybrid extends StrategyBase implements IStrategy {
                                 continue ;
                             }
                             if( ! cellState.eliminated[x0][y0][value] ){
-                                numberState.eliminateMove( x0 , y0 , value );
-                                cellState.eliminateMove( x0 , y0 , value );
-                                state.eliminateMove( x0 , y0 , value );
+                                eliminateMove( x0 , y0 , value );
                                 anyMoveEliminated = true ;
                                 ++ singleSectorCandidatesEliminations ;
                             }
@@ -635,9 +750,7 @@ public class LeastCandidatesHybrid extends StrategyBase implements IStrategy {
                             continue ;
                         }
                         if( ! cellState.eliminated[x0][y0][value] ){
-                            numberState.eliminateMove( x0 , y0 , value );
-                            cellState.eliminateMove( x0 , y0 , value );
-                            state.eliminateMove( x0 , y0 , value );
+                            eliminateMove( x0 , y0 , value );
                             anyMoveEliminated = true ;
                             ++ singleSectorCandidatesEliminations ;
                         }
@@ -742,6 +855,10 @@ public class LeastCandidatesHybrid extends StrategyBase implements IStrategy {
             stringR1[nStrings] = x1 ;
             stringC1[nStrings] = y1 ;
             stringLength[nStrings] = 1 ;
+            if( explain && maxStringLength >= 1 ){
+                stringRoute[nStrings][0] = nStrings ;
+                isStringAscending[nStrings][0] = true ;
+            }
             ++ nStrings ;
             ++ s ;
         }
@@ -754,8 +871,9 @@ public class LeastCandidatesHybrid extends StrategyBase implements IStrategy {
     
     boolean swordfish( StringBuffer sb ){
         ++ swordfishCalls ;
-        int v , i , j , k , x0 , y0 , x1 , y1 , r0 , c0 , r1 , c1 ;
+        int v , i , j , k , kOffset , x0 , y0 , x1 , y1 , r0 , c0 , r1 , c1 ;
         int nStrings , nUnitStrings , longStringsBegin , longStringsEnd ;
+        boolean isOrderReversed , isIReversed , isJReversed ;
         v = 0 ;
         while( v < grid.cellsInRow ){
             nStrings = nUnitStrings = unitStrings( v );
@@ -774,24 +892,32 @@ public class LeastCandidatesHybrid extends StrategyBase implements IStrategy {
                             y0 = stringC1[i];
                             x1 = stringR1[j];
                             y1 = stringC1[j];
+                            isIReversed = true ;
+                            isJReversed = false ;
                         } else if( stringR1[i] == stringR1[j] && stringC1[i] == stringC1[j] && 
                                 !( stringR0[i] == stringR0[j] && stringC0[i] == stringC0[j] ) ){
                             x0 = stringR0[i];
                             y0 = stringC0[i];
                             x1 = stringR0[j];
                             y1 = stringC0[j];
+                            isIReversed = false ;
+                            isJReversed = true ;
                         } else if( stringR0[i] == stringR1[j] && stringC0[i] == stringC1[j] && 
                                 !( stringR1[i] == stringR0[j] && stringC1[i] == stringC0[j] ) ){
                             x0 = stringR1[i];
                             y0 = stringC1[i];
                             x1 = stringR0[j];
                             y1 = stringC0[j];
+                            isIReversed = true ;
+                            isJReversed = true ;
                         } else if( stringR1[i] == stringR0[j] && stringC1[i] == stringC0[j] && 
                                 !( stringR0[i] == stringR1[j] && stringC0[i] == stringC1[j] ) ){
                             x0 = stringR0[i];
                             y0 = stringC0[i];
                             x1 = stringR1[j];
-                            y1 = stringC1[j];
+                            y1 = stringC1[j]; 
+                            isIReversed = false ;
+                            isJReversed = false ;
                         } else {
                             ++ j ;
                             continue ;
@@ -800,12 +926,16 @@ public class LeastCandidatesHybrid extends StrategyBase implements IStrategy {
                             r0 = x0 ;
                             c0 = y0 ; 
                             r1 = x1 ;
-                            c1 = y1 ; 
+                            c1 = y1 ;
+                            isOrderReversed = false ; 
                         } else {
                             r0 = x1 ;
                             c0 = y1 ; 
                             r1 = x0 ;
                             c1 = y0 ; 
+                            isOrderReversed = true ;
+                            isIReversed = ! isIReversed ;
+                            isJReversed = ! isJReversed ;
                         }
                         // Check for cyclic dependencies.
                         k = 0 ;
@@ -820,7 +950,27 @@ public class LeastCandidatesHybrid extends StrategyBase implements IStrategy {
                         stringC0[nStrings] = c0 ; 
                         stringR1[nStrings] = r1 ;
                         stringC1[nStrings] = c1 ; 
-                        stringLength[nStrings++] = 1 + stringLength[j];
+                        stringLength[nStrings] = 1 + stringLength[j];
+                        if( explain && stringLength[nStrings] <= maxStringLength ){
+                            // Write 'i' string.
+                            kOffset = isOrderReversed ? stringLength[j] : 0 ;
+                            stringRoute[nStrings][kOffset] = stringRoute[i][0];
+                            isStringAscending[nStrings][kOffset] = ! isIReversed ;
+                            // Write 'j' string.
+                            kOffset = isOrderReversed ? 0 : 1 ;
+                            k = 0 ;
+                            while( k < stringLength[j] ){
+                                if( isJReversed ){
+                                    stringRoute[nStrings][k+kOffset] = stringRoute[j][stringLength[j]-1-k];
+                                    isStringAscending[nStrings][k+kOffset] = ! isStringAscending[j][stringLength[j]-1-k];
+                                } else {
+                                    stringRoute[nStrings][k+kOffset] = stringRoute[j][k];
+                                    isStringAscending[nStrings][k+kOffset] = isStringAscending[j][k];
+                                }
+                                ++ k ;
+                            }
+                        }
+                        ++ nStrings ;
                         ++ j ;
                     }
                     ++ i ;
@@ -880,9 +1030,7 @@ public class LeastCandidatesHybrid extends StrategyBase implements IStrategy {
                     continue ;
                 }
                 if( ! cellState.eliminated[stringR0[i]][k][v] ){
-                    numberState.eliminateMove( stringR0[i] , k , v );
-                    cellState.eliminateMove( stringR0[i] , k , v );
-                    state.eliminateMove( stringR0[i] , k , v );
+                    eliminateMove( stringR0[i] , k , v );
                     anyMoveEliminated = true ;
                     if( stringLength[i] == 1 && stringLength[j] == 1 ){
                         ++ xWingsEliminations ;
@@ -899,9 +1047,7 @@ public class LeastCandidatesHybrid extends StrategyBase implements IStrategy {
                     continue ;
                 }
                 if( ! cellState.eliminated[stringR1[i]][k][v] ){
-                    numberState.eliminateMove( stringR1[i] , k , v );
-                    cellState.eliminateMove( stringR1[i] , k , v );
-                    state.eliminateMove( stringR1[i] , k , v );
+                    eliminateMove( stringR1[i] , k , v );
                     anyMoveEliminated = true ;
                     if( stringLength[i] == 1 && stringLength[j] == 1 ){
                         ++ xWingsEliminations ;
@@ -920,9 +1066,7 @@ public class LeastCandidatesHybrid extends StrategyBase implements IStrategy {
                     continue ;
                 }
                 if( ! cellState.eliminated[k][stringC0[i]][v] ){
-                    numberState.eliminateMove( k , stringC0[i] , v );
-                    cellState.eliminateMove( k , stringC0[i] , v );
-                    state.eliminateMove( k , stringC0[i] , v );
+                    eliminateMove( k , stringC0[i] , v );
                     anyMoveEliminated = true ;
                     if( stringLength[i] == 1 && stringLength[j] == 1 ){
                         ++ xWingsEliminations ;
@@ -939,9 +1083,7 @@ public class LeastCandidatesHybrid extends StrategyBase implements IStrategy {
                     continue ;
                 }
                 if( ! cellState.eliminated[k][stringC1[i]][v] ){
-                    numberState.eliminateMove( k , stringC1[i] , v );
-                    cellState.eliminateMove( k , stringC1[i] , v );
-                    state.eliminateMove( k , stringC1[i] , v );
+                    eliminateMove( k , stringC1[i] , v );
                     anyMoveEliminated = true ;
                     if( stringLength[i] == 1 && stringLength[j] == 1 ){
                         ++ xWingsEliminations ;
@@ -973,18 +1115,44 @@ public class LeastCandidatesHybrid extends StrategyBase implements IStrategy {
                 sb.append( 1 + stringC1[i] );
                 sb.append("). [");
                 if( stringLength[j] == 1 ){
-                    sb.append("X-Wing");
+                    sb.append("X-Wing ");
                 } else {
                     sb.append( stringLength[j] );
-                    sb.append("-leg Swordfish");
+                    sb.append("-leg Swordfish ");
                 }
+                appendSwordfish( sb , i );
+                sb.append(" & ");
+                appendSwordfish( sb , j );
                 sb.append("]\n");                            
             }
             return true ;
         }
         return false ;
     }
-            
+
+    /**
+     * Appends a description of the given swordfish leg to the given string buffer.
+     */
+
+    void appendSwordfish( StringBuffer sb , int s ){
+        int l = stringRoute[s][0] ;
+        sb.append('(');
+        sb.append( 1 + ( isStringAscending[s][0] ? stringR0[l] : stringR1[l] ) );
+        sb.append(',');
+        sb.append( 1 + ( isStringAscending[s][0] ? stringC0[l] : stringC1[l] ) );
+        sb.append(')');
+        int i = 0 ;
+        while( i < stringLength[s] ){
+            l = stringRoute[s][i];
+            sb.append("-(");
+            sb.append( 1 + ( isStringAscending[s][i] ? stringR1[l] : stringR0[l] ) );
+            sb.append(',');
+            sb.append( 1 + ( isStringAscending[s][i] ? stringC1[l] : stringC0[l] ) );
+            sb.append(')');
+            ++ i ;
+        }
+    }
+                
     /**
      * Searches for moves that would make it impossible to place the remaining values.
      * @param sb explanation
@@ -1188,9 +1356,7 @@ public class LeastCandidatesHybrid extends StrategyBase implements IStrategy {
                         }
                     }             
                     if( anyMoveEliminated ){
-                        cellState.eliminateMove( i , j , v );
-                        numberState.eliminateMove( i , j , v );
-                        state.eliminateMove( i , j , v );               
+                        eliminateMove( i , j , v );
                         ++ nishioEliminations ;
                         if( explain ){
                             sb.append("The move (");
@@ -1224,9 +1390,12 @@ public class LeastCandidatesHybrid extends StrategyBase implements IStrategy {
             return false ;
         }
         // Store current state variables on thread.
-        if( state instanceof IState ){
+        if( checkInvulnerable ){
             if( writeState ){
-                state.pushState( nMoves );
+                if( ! explain ){
+                    invulnerableState.pushState( nMoves );
+                    linearSystemState.pushState( nMoves ); 
+                }
                 stateWrite[nMoves] = true ;
             } else {
                 stateWrite[nMoves] = false ;
@@ -1241,9 +1410,14 @@ public class LeastCandidatesHybrid extends StrategyBase implements IStrategy {
         }
         ++ nMoves ;
         // Update state variables
-        if( state instanceof IState ){
-            state.addMove( x , y , value - 1 );
+        if( checkInvulnerable ){
+            invulnerableState.addMove( x , y , value - 1 );
+            linearSystemState.addMove( x , y , value - 1 );
         }        
+        if( explain && nMoves < grid.cellsInRow * grid.cellsInRow ){
+            invulnerableState.pushState( nMoves );
+            linearSystemState.pushState( nMoves ); 
+        }
         // Underlying state variables
 		lcn.updateState( x , y , value , reason , writeState );
         lcc.updateState( x , y , value , reason , writeState );
@@ -1252,10 +1426,10 @@ public class LeastCandidatesHybrid extends StrategyBase implements IStrategy {
 
 	/**
      * Unwind the stack.
-	 * @see com.act365.sudoku.IStrategy#unwind(int,boolean)
+	 * @see com.act365.sudoku.IStrategy#unwind(int,boolean,boolean)
 	 */
     
-	public boolean unwind( int newNMoves , boolean reset ){
+	public boolean unwind( int newNMoves , boolean reset , boolean eliminate ){
         if( newNMoves < 0 ){
             return false ;
         }
@@ -1273,12 +1447,16 @@ public class LeastCandidatesHybrid extends StrategyBase implements IStrategy {
                 reasons[i++] = new StringBuffer();
             }
         }
-        if( state instanceof IState ){
-            state.popState( newNMoves );
-            state.eliminateMove( xMoves[newNMoves] , yMoves[newNMoves] , grid.data[xMoves[newNMoves]][yMoves[newNMoves]] - 1 );
+        if( checkInvulnerable ){
+            invulnerableState.popState( newNMoves );
+            linearSystemState.popState( newNMoves );
+            if( eliminate ){
+                invulnerableState.eliminateMove( xMoves[newNMoves] , yMoves[newNMoves] , grid.data[xMoves[newNMoves]][yMoves[newNMoves]] - 1 );
+                linearSystemState.eliminateMove( xMoves[newNMoves] , yMoves[newNMoves] , grid.data[xMoves[newNMoves]][yMoves[newNMoves]] - 1 );
+            }
         }
-		lcn.unwind( newNMoves , false );
-        lcc.unwind( newNMoves , false );
+		lcn.unwind( newNMoves , false , eliminate );
+        lcc.unwind( newNMoves , false , eliminate );
         // Remove the most recent moves from the grid.
         if( reset ){
             int i = newNMoves ;
@@ -1303,6 +1481,26 @@ public class LeastCandidatesHybrid extends StrategyBase implements IStrategy {
             return lcnMove ; 
         } else {
             return lccMove ;
+        }
+    }
+    
+    /**
+     * Prints the current state grid of the given type.
+     */
+    
+    public String printState( int stateType ){
+        
+        switch( stateType ){            
+            case SuDokuUtils.CELL_STATE :
+                return lcc.state.toString();
+            case SuDokuUtils.NUMBER_STATE :
+                return lcn.state.toString();
+            case SuDokuUtils.NEIGHBOUR_STATE :
+                return invulnerableState.toString();
+            case SuDokuUtils.LINEAR_SYSTEM_STATE :
+                return linearSystemState.toString();
+            default:
+                return new String();
         }
     }
 }

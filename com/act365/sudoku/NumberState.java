@@ -43,7 +43,7 @@ public class NumberState implements IState {
     
     boolean[][][] eliminated ;
     
-    int[][] nEliminated ;
+    byte[][] nEliminated ;
     
     boolean[][] isFilled ;
     
@@ -51,7 +51,7 @@ public class NumberState implements IState {
     
     boolean[][][][] threadEliminated ;
     
-    int[][][] threadNEliminated ;
+    byte[][][] threadNEliminated ;
     
     boolean[][][] threadIsFilled ;
     
@@ -72,11 +72,11 @@ public class NumberState implements IState {
         int i , j , k ;
         if( resize ){
             eliminated = new boolean[cellsInRow][3*cellsInRow][cellsInRow];
-            nEliminated = new int[cellsInRow][3*cellsInRow];
+            nEliminated = new byte[cellsInRow][3*cellsInRow];
             isFilled = new boolean[cellsInRow][3*cellsInRow];
         
             threadEliminated = new boolean[cellsInRow*cellsInRow][cellsInRow][3*cellsInRow][cellsInRow];
-            threadNEliminated = new int[cellsInRow*cellsInRow][cellsInRow][3*cellsInRow];
+            threadNEliminated = new byte[cellsInRow*cellsInRow][cellsInRow][3*cellsInRow];
             threadIsFilled = new boolean[cellsInRow*cellsInRow][cellsInRow][3*cellsInRow];
         } else {
             i = 0 ;
@@ -153,7 +153,7 @@ public class NumberState implements IState {
      * @see com.act365.sudoku.IState#addMove(int, int, int)
      */
 
-	public void addMove(int x, int y, int value ) throws Exception {
+	public void addMove(int x, int y, int value ) throws MoveException {
         int i , j ;
         int boxSector = 2 * cellsInRow + x / boxesAcross * boxesAcross + y / boxesDown ,
             boxPosition = x % boxesAcross * boxesDown + y % boxesDown ;
@@ -161,7 +161,7 @@ public class NumberState implements IState {
         if( eliminated[value][x][y] || 
             eliminated[value][cellsInRow+y][x] || 
             eliminated[value][boxSector][boxPosition] ){
-                throw new Exception("The move (" + ( 1 + x ) + "," + ( 1 + y ) + "):=" + ( 1 + value ) + " has already been eliminated");
+                throw new MoveAlreadyEliminatedException( x , y , value );
         }
         // Note which sectors have been filled.
         isFilled[value][x] = true ;
@@ -190,7 +190,7 @@ public class NumberState implements IState {
             }
         }
         if( nEliminated[value][x] != cellsInRow - 1 ){
-            throw new Exception("Couldn't eliminate in Row " + ( 1 + x ) );
+            throw new MoveCantBeEliminatedException( x , y , value );
         }
         // ... column (i,y) 
         i = -1 ;
@@ -214,7 +214,7 @@ public class NumberState implements IState {
             }
         }
         if( nEliminated[value][cellsInRow+y] != cellsInRow - 1 ){
-            throw new Exception("Couldn't eliminate in Column " + ( 1 + y ) );
+            throw new MoveCantBeEliminatedException( x , y , value );
         }
         // ... subgrid
         i = x / boxesAcross * boxesAcross - 1 ;
@@ -247,7 +247,7 @@ public class NumberState implements IState {
             }
         }
         if( nEliminated[value][boxSector] != cellsInRow - 1 ){
-            throw new Exception("Couldn't eliminate in Box [" + ( 1 + boxSector / boxesAcross ) + "," + ( 1 + boxSector % boxesAcross ) + "]");
+            throw new MoveCantBeEliminatedException( boxSector / boxesAcross , boxSector % boxesAcross , value );
         }
         // Eliminate other values as candidates for the current row.
         i = -1 ;
@@ -299,6 +299,40 @@ public class NumberState implements IState {
      */
     
     public String toString() {
-        return SuDokuUtils.toString( nEliminated , boxesAcross );
+        
+        StringBuffer sb = new StringBuffer();
+        
+        String[][] data = new String[cellsInRow][cellsInRow];
+        int[] maxLength = new int[cellsInRow];
+        int i , j , v , length ;
+        v = 0 ;
+        while( v < cellsInRow ){
+            sb.append("Value ");
+            sb.append( SuDokuUtils.toString( v + 1 ) );
+            sb.append(":\n\n");
+            i = 0 ;
+            while( i < cellsInRow ){
+                j = 0 ;
+                while( j < cellsInRow ){
+                    if( eliminated[v][i][j] ){
+                        data[i][j] = ".";
+                    } else if( nEliminated[v][i] == cellsInRow - 1 ){
+                        data[i][j] = SuDokuUtils.toString( v + 1 );
+                    } else {
+                        data[i][j] = "?";
+                    }
+                    if( ( length = data[i][j].length() ) > maxLength[j] ){
+                        maxLength[j] = length ;
+                    }
+                    ++ j ;
+                }
+                ++ i ;
+            }
+            sb.append( SuDokuUtils.toString( data , boxesAcross , maxLength ) );
+            sb.append('\n');
+            ++ v ;
+        }
+        
+        return sb.toString();
     }
 }

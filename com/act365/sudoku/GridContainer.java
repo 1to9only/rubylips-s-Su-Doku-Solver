@@ -33,6 +33,8 @@ import java.awt.*;
 
 public class GridContainer extends com.act365.awt.Container {
 
+    final static int insetSize = 1 ;
+    
     // Members
     
     Grid grid ;
@@ -72,9 +74,9 @@ public class GridContainer extends com.act365.awt.Container {
 			while( c < grid.cellsInRow + grid.boxesAcross - 1 ){
 				if( r % (grid.boxesAcross+1) < grid.boxesAcross && c % (grid.boxesDown+1) < grid.boxesDown ){
 					textFields[r/(grid.boxesAcross+1)*grid.boxesAcross+r%(grid.boxesAcross+1)][c/(grid.boxesDown+1)*grid.boxesDown+c%(grid.boxesDown+1)] = new TextField(1);
-					addComponent( textFields[r/(grid.boxesAcross+1)*grid.boxesAcross+r%(grid.boxesAcross+1)][c/(grid.boxesDown+1)*grid.boxesDown+c%(grid.boxesDown+1)] , c , r , 1 , 1 , 1 , 1 );
+					addComponent( textFields[r/(grid.boxesAcross+1)*grid.boxesAcross+r%(grid.boxesAcross+1)][c/(grid.boxesDown+1)*grid.boxesDown+c%(grid.boxesDown+1)] , c , r , 1 , 1 , 1 , 1 , insetSize );
 				} else {
-					addComponent( new Label() , c , r , 1 , 1 , 1 , 1 );
+					addComponent( new Label() , c , r , 1 , 1 , 1 , 1 , insetSize );
 				}
 				++ c ;
 			}

@@ -54,8 +54,9 @@ public abstract class StrategyBase {
     // Candidates selected by findCandidates()
     
     protected int[] xCandidates ,
-                    yCandidates ,
-                    valueCandidates ;
+                    yCandidates ;
+                    
+    protected byte[] valueCandidates ;
     
     protected StringBuffer[] reasonCandidates ;
                     
@@ -78,8 +79,9 @@ public abstract class StrategyBase {
     // Best candidate selected by selectCandidate()
     
     protected int bestX ,
-                  bestY ,
-                  bestValue ;
+                  bestY ;
+                  
+    protected byte bestValue ;
     
     protected String bestReason ;
     
@@ -122,7 +124,7 @@ public abstract class StrategyBase {
             stateWrite = new boolean[grid.cellsInRow*grid.cellsInRow];
             xCandidates = new int[grid.cellsInRow*grid.cellsInRow*grid.cellsInRow];
             yCandidates = new int[grid.cellsInRow*grid.cellsInRow*grid.cellsInRow];
-            valueCandidates = new int[grid.cellsInRow*grid.cellsInRow*grid.cellsInRow];
+            valueCandidates = new byte[grid.cellsInRow*grid.cellsInRow*grid.cellsInRow];
             reasonCandidates = new StringBuffer[grid.cellsInRow*grid.cellsInRow*grid.cellsInRow];
         }
 
@@ -132,7 +134,8 @@ public abstract class StrategyBase {
             
         bestX = grid.cellsInRow ; 
         bestY = grid.cellsInRow ;
-        bestValue = grid.cellsInRow ;
+        
+        bestValue = (byte) grid.cellsInRow ;
         
         int i ;
         if( explain ){
@@ -154,6 +157,9 @@ public abstract class StrategyBase {
                     ++ j ;
                 }
                 ++ i ;
+            }
+            if( explain ){
+                state.pushState( 0 );
             }
         }
     }
@@ -193,7 +199,9 @@ public abstract class StrategyBase {
         }
         // Store current state variables on thread.
         if( writeState ){
-            state.pushState( nMoves );
+            if( ! explain ){
+                state.pushState( nMoves );
+            }
             stateWrite[nMoves] = true ;
         } else {
             stateWrite[nMoves] = false ;
@@ -208,15 +216,18 @@ public abstract class StrategyBase {
         ++ nMoves ;
         // Update state variables
         state.addMove( x , y , value - 1 );
+        if( explain && nMoves < grid.cellsInRow * grid.cellsInRow ){
+            state.pushState( nMoves );
+        }
         return true ;
     }
 
     /**
      * Unwinds the the thread and reinstates state variables.
-     * @see com.act365.sudoku.IStrategy#unwind(int,boolean)
+     * @see com.act365.sudoku.IStrategy#unwind(int,boolean,boolean)
      */
     
-    public boolean unwind( int newNMoves , boolean reset ) {
+    public boolean unwind( int newNMoves , boolean reset , boolean eliminate ) {
         if( newNMoves < 0 ){
             return false ;
         }
@@ -235,7 +246,9 @@ public abstract class StrategyBase {
             }
         }
         state.popState( newNMoves );
-        state.eliminateMove( xMoves[newNMoves] , yMoves[newNMoves] , values[newNMoves] );
+        if( eliminate ){
+            state.eliminateMove( xMoves[newNMoves] , yMoves[newNMoves] , values[newNMoves] );
+        }
         if( reset ){
             int i = newNMoves ;
             while( i < nMoves ){
@@ -267,11 +280,10 @@ public abstract class StrategyBase {
             grid.data[xMoves[nMoves]][yMoves[nMoves]] = 0 ;
         }       
         while( 0 <= nMoves && nMoves < move && nMoves < grid.cellsInRow * grid.cellsInRow ){
-            grid.data[xMoves[nMoves]][yMoves[nMoves]] = 1 + values[nMoves] ;
+            grid.data[xMoves[nMoves]][yMoves[nMoves]] = (byte)( 1 + values[nMoves] );
             ++ nMoves ;   
-        }       
+        }   
     }
-
    
     /**
      * Returns the x-coordinate of the best candidate move.
@@ -296,7 +308,7 @@ public abstract class StrategyBase {
      * @see com.act365.sudoku.IStrategy#getBestValue()
      */
     
-    public int getBestValue(){
+    public byte getBestValue(){
         return bestValue ;
     }
     
@@ -329,7 +341,7 @@ public abstract class StrategyBase {
      * Returns the value-coordinate of the given candidate.
      */
     
-    public int getValueCandidate( int index ){
+    public byte getValueCandidate( int index ){
         return valueCandidates[ index ];    
     }
 

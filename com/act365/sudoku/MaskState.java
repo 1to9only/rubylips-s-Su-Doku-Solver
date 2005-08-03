@@ -39,12 +39,13 @@ public class MaskState {
     
     int boxesAcross ,
         boxesDown ,
-        cellsInRow ,
-        maxScore ;
+        cellsInRow ;
+        
+    byte maxScore ;
         
     // State variables
     
-    int[][] nInvulnerable ;
+    byte[][] nInvulnerable ;
 
     boolean[][] mask ;
         
@@ -61,11 +62,11 @@ public class MaskState {
         final boolean resize = cellsInRow != boxesAcross * boxesDown ;
 
         cellsInRow = boxesAcross * boxesDown ;
-        maxScore = 3 * cellsInRow - boxesAcross - boxesDown ;
+        maxScore = (byte)( 3 * cellsInRow - boxesAcross - boxesDown );
         
         int i , j ;
         if( resize ){
-            nInvulnerable = new int[cellsInRow][cellsInRow];
+            nInvulnerable = new byte[cellsInRow][cellsInRow];
             mask = new boolean[cellsInRow][cellsInRow];
         } else {
             i = 0 ;

@@ -62,7 +62,8 @@ public abstract class Container extends java.awt.Container {
                                  int w ,
                                  int h ,
                                  int weightx ,
-                                 int weighty ) {
+                                 int weighty ,
+                                 int inset ) {
         
         GridBagLayout gbl = (GridBagLayout) getLayout();
         GridBagConstraints gbc = new GridBagConstraints();
@@ -74,9 +75,23 @@ public abstract class Container extends java.awt.Container {
         gbc.gridheight = h ;
         gbc.weightx = weightx ;
         gbc.weighty = weighty ;
-        gbc.insets = new Insets( 5, 5, 5, 5 );
+        gbc.insets = new Insets( inset , inset , inset , inset );
         
         add( comp );
         gbl.setConstraints( comp , gbc );    
+    }
+    
+    /**
+     * Adds a component to the Container.
+     */
+
+    protected void addComponent( Component comp ,
+                                 int x ,
+                                 int y ,
+                                 int w ,
+                                 int h ,
+                                 int weightx ,
+                                 int weighty ) {
+        addComponent( comp , x , y , w , h , weightx , weighty , 5 );
     }
 }
