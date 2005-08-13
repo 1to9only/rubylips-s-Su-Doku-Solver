@@ -26,16 +26,30 @@
 package com.act365.sudoku;
 
 import java.awt.*;
+import java.awt.event.*;
+import java.util.Date ;
 
 /**
  * The GridContainer class displays a Su Doku grid.
  */
 
-public class GridContainer extends com.act365.awt.Container {
+public class GridContainer extends com.act365.awt.Container 
+                           implements AdjustmentListener {
 
-    final static int insetSize = 1 ;
+    final static int insetSize = 1 ,
+                     displayHeight = 600 ,
+                     displayWidth = 600 ,
+                     maxDisplayedRows = 15 ,
+                     maxDisplayedColumns = 11 ;
     
     // Members
+    
+    int displayedRows ,
+        displayedColumns ,
+        firstDisplayedRow ,
+        firstDisplayedColumn ;
+    
+    double solveTime ;
     
     Grid grid ;
     
@@ -45,6 +59,9 @@ public class GridContainer extends com.act365.awt.Container {
     
     Composer composer ;
     
+    Scrollbar horizontalScroll ,
+              verticalScroll ;
+    
     /**
      * Creates a new GridContainer instance. 
      */
@@ -52,9 +69,11 @@ public class GridContainer extends com.act365.awt.Container {
     public GridContainer( Grid grid ) {
         this.grid = grid ;
         strategy = (LeastCandidatesHybrid) Strategy.create( Strategy.LEAST_CANDIDATES_HYBRID_II );
-        removeAll();
-        layoutComponents();
-        validate();
+        horizontalScroll = new Scrollbar( Scrollbar.HORIZONTAL );
+        horizontalScroll.addAdjustmentListener( this );
+        verticalScroll = new Scrollbar();
+        verticalScroll.addAdjustmentListener( this );
+        setBoxes( grid.boxesAcross , grid.boxesDown );
         write();
     }
     
@@ -64,33 +83,44 @@ public class GridContainer extends com.act365.awt.Container {
     
     void layoutComponents(){
 		
-		textFields = new TextField[grid.cellsInRow][grid.cellsInRow];
-
-		int r , c ;
+        setVisible( false );
         
-		r = 0 ;
-		while( r < grid.cellsInRow + grid.boxesDown - 1 ){
-			c = 0 ;
-			while( c < grid.cellsInRow + grid.boxesAcross - 1 ){
-				if( r % (grid.boxesAcross+1) < grid.boxesAcross && c % (grid.boxesDown+1) < grid.boxesDown ){
-					textFields[r/(grid.boxesAcross+1)*grid.boxesAcross+r%(grid.boxesAcross+1)][c/(grid.boxesDown+1)*grid.boxesDown+c%(grid.boxesDown+1)] = new TextField(1);
-					addComponent( textFields[r/(grid.boxesAcross+1)*grid.boxesAcross+r%(grid.boxesAcross+1)][c/(grid.boxesDown+1)*grid.boxesDown+c%(grid.boxesDown+1)] , c , r , 1 , 1 , 1 , 1 , insetSize );
+		int r , c , rDisplayed , cDisplayed ;
+        
+        rDisplayed = 0 ;
+		while( rDisplayed < displayedRows ){
+            r = firstDisplayedRow + rDisplayed ;
+			cDisplayed =  0 ;
+			while( cDisplayed < displayedColumns ){
+                c = firstDisplayedColumn + cDisplayed ;
+				if( r < grid.cellsInRow + grid.boxesDown - 1 && r % (grid.boxesAcross+1) < grid.boxesAcross && 
+                    c < grid.cellsInRow + grid.boxesAcross - 1 && c % (grid.boxesDown+1) < grid.boxesDown ){
+					addComponent( textFields[r/(grid.boxesAcross+1)*grid.boxesAcross+r%(grid.boxesAcross+1)][c/(grid.boxesDown+1)*grid.boxesDown+c%(grid.boxesDown+1)] , cDisplayed , rDisplayed , 1 , 1 , 0 , 0 , insetSize );
 				} else {
-					addComponent( new Label() , c , r , 1 , 1 , 1 , 1 , insetSize );
+					addComponent( new Label() , cDisplayed , rDisplayed , 1 , 1 , 0 , 0 , insetSize );
 				}
-				++ c ;
+				++ cDisplayed ;
 			}
-			++ r ;
+			++ rDisplayed ;
 		}
+        
+        if( displayedRows < grid.cellsInRow + grid.boxesDown - 1 ){
+            addComponent( verticalScroll , displayedColumns , 0 , 1 , displayedRows , 0 , 0 , insetSize );
+        }
+        
+        if( displayedColumns < grid.cellsInRow + grid.boxesAcross - 1 ){
+            addComponent( horizontalScroll , 0 , displayedRows , displayedColumns , 1 , 0 , 0 , insetSize );           
+        }
+        
+        setVisible( true );
     }
     
     /**
-     * A GridContainer should display each square as 40x40 pixels.
+     * Returns the best display size for a GridContainer.
      */
     
     public Dimension getBestSize() {
-        return new Dimension( 40 *( grid.cellsInRow + grid.boxesDown - 1 ) , 
-                              40 *( grid.cellsInRow + grid.boxesAcross - 1 ) );   
+        return new Dimension( displayWidth , displayHeight );   
     }
 
     /**
@@ -99,10 +129,20 @@ public class GridContainer extends com.act365.awt.Container {
     
     public void solve(){  
     	read();
-    	grid.solve( strategy , 1 );
+        long now = new Date().getTime();
+        grid.solve( strategy , 1 );
+        solveTime = ( new Date().getTime() - now )/ 1000. ;
     	write();  
     }
 
+    /**
+     * Returns the time taken to solve.
+     */
+
+    public double getSolveTime() {
+        return solveTime ;
+    }
+    
     /**
      * Evaluates the complexity of the grid. Establishes that just a single
      * solution exists and, if so, calculates the number of thread unwinds
@@ -143,6 +183,7 @@ public class GridContainer extends com.act365.awt.Container {
     
     public void reset(){
     	grid.reset();
+        solveTime = 0 ;
         try {
             strategy.setup( grid );
         } catch ( Exception e ) {
@@ -150,6 +191,15 @@ public class GridContainer extends com.act365.awt.Container {
     	write();
     }
     
+    /**
+     * Shuffles the grid.
+     */
+    
+    public void shuffle(){
+        grid.shuffle();
+        write();
+    }
+
     /**
      * Sets the underlying grid to be a clone of the given grid.   
      * @param grid new grid
@@ -168,22 +218,48 @@ public class GridContainer extends com.act365.awt.Container {
     }
 
     /**
-     * Resizes the grid.
+     * Sets the size of the underlying grid.
+     */
+    
+    public void setSize( int boxesAcross , 
+                         int boxesDown ){
+        grid.resize( boxesAcross , boxesDown );
+    }
+    
+    /**
+     * Resizes the drawn grid.
      * @param boxesAcross - number of boxes across one row of the Su Doku grid
      * @param boxesDown - number of boxes down one column of the Su Doku grid
      */
     
     public void setBoxes( int boxesAcross ,
                           int boxesDown ){
-        final boolean redraw = boxesAcross != grid.boxesAcross || boxesDown != grid.boxesDown ;
-        grid.resize( boxesAcross , boxesDown );
-        if( redraw ){
-            removeAll();
-            layoutComponents();
-            validate();
+        int r , c , cellsInRow ;
+        cellsInRow = boxesAcross * boxesDown ; 
+        textFields = new TextField[cellsInRow][cellsInRow];
+        r = 0 ;
+        while( r < cellsInRow ){
+            c = 0 ;
+            while( c < cellsInRow ){
+                textFields[r][c] = new TextField( 2 );   
+                ++ c ;
+            }
+            ++ r ;
         }
+        displayedRows = Math.min( maxDisplayedRows , cellsInRow + boxesDown - 1 );
+        displayedColumns = Math.min( maxDisplayedColumns , cellsInRow + boxesAcross - 1 );
+        verticalScroll.setMaximum( cellsInRow + boxesDown - 1 );
+        verticalScroll.setVisibleAmount( displayedRows );
+        verticalScroll.setBlockIncrement( 1 + boxesAcross );
+        horizontalScroll.setMaximum( cellsInRow + boxesAcross - 1 );
+        horizontalScroll.setVisibleAmount( displayedColumns );
+        horizontalScroll.setBlockIncrement( 1 + boxesAcross );
+        firstDisplayedRow = firstDisplayedColumn = 0 ;
+        removeAll();
+        layoutComponents();
+        validate();
     }
-    
+
     /**
      * Pastes data onto the grid.
      * @param s data to be pasted, which should be in the form created by Copy
@@ -194,9 +270,7 @@ public class GridContainer extends com.act365.awt.Container {
             oldBoxesDown = grid.boxesDown ;            
         grid.populate( s );
         if( grid.boxesAcross != oldBoxesAcross || grid.boxesDown != oldBoxesDown ){
-            removeAll();
-            layoutComponents();
-            validate();                
+            setBoxes( grid.boxesAcross , grid.boxesDown );
         }
         write();
     }
@@ -220,13 +294,13 @@ public class GridContainer extends com.act365.awt.Container {
                                      Composer.defaultThreads , 
                                      0 , 
                                      null ,
-                                     false ,
                                      grid.cellsInRow >= 12 ,
-                                     0 ,
-                                     0 ,
-                                     0 ,
-                                     0 ,
-                                     0 ,
+                                     strategy.useSingleSectorCandidates ? 0 : -1 ,
+                                     strategy.useDisjointSubsets ? 0 : -1 ,
+                                     strategy.useXWings ? 0 : -1 ,
+                                     strategy.useSwordfish ? 0 : -1 ,
+                                     strategy.useNishio ? 0 : -1 ,
+                                     strategy.useGuesses ? 0 : -1 ,
                                      true ,
                                      false );
             composer.start();
@@ -322,4 +396,19 @@ public class GridContainer extends com.act365.awt.Container {
     public String toString(){
         return grid.toString();
     }
+    
+    /**
+     * Reacts to scrollbar presses.
+     */
+
+    public void adjustmentValueChanged( AdjustmentEvent evt ){
+        if( evt.getSource() == horizontalScroll ){
+            firstDisplayedColumn = evt.getValue();   
+        } else if( evt.getSource() == verticalScroll ){   
+            firstDisplayedRow = evt.getValue();   
+        }
+        removeAll();
+        layoutComponents();
+        validate();
+   }
 }

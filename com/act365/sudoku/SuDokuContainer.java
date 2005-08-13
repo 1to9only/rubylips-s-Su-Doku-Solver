@@ -26,13 +26,15 @@
 package com.act365.sudoku;
 
 import java.awt.* ;
+import java.awt.event.* ;
 
 /**
  * A SuDokuContainer contains two components - a GridContainer and
  * a ControlContainer.
  */
 
-public class SuDokuContainer extends com.act365.awt.Container {
+public class SuDokuContainer extends com.act365.awt.Container 
+                             implements ComponentListener {
 
     GridContainer grid ;
     
@@ -48,7 +50,9 @@ public class SuDokuContainer extends com.act365.awt.Container {
         this.control = control ;
         
         addComponent( grid , 0 , 0 , 1 , 1 , 1 , 1 );
-        addComponent( control , 0 , 1 , 1 , 1 , 1 , 1 );
+        addComponent( control , 1 , 0 , 1 , 1 , 1 , 1 );
+        
+        grid.addComponentListener( this );
     }
                             
     /**
@@ -56,7 +60,36 @@ public class SuDokuContainer extends com.act365.awt.Container {
      */
     
 	public Dimension getBestSize() {
-		return new Dimension( Math.max( grid.getBestSize().width , control.getBestSize().width ) ,
-                                        grid.getBestSize().height + control.getBestSize().height );
+		return new Dimension( grid.getBestSize().width + control.getBestSize().width ,
+                              Math.max( grid.getBestSize().height , control.getBestSize().height ) );
 	}
+    
+    /**
+     * SuDokuContainer does nothing if the grid is hidden.
+     */
+    
+    public void componentHidden( ComponentEvent evt ) {        
+    }
+    
+    /**
+     * SuDokuContainer does nothing if the grid is moved.
+     */
+    
+    public void componentMoved( ComponentEvent evt ){        
+    }
+
+    /**
+     * SuDokuContainer does nothing if the grid is resized.
+     */
+    
+    public void componentResized( ComponentEvent evt ){        
+    }
+    
+    /**
+     * SuDokuContainer revalidates itself if the grid is revalidated.
+     */
+    
+    public void componentShown( ComponentEvent evt ){
+        validate();
+    }
 }

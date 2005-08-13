@@ -28,6 +28,7 @@ package com.act365.sudoku;
 import java.awt.* ;
 import java.awt.datatransfer.* ;
 import java.awt.event.* ;
+import java.text.DecimalFormat ;
 import java.util.StringTokenizer ;
 
 /**
@@ -57,7 +58,8 @@ public class ControlContainer extends com.act365.awt.Container
         
 	TextField across ,
 			  down ,
-			  minFilledCells ;
+			  minFilledCells ,
+              text ;
 
     TextArea reasoningArea ;
                   
@@ -69,9 +71,11 @@ public class ControlContainer extends com.act365.awt.Container
 		   compose ,
            interrupt ,
            copy ,
-           paste ;
+           paste ,
+           shuffle ;
 
     Label solns ,
+          time ,
           singleSectorCandidatesEliminations ,
           disjointSubsetsEliminations ,
           xWingsEliminations ,
@@ -129,12 +133,18 @@ public class ControlContainer extends com.act365.awt.Container
         evaluate = new Button("Evaluate");
         evaluate.addActionListener( this );
         solns = new Label();
+        time = new Label("0.0s");
+        
+        // Add the Shuffle and Format controls
+        shuffle = new Button("Shuffle");
+        shuffle.addActionListener( this );
         format = new Choice();
         i = 0 ;
         while( i < SuDokuUtils.labels.length ){
             format.add( SuDokuUtils.labels[i++] );
         }
         format.addItemListener( this );
+        text = new TextField( 9 );
             
         // Add the Copy/Paste controls.
         copy = new Button("Copy");
@@ -194,39 +204,45 @@ public class ControlContainer extends com.act365.awt.Container
         addComponent( evaluate , 0 , 1 , 3 , 1 , 1 , 0 );
         addComponent( new Label("Solutions") , 4 , 1 , 2 , 1 , 1 , 0 );
         addComponent( solns , 6 , 1 , 1 , 1 , 1 , 0 );
-        addComponent( format , 8 , 1 , 3 , 1 , 1 , 0 );
+        addComponent( new Label("Time") , 7 , 1 , 2 , 1 , 1 , 0 );
+        addComponent( time , 9 , 1 , 2 , 1 , 1 , 0 );
         
-        addComponent( copy , 0 , 2 , 3 , 1 , 1 , 0 );
-        addComponent( paste , 4 , 2 , 3 , 1 , 1 , 0 );
-        addComponent( copyType , 8 , 2 , 3 , 1 , 1 , 0 );
+        addComponent( shuffle , 0 , 2 , 3 , 1 , 1 , 0 );
+        addComponent( format , 3 , 2 , 3 , 1 , 1 , 0 );
+        addComponent( new Label("Text") , 6 , 2 , 2 , 1 , 1 , 0 );
+        addComponent( text , 8 , 2 , 3 , 1 , 1 , 0 );
         
-		addComponent( resize , 0 , 3 , 3 , 1 , 1 , 0 );
-		addComponent( new Label("Across") , 4 , 3 , 2 , 1 , 1 , 0 );
-		addComponent( across , 6 , 3 , 1 , 1 , 1 , 0 );
-		addComponent( new Label("Down") , 8 , 3 , 2 , 1 , 1 , 0 );
-		addComponent( down , 10 , 3 , 1 , 1 , 1 , 0 );	
+        addComponent( copy , 0 , 3 , 3 , 1 , 1 , 0 );
+        addComponent( paste , 4 , 3 , 3 , 1 , 1 , 0 );
+        addComponent( copyType , 8 , 3 , 3 , 1 , 1 , 0 );
+        
+		addComponent( resize , 0 , 4 , 3 , 1 , 1 , 0 );
+		addComponent( new Label("Across") , 4 , 4 , 2 , 1 , 1 , 0 );
+		addComponent( across , 6 , 4 , 1 , 1 , 1 , 0 );
+		addComponent( new Label("Down") , 8 , 4 , 2 , 1 , 1 , 0 );
+		addComponent( down , 10 , 4 , 1 , 1 , 1 , 0 );	
 
-        addComponent( compose , 0 , 4 , 3 , 1 , 1 , 0 );
-        addComponent( new Label("Filled Cells") , 4 , 4 , 2 , 1 , 1 , 0 );
-        addComponent( minFilledCells , 6 , 4 , 1 , 1 , 1 , 0 );
-        addComponent( interrupt , 8 , 4 , 3 , 1 , 1 , 0 );
+        addComponent( compose , 0 , 5 , 3 , 1 , 1 , 0 );
+        addComponent( new Label("Filled Cells") , 4 , 5 , 2 , 1 , 1 , 0 );
+        addComponent( minFilledCells , 6 , 5 , 1 , 1 , 1 , 0 );
+        addComponent( interrupt , 8 , 5 , 3 , 1 , 1 , 0 );
         
-        addComponent( new Label("Pattern:") , 0 , 5 , 2 , 1 , 1 , 0 );
-        addComponent( singleSectorCandidates , 4 , 5 , 3 , 1 , 1 , 0 );
-        addComponent( singleSectorCandidatesEliminations , 10 , 5 , 1 , 1 , 1 , 0 );
-        addComponent( disjointSubsets , 4 , 6 , 3 , 1 , 1 , 0 );
-        addComponent( disjointSubsetsEliminations , 10 , 6 , 1 , 1 , 1 , 0 );
-        addComponent( xWings , 4 , 7 , 3 , 1 , 1 , 0 );
-        addComponent( xWingsEliminations , 10 , 7 , 1 , 1 , 1 , 0 );
-        addComponent( swordfish , 4 , 8 , 3 , 1 , 1 , 0 );
-        addComponent( swordfishEliminations , 10 , 8 , 1 , 1 , 1 , 0 );
-        addComponent( nishio , 4 , 9 , 3 , 1 , 1 , 0 );
-        addComponent( nishioEliminations , 10 , 9 , 1 , 1 , 1 , 0 );
+        addComponent( new Label("Pattern:") , 0 , 6 , 2 , 1 , 1 , 0 );
+        addComponent( singleSectorCandidates , 4 , 6 , 3 , 1 , 1 , 0 );
+        addComponent( singleSectorCandidatesEliminations , 10 , 6 , 1 , 1 , 1 , 0 );
+        addComponent( disjointSubsets , 4 , 7 , 3 , 1 , 1 , 0 );
+        addComponent( disjointSubsetsEliminations , 10 , 7 , 1 , 1 , 1 , 0 );
+        addComponent( xWings , 4 , 8 , 3 , 1 , 1 , 0 );
+        addComponent( xWingsEliminations , 10 , 8 , 1 , 1 , 1 , 0 );
+        addComponent( swordfish , 4 , 9 , 3 , 1 , 1 , 0 );
+        addComponent( swordfishEliminations , 10 , 9 , 1 , 1 , 1 , 0 );
+        addComponent( nishio , 4 , 10 , 3 , 1 , 1 , 0 );
+        addComponent( nishioEliminations , 10 , 10 , 1 , 1 , 1 , 0 );
         
-        addComponent( guess , 4 , 10 , 3 , 1 , 1 , 0 );
-        addComponent( nGuesses , 10 , 10 , 1 , 1 , 1 , 0 );
+        addComponent( guess , 4 , 11 , 3 , 1 , 1 , 0 );
+        addComponent( nGuesses , 10 , 11 , 1 , 1 , 1 , 0 );
                 
-        addComponent( reasoningArea , 0 , 11 , 11 , 5 , 1 , 1 );
+        addComponent( reasoningArea , 0 , 12 , 11 , 5 , 1 , 1 );
           
 		write();	
     }    
@@ -246,6 +262,7 @@ public class ControlContainer extends com.act365.awt.Container
 	public void actionPerformed( ActionEvent evt ){
         
 		if( evt.getSource() == solve ){
+            read();
 			grid.solve();
             if( grid.getStrategy().explainsReasoning() ){
                 reasoningArea.setText( null );
@@ -256,15 +273,20 @@ public class ControlContainer extends com.act365.awt.Container
                     ++ i ;
                 }
             }
+            time.setText( new DecimalFormat("#0.000").format( grid.getSolveTime() )+ "s");
             write();
 		} else if( evt.getSource() == unsolve ) {
 			grid.unsolve();
 		} else if( evt.getSource() == reset ){
 			grid.reset();
             reasoningArea.setText( null );
+            time.setText("0.0s");
             write();
+        } else if( evt.getSource() == shuffle ){
+            grid.shuffle();
         } else if( evt.getSource() == copy ) {
             StringBuffer sb = new StringBuffer();
+            read();
             grid.read();
             switch( SuDokuUtils.defaultCopyType ){
                 case SuDokuUtils.PLAIN_TEXT:
@@ -286,6 +308,7 @@ public class ControlContainer extends com.act365.awt.Container
                 getToolkit().getSystemClipboard().setContents( new StringSelection( sb.toString() ) , this );
             }
         } else if( evt.getSource() == paste ){
+            read();
             String pasteText = null ;
             if( isApplet ){
                 if( clipboard instanceof SuDokuClipboard ){
@@ -313,9 +336,11 @@ public class ControlContainer extends com.act365.awt.Container
             }
 		} else if( evt.getSource() == resize ){
 			read();
+            grid.setSize( boxesAcross , boxesDown );
 			grid.setBoxes( boxesAcross , boxesDown );
 			write();
 		} else if( evt.getSource() == evaluate ){
+            read();
 			switch( grid.evaluate() ){
 				case 0 :
 				    solns.setText("None");
@@ -434,6 +459,10 @@ public class ControlContainer extends com.act365.awt.Container
 		} catch ( NumberFormatException e ) {        	
 		}		
         cellsInRow = boxesAcross * boxesDown ;
+        try {
+            SuDokuUtils.setText( text.getText() , cellsInRow );
+        } catch ( Exception e ) {
+        }
 	}
 	
 	/**
@@ -450,6 +479,10 @@ public class ControlContainer extends com.act365.awt.Container
         swordfishEliminations.setText( Integer.toString( grid.getStrategy().swordfishEliminations ) );
         nishioEliminations.setText( Integer.toString( grid.getStrategy().nishioEliminations ) );
         nGuesses.setText( Integer.toString( grid.getStrategy().nGuesses ) );
+        if( SuDokuUtils.text.length != cellsInRow ){
+            SuDokuUtils.setDefaultText( cellsInRow ); 
+        }
+        text.setText( new String( SuDokuUtils.text ) );
 	}
     
     /**

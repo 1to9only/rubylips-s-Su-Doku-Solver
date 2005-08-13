@@ -41,9 +41,10 @@ public class SuDokuUtils {
      */
     
     public final static int NUMERIC      = 0 ,
-                            ALPHANUMERIC = 1 ;
+                            ALPHANUMERIC = 1 ,
+                            TEXT         = 2 ;
 
-    public final static String[] labels = { "Numeric from 1", "Alphanumeric from 0" };
+    public final static String[] labels = { "Numeric from 1", "Alphanumeric from 0", "Text" };
     
     /**
      * The default display format for values greater than or equal to 10.
@@ -57,20 +58,61 @@ public class SuDokuUtils {
                             LIBRARY_BOOK        = 1 ,
                             CELL_STATE          = 2 ,
                             NUMBER_STATE        = 3 ,
-                            NEIGHBOUR_STATE     = 4 ,
-                            LINEAR_SYSTEM_STATE = 5 ;
+                            NEIGHBOUR_STATE     = 4 ;
     
     public final static String[] copyTypes = { "Plain Text Puzzle", 
                                                "Library Book Puzzle" , 
                                                "Cell State" ,
                                                "Number State" ,
-                                               "Neighbour State" ,
-                                               "Linear System State" };
+                                               "Neighbour State" };
     
     public static int defaultCopyType = PLAIN_TEXT ;
     
     public final static String[] featuredGrades = {"Ungraded"};
-                                    
+    
+    /**
+     * Sets the text string to be used in TEXT mode.
+     */
+
+    public static void setText( String newText , int cellsInRow ) throws Exception {
+        if( newText.length() != cellsInRow ){
+            throw new Exception("The text string should contain as many characters as there are cells in a row");                                
+        }
+        int i , j ;
+        text = new char[cellsInRow];
+        i = 0 ;
+        while( i < cellsInRow ){
+            text[i] = newText.charAt( i );
+            ++ i ;
+        }
+        i = 0 ;
+        while( i < cellsInRow - 1 ){
+            j = i + 1 ;
+            while( j < cellsInRow ){
+                if( text[i] == text[j] ){
+                    throw new Exception("The text string contains duplicate characters");
+                }
+                ++ j ;
+            }
+            ++ i ;
+        }
+    }
+    
+    /**
+     * Sets a default text string.
+     */
+
+    public static void setDefaultText( int cellsInRow ){
+        text = new char[cellsInRow];
+        int i = 0 ;
+        while( i < cellsInRow ){
+            text[i] = (char)( 'A' + i );
+            ++ i ;
+        }
+    }
+
+    static char[] text = new char[0];
+    
     /**
      * Creates a string representation of a two-dimensional integer array.
      * @param maxDatum maximum permitted value in the data array
@@ -135,6 +177,9 @@ public class SuDokuUtils {
                                 sb.append( data[i][j] - 1 );
                             }
                             break;
+                        case TEXT:
+                            sb.append( text[data[i][j]-1] );
+                            break;
                     }
                 } else {
                     sb.append(' ');
@@ -176,6 +221,10 @@ public class SuDokuUtils {
      */
 
     public static String toString( String[][] data , int boxesAcross , int[] maxLength ){
+        
+        if( boxesAcross == 0 ){
+            return new String();
+        }
         
         final int cellsInRow = data.length ,
                   boxesDown = data.length / boxesAcross ;
@@ -285,6 +334,16 @@ public class SuDokuUtils {
             } catch( NumberFormatException e ) {
             }
             break;
+        case TEXT:
+            if( s.length() == 1 ){
+                int i = 0 ;
+                while( i < text.length ){
+                    if( text[i] == s.charAt( 0 ) ){
+                        datum = (byte)( i + 1 );
+                    }
+                    ++ i ;
+                }
+            }
         }
         return datum ;
     }
@@ -313,6 +372,8 @@ public class SuDokuUtils {
                 } else {
                     return Integer.toString( datum - 1 );                        
                 }
+            case TEXT:
+                return new String( text , datum - 1 , 1 );
             }
         }
         return new String();

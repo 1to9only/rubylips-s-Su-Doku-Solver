@@ -51,10 +51,10 @@ public class Composer extends Thread {
         disjointSubsetsFilter ,
         xWingsFilter ,
         swordfishFilter ,
-        nishioFilter ;
+        nishioFilter ,
+        guessFilter ;
     
-    boolean useNative ,
-            logicalFilter ,
+    boolean logicalFilter ,
             shuffle ,
             xmlFormat ;
     
@@ -132,13 +132,13 @@ public class Composer extends Thread {
                      int nSolvers ,
                      int composeSolverThreshold ,
                      PrintStream output ,
-                     boolean useNative ,
                      boolean leastCandidatesHybridFilter ,
                      int singleSectorCandidatesFilter ,
                      int disjointSubsetsFilter ,
                      int xWingsFilter ,
                      int swordfishFilter ,
                      int nishioFilter ,
+                     int guessFilter ,
                      boolean shuffle ,
                      boolean xmlFormat ) throws Exception {
         this.gridContainer = gridContainer ;                       
@@ -150,12 +150,12 @@ public class Composer extends Thread {
         this.nSolvers = nSolvers ;
         this.composeSolverThreshold = composeSolverThreshold ;
         this.output = output instanceof PrintStream ? new PrintWriter( output ) : null ;
-        this.useNative = useNative ;
         this.singleSectorCandidatesFilter = singleSectorCandidatesFilter ;
         this.disjointSubsetsFilter = disjointSubsetsFilter ;
         this.xWingsFilter = xWingsFilter ;
         this.swordfishFilter = swordfishFilter ;
         this.nishioFilter = nishioFilter ;
+        this.guessFilter = guessFilter ;
         this.shuffle = shuffle ;
         this.xmlFormat = xmlFormat ;
         
@@ -168,11 +168,13 @@ public class Composer extends Thread {
         solverGrids = new Grid[nSolvers];
         puzzles = new Vector();
         lch = new LeastCandidatesHybrid( false , true , true , true );
-        logicalFilter = singleSectorCandidatesFilter != 0 ||
-                        disjointSubsetsFilter != 0 ||
-                        xWingsFilter != 0 ||
-                        swordfishFilter != 0 ||
-                        nishioFilter != 0 ;
+        logicalFilter = guessFilter == -1 || 
+                        guessFilter == 0 && 
+                        ( singleSectorCandidatesFilter != 0 ||
+                          disjointSubsetsFilter != 0 ||
+                          xWingsFilter != 0 ||
+                          swordfishFilter != 0 ||
+                          nishioFilter != 0 );
             
         int i = 0 ;
         while( i < nSolvers ){
@@ -251,7 +253,7 @@ public class Composer extends Thread {
                 maxPuzzleComplexity = puzzleComplexity ;                
             }
             logical = puzzleUnwinds == 1 ;
-            if( logicalFilter && ! logical ){
+            if( logicalFilter && ! logical || guessFilter == 1 && logical ){
                 return ;
             }          
             puzzle.solve( lch , 1 );  
@@ -417,8 +419,7 @@ public class Composer extends Thread {
                                            maxSolns , 
                                            maxUnwinds ,
                                            maxComplexity ,
-                                           null ,
-                                           useNative );
+                                           null );
         solvers[solverIndex].start();
         while( ! solvers[solverIndex].isAlive() );
         isAlive[solverIndex] = true ;
@@ -509,8 +510,7 @@ public class Composer extends Thread {
      * <br><code>[-c threshold]</code> stipulates the tree depth beyond which the compose solver will be invoked. The default value is 0.
      * <br><code>[-r]</code> stipulates whether a random initial mask should be used. The default is no.
      * <br><code>[-v]</code> stipualtes whether the Composer should run in verbose mode. The default is no.
-     * <br><code>[-n]</code> stipulates that the native library should be loaded
-     * <br><code>[-f]</code> stipulates that the output from the Least Candidates Hybrid compose solver should be filter, i.e. that LCH II should be used.
+     * <br><code>[-f]</code> stipulates that the full set of Least Candidates Hybrid algorithms should be used to solve.
      * <br><code>[-shuffle]</code> stipulates that the puzzles should be randomly shuffled.
      * <br><code>[-xml]</code> stipulates that the output should be in XML format.
      * <br><code>-i</code> stipulates that the initial mask should be read from standard input.
@@ -518,7 +518,7 @@ public class Composer extends Thread {
      */
 
     public static void main( String[] args ){
-        final String usage = "Usage: Composer [-a across] [-d down] [-ms max solns|-mm max masks] [-mu max unwinds] [-mc max complexity] [-s solvers] [-c threshold] [-r] [-v] [-n] [-shuffle] [-f] [-xml] -i|#cells" ,
+        final String usage = "Usage: Composer [-a across] [-d down] [-ms max solns|-mm max masks] [-mu max unwinds] [-mc max complexity] [-s solvers] [-c threshold] [-r] [-v] [-shuffle] [-f] [-xml] -i|#cells" ,
                      strategyTypes = "Valid strategy types are:\nSSC [Single Sector Candidates]\nDS [Disjoint Subsets]\nXWings\nSwordfish\nNishio";
         
         int boxesAcross = 3 ,
@@ -535,12 +535,12 @@ public class Composer extends Thread {
             xwingsFilter = 0 ,
             swordfishFilter = 0 ,
             nishioFilter = 0 ,
+            guessFilter = 0 ,
             sign ;
             
         boolean randomize = false ,
                 trace = false ,
                 standardInput = false ,
-                useNative = false ,
                 leastCandidatesHybridFilter = false ,
                 shuffle = false ,
                 xmlFormat = false ;
@@ -615,13 +615,6 @@ public class Composer extends Thread {
                 trace = true ;
             } else if( args[i].equals("-f") ){
                 leastCandidatesHybridFilter = true ;
-            } else if( args[i].equals("-n") ){
-                try {
-                    System.loadLibrary("SuDoku");
-                    useNative = true ;
-                } catch ( Exception e ) {
-                    System.err.println("Native library could not be loaded");
-                }
             } else if( args[i].equals("-shuffle") ){
                 shuffle = true ;
             } else if( args[i].equals("-xml") ) {
@@ -646,6 +639,8 @@ public class Composer extends Thread {
                     swordfishFilter = sign ;
                 } else if( strategy.equalsIgnoreCase("nishio") ){
                     nishioFilter = sign ;
+                } else if( strategy.equalsIgnoreCase("guess") ){
+                    guessFilter = sign ;
                 } else {
                     System.err.println( strategyTypes );
                     System.exit( 1 );
@@ -710,13 +705,13 @@ public class Composer extends Thread {
                           nSolvers , 
                           composeSolverThreshold , 
                           trace ? System.out : null ,
-                          useNative ,
                           leastCandidatesHybridFilter ,
                           singleSectorCandidatesFilter ,
                           disjointSubsetsFilter ,
                           xwingsFilter ,
                           swordfishFilter ,
                           nishioFilter ,
+                          guessFilter ,
                           shuffle ,
                           xmlFormat ).start();  
         } catch ( Exception e ) {

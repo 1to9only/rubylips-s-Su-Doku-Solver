@@ -39,9 +39,12 @@ public class LinearSystemState implements IState {
     byte[][][] a ;
     
     int[] nRows ;
+
     // Thread
     
-    byte[][][][] threadA ;
+    StateStack stack ;
+    
+//    byte[][][][] threadA ;
     
     int[][] threadNRows ;
     
@@ -64,9 +67,11 @@ public class LinearSystemState implements IState {
         
         a = new byte[cellsInRow][3*cellsInRow][1+cellsInRow*cellsInRow];
         nRows = new int[cellsInRow];
-        
-        threadA = new byte[cellsInRow*cellsInRow][cellsInRow][3*cellsInRow][1+cellsInRow*cellsInRow];
+
+        stack = new StateStack( cellsInRow * cellsInRow );
         threadNRows = new int[cellsInRow*cellsInRow][cellsInRow];
+                
+//        threadA = new byte[cellsInRow*cellsInRow][cellsInRow][3*cellsInRow][1+cellsInRow*cellsInRow];
                 
         int i , j , k , v , col ;
         v = 0 ;
@@ -124,7 +129,9 @@ public class LinearSystemState implements IState {
 	 */
      
 	public void pushState( int nMoves ) {
+        
         int v , i , j ;
+        byte[][][] aSlice = new byte[cellsInRow][][];
         v = 0 ;
         while( v < cellsInRow ){
             try {
@@ -132,17 +139,19 @@ public class LinearSystemState implements IState {
             } catch( Exception e ) {
                 threadNRows[nMoves][v] = nRows[v] = 3 * cellsInRow * cellsInRow ;    
             }
+            aSlice[v] = new byte[nRows[v]][1+cellsInRow*cellsInRow];
             i = 0 ;
             while( i < nRows[v] ){
                 j = 0 ;
                 while( j < 1 + cellsInRow * cellsInRow ){
-                    threadA[nMoves][v][i][j] = a[v][i][j];
+                    aSlice[v][i][j] = a[v][i][j];
                     ++ j ;
                 }
                 ++ i ;
             }
             ++ v ;
-        }
+        }   
+        stack.pushState( aSlice , nMoves );
 	}
 
     /**
@@ -150,20 +159,23 @@ public class LinearSystemState implements IState {
      */
      	
     public void popState( int nMoves ) {
-        int v , i , j ;
-        v = 0 ;
-        while( v < cellsInRow ){
-            nRows[v] = threadNRows[nMoves][v];
-            i = 0 ;
-            while( i < nRows[v] ){
-                j = 0 ;
-                while( j < 1 + cellsInRow * cellsInRow ){
-                    a[v][i][j] = threadA[nMoves][v][i][j];
-                    ++ j ;
+        byte[][][] aSlice ;
+        if( ( aSlice = (byte[][][]) stack.popState( nMoves ) ) != null ){  
+            int v , i , j ;
+            v = 0 ;
+            while( v < cellsInRow ){
+                nRows[v] = threadNRows[nMoves][v];
+                i = 0 ;
+                while( i < nRows[v] ){
+                    j = 0 ;
+                    while( j < 1 + cellsInRow * cellsInRow ){
+                        a[v][i][j] = aSlice[v][i][j];
+                        ++ j ;
+                    }
+                    ++ i ;
                 }
-                ++ i ;
-            }
-            ++ v ;
+                ++ v ;
+            }        
         }
 	}
 

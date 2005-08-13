@@ -87,7 +87,7 @@ public class LeastCandidatesHybrid extends StrategyBase implements IStrategy {
      * Sets up a LeastCandidatesHybrid II strategy with an optional random element.
      * @param randomize whether the final candidates should be chosen randomly from its peers
      * @param checkInvulnerable indicates whether the moves should be post-filtered using the Invulnerable state grid.
-     * @param useAllLogicalMethods whether the solver should look for X-Wings  and Nishio
+     * @param useAllLogicalMethods whether the solver should look for X-Wings and Nishio
      * @param explain whether explanatory debug should be produced
      */    
     
@@ -144,7 +144,7 @@ public class LeastCandidatesHybrid extends StrategyBase implements IStrategy {
             }
             if( explain ){
                 invulnerableState.pushState( 0 );
-                linearSystemState.pushState( 0 );
+//                linearSystemState.pushState( 0 );
                 eliminatedX = new int[grid.cellsInRow];
                 eliminatedY = new int[grid.cellsInRow];
                 eliminatedValues = new int[grid.cellsInRow];
@@ -510,7 +510,7 @@ public class LeastCandidatesHybrid extends StrategyBase implements IStrategy {
                                 sb.append( SuDokuUtils.toString( 1 + linkedValues[i++] ) );
                             }
                             sb.append(" and ");
-                            sb.append( 1 + linkedValues[i] );
+                            sb.append( SuDokuUtils.toString( 1 + linkedValues[i] ) );
                             sb.append(" occupy the cells (");
                             sb.append( 1 + x[0] );
                             sb.append(",");
@@ -1394,8 +1394,8 @@ public class LeastCandidatesHybrid extends StrategyBase implements IStrategy {
             if( writeState ){
                 if( ! explain ){
                     invulnerableState.pushState( nMoves );
-                    linearSystemState.pushState( nMoves ); 
                 }
+                linearSystemState.pushState( nMoves ); 
                 stateWrite[nMoves] = true ;
             } else {
                 stateWrite[nMoves] = false ;
@@ -1416,7 +1416,7 @@ public class LeastCandidatesHybrid extends StrategyBase implements IStrategy {
         }        
         if( explain && nMoves < grid.cellsInRow * grid.cellsInRow ){
             invulnerableState.pushState( nMoves );
-            linearSystemState.pushState( nMoves ); 
+//            linearSystemState.pushState( nMoves ); 
         }
         // Underlying state variables
 		lcn.updateState( x , y , value , reason , writeState );
@@ -1440,7 +1440,7 @@ public class LeastCandidatesHybrid extends StrategyBase implements IStrategy {
             reasons[newNMoves].append(",");
             reasons[newNMoves].append( 1 + yMoves[newNMoves] );
             reasons[newNMoves].append("):=");
-            reasons[newNMoves].append( grid.data[xMoves[newNMoves]][yMoves[newNMoves]] );
+            reasons[newNMoves].append( SuDokuUtils.toString( grid.data[xMoves[newNMoves]][yMoves[newNMoves]] ) );
             reasons[newNMoves].append(" would lead to a contradiction.\n");
             int i = newNMoves + 1 ;
             while( i < nMoves ){
@@ -1497,10 +1497,31 @@ public class LeastCandidatesHybrid extends StrategyBase implements IStrategy {
                 return lcn.state.toString();
             case SuDokuUtils.NEIGHBOUR_STATE :
                 return invulnerableState.toString();
-            case SuDokuUtils.LINEAR_SYSTEM_STATE :
-                return linearSystemState.toString();
             default:
                 return new String();
         }
     }
+    
+    /**
+     * Dumps the thread to the given output stream.
+     */
+    
+    public String toString(){
+        StringBuffer sb = new StringBuffer();
+        int i = 0 ;
+        while( i < nMoves ){
+            sb.append( ( 1 + i ) + ". (" + ( 1 + xMoves[i] ) + "," + ( 1 + yMoves[i] ) + "):=" + grid.data[xMoves[i]][yMoves[i]] + "\n");
+            ++ i ;
+        }        
+        sb.append("\nCell State:\n");
+        sb.append( lcn.state.toString() );
+        sb.append("Number State:\n");
+        sb.append( lcc.state.toString() );
+        sb.append("Neighbourhood State:\n");
+        sb.append( invulnerableState.toString() );
+        sb.append("Linear System State:\n");
+        sb.append( linearSystemState.toString() );
+        
+        return sb.toString(); 
+    }  
 }
