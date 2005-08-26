@@ -329,7 +329,7 @@ public class NumberState implements IState {
                 ++ i ;
             }
             sb.append( SuDokuUtils.toString( data , boxesAcross , maxLength ) );
-            sb.append('\n');
+            sb.append("\n");
             ++ v ;
         }
         

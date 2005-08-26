@@ -78,8 +78,8 @@ public class ControlContainer extends com.act365.awt.Container
           time ,
           singleSectorCandidatesEliminations ,
           disjointSubsetsEliminations ,
-          xWingsEliminations ,
-          swordfishEliminations ,
+          singleValuedStringsEliminations ,
+          manyValuedStringsEliminations ,
           nishioEliminations ,
           nGuesses ;
 
@@ -88,8 +88,8 @@ public class ControlContainer extends com.act365.awt.Container
               
     Checkbox singleSectorCandidates ,
              disjointSubsets ,
-             xWings ,
-             swordfish ,
+             singleValuedStrings ,
+             manyValuedStrings ,
              nishio ,
              guess ;
              
@@ -178,12 +178,12 @@ public class ControlContainer extends com.act365.awt.Container
         disjointSubsets = new Checkbox("Disjoint Subsets" , grid.getStrategy().useDisjointSubsets );
         disjointSubsets.addItemListener( this );
         disjointSubsetsEliminations = new Label("0");
-        xWings = new Checkbox("X-Wings" , grid.getStrategy().useXWings );
-        xWings.addItemListener( this );
-        xWingsEliminations = new Label("0");
-        swordfish = new Checkbox("Swordfish" , grid.getStrategy().useSwordfish );
-        swordfish.addItemListener( this );
-        swordfishEliminations = new Label("0");
+        singleValuedStrings = new Checkbox("Single-Valued Chains" , grid.getStrategy().useSingleValuedChains );
+        singleValuedStrings.addItemListener( this );
+        singleValuedStringsEliminations = new Label("0");
+        manyValuedStrings = new Checkbox("Many-Valued Chains" , grid.getStrategy().useManyValuedChains );
+        manyValuedStrings.addItemListener( this );
+        manyValuedStringsEliminations = new Label("0");
         nishio = new Checkbox("Nishio" , grid.getStrategy().useNishio );
         nishio.addItemListener( this );
         nishioEliminations = new Label("0");
@@ -232,10 +232,10 @@ public class ControlContainer extends com.act365.awt.Container
         addComponent( singleSectorCandidatesEliminations , 10 , 6 , 1 , 1 , 1 , 0 );
         addComponent( disjointSubsets , 4 , 7 , 3 , 1 , 1 , 0 );
         addComponent( disjointSubsetsEliminations , 10 , 7 , 1 , 1 , 1 , 0 );
-        addComponent( xWings , 4 , 8 , 3 , 1 , 1 , 0 );
-        addComponent( xWingsEliminations , 10 , 8 , 1 , 1 , 1 , 0 );
-        addComponent( swordfish , 4 , 9 , 3 , 1 , 1 , 0 );
-        addComponent( swordfishEliminations , 10 , 9 , 1 , 1 , 1 , 0 );
+        addComponent( singleValuedStrings , 4 , 8 , 3 , 1 , 1 , 0 );
+        addComponent( singleValuedStringsEliminations , 10 , 8 , 1 , 1 , 1 , 0 );
+        addComponent( manyValuedStrings , 4 , 9 , 3 , 1 , 1 , 0 );
+        addComponent( manyValuedStringsEliminations , 10 , 9 , 1 , 1 , 1 , 0 );
         addComponent( nishio , 4 , 10 , 3 , 1 , 1 , 0 );
         addComponent( nishioEliminations , 10 , 10 , 1 , 1 , 1 , 0 );
         
@@ -426,10 +426,10 @@ public class ControlContainer extends com.act365.awt.Container
             grid.getStrategy().useSingleSectorCandidates = singleSectorCandidates.getState();
         } else if( evt.getSource() == disjointSubsets ){
             grid.getStrategy().useDisjointSubsets = disjointSubsets.getState();
-        } else if( evt.getSource() == xWings ){
-            grid.getStrategy().useXWings = xWings.getState();
-        } else if( evt.getSource() == swordfish ){
-            grid.getStrategy().useSwordfish = swordfish.getState();
+        } else if( evt.getSource() == singleValuedStrings ){
+            grid.getStrategy().useSingleValuedChains = singleValuedStrings.getState();
+        } else if( evt.getSource() == manyValuedStrings ){
+            grid.getStrategy().useManyValuedChains = manyValuedStrings.getState();
         } else if( evt.getSource() == nishio ){
             grid.getStrategy().useNishio = nishio.getState();
         } else if( evt.getSource() == guess ) {
@@ -475,8 +475,8 @@ public class ControlContainer extends com.act365.awt.Container
 		minFilledCells.setText( Integer.toString( minFilledCellsValue ));
         singleSectorCandidatesEliminations.setText( Integer.toString( grid.getStrategy().singleSectorCandidatesEliminations ) );
         disjointSubsetsEliminations.setText( Integer.toString( grid.getStrategy().disjointSubsetsEliminations ) );
-        xWingsEliminations.setText( Integer.toString( grid.getStrategy().xWingsEliminations ) );
-        swordfishEliminations.setText( Integer.toString( grid.getStrategy().swordfishEliminations ) );
+        singleValuedStringsEliminations.setText( Integer.toString( grid.getStrategy().singleValuedChainsEliminations ) );
+        manyValuedStringsEliminations.setText( Integer.toString( grid.getStrategy().manyValuedChainsEliminations ) );
         nishioEliminations.setText( Integer.toString( grid.getStrategy().nishioEliminations ) );
         nGuesses.setText( Integer.toString( grid.getStrategy().nGuesses ) );
         if( SuDokuUtils.text.length != cellsInRow ){

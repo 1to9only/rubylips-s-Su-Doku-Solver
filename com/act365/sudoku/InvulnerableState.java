@@ -387,7 +387,7 @@ public class InvulnerableState implements IState {
             sb.append( SuDokuUtils.toString( v + 1 ) );
             sb.append(":\n\n");
             sb.append( SuDokuUtils.toString( nInvulnerable[v] , boxesAcross , (int) maxScore ) );
-            sb.append('\n');
+            sb.append("\n");
             ++ v ;
         }
         

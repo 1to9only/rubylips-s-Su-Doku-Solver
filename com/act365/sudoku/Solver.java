@@ -378,7 +378,11 @@ public class Solver extends Thread {
             System.out.println("Solver interrupted");
         }
         solveTime = ( new Date().getTime() - startTime )/ 1000. ;
-        System.out.print( solver.getNumberOfSolutions() + " solutions found in ");
+        System.out.print( solver.getNumberOfSolutions() + " solution");
+        if( solver.getNumberOfSolutions() != 1 ){
+            System.out.print('s');
+        }
+        System.out.print(" found in ");
         System.out.println( new DecimalFormat("#0.000").format( solveTime )+ "s");
         if( profile ){
             System.out.println("Unwinds: " + solver.nUnwinds );
@@ -389,8 +393,8 @@ public class Solver extends Thread {
                     System.out.println("Single Candidature: " + lch.singleCandidatureCalls + " calls");
                     System.out.println("Single Sector Candidates: " + lch.singleSectorCandidatesCalls + " calls " + lch.singleSectorCandidatesEliminations + " eliminations");
                     System.out.println("Disjoint Subsets: " + lch.disjointSubsetsCalls + " calls " + lch.disjointSubsetsEliminations + " eliminations");
-                    System.out.println("X-Wings: " + lch.xWingsCalls + " calls " + lch.xWingsEliminations + " eliminations");
-                    System.out.println("Swordfish: " + lch.swordfishCalls + " calls " + lch.swordfishEliminations + " eliminations");
+                    System.out.println("Single-Valued Chains: " + lch.singleValuedChainsCalls + " calls " + lch.singleValuedChainsEliminations + " eliminations");
+                    System.out.println("Many-Valued Chains: " + lch.manyValuedChainsCalls + " calls " + lch.manyValuedChainsEliminations + " eliminations");
                     System.out.println("Nishio: " + lch.nishioCalls + " calls " + lch.nishioEliminations + " eliminations");
                 }
             }

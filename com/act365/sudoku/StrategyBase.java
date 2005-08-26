@@ -441,7 +441,7 @@ public abstract class StrategyBase {
             sb.append( ( 1 + i ) + ". (" + ( 1 + xMoves[i] ) + "," + ( 1 + yMoves[i] ) + "):=" + grid.data[xMoves[i]][yMoves[i]] + "\n");
             ++ i ;
         }
-        sb.append('\n');
+        sb.append("\n");
         sb.append( state.toString() );
         return sb.toString(); 
     }  

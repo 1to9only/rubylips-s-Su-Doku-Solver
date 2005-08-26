@@ -709,15 +709,15 @@ public class Grid implements Cloneable , Serializable {
             while( j < cellsInRow ){
                 if( data[i][j] > 0 ){
                     if( cellsInRow >= 10 && data[i][j] < 10 ){
-                        sb.append('0');
+                        sb.append("0");
                     }
                     sb.append( data[i][j] );                    
                 } else {
-                    sb.append('.');
+                    sb.append(".");
                 }
                 ++ j ; 
             }
-            sb.append('\n');
+            sb.append("\n");
             ++ i ;
         }
         sb.append("</question>\n");

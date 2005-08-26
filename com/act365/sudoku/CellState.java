@@ -227,7 +227,7 @@ public class CellState implements IState {
                 while( v < cellsInRow ){
                     if( ! eliminated[i][j][v] ){
                         if( multipleValues ){
-                            sb.append('|');
+                            sb.append("|");
                         } else {
                             multipleValues = true ;
                         }

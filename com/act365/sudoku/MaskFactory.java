@@ -300,13 +300,13 @@ public class MaskFactory implements Enumeration {
             j = 0 ;
             while( j < cellsInRow ){
                 if( mask[i][j] ){
-                    sb.append('*');
+                    sb.append("*");
                 } else {
-                    sb.append('.');
+                    sb.append(".");
                 }
                 ++ j ;
             }
-            sb.append('\n');
+            sb.append("\n");
             ++ i ;
         }
         return sb.toString();

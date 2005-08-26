@@ -416,32 +416,32 @@ public class LinearSystemState implements IState {
                         if( a[v][i][j] != 0 ){
                             if( multipleValues ){
                                 if( a[v][i][j] > 0 ){
-                                    sb.append('+');
+                                    sb.append("+");
                                 }
                             } else {
                                 multipleValues = true ;
                             }
                             if( a[v][i][j] == -1 ){
-                                sb.append('-');
+                                sb.append("-");
                             } else if( a[v][i][j] != 1 ){                        
                                 sb.append( a[v][i][j] );
                             }
                             sb.append("d[");
                             sb.append( 1 + j / cellsInRow );
-                            sb.append(',');
+                            sb.append(",");
                             sb.append( 1 + j % cellsInRow );
-                            sb.append(',');
+                            sb.append(",");
                             sb.append( SuDokuUtils.toString( 1 + v ) );
-                            sb.append(']');
+                            sb.append("]");
                         }
                         ++ j ;
                     }
                     sb.append(" = ");
                     sb.append( a[v][i][cellsInRow*cellsInRow] );
-                    sb.append('\n');
+                    sb.append("\n");
                     ++ i ;
                 }
-                sb.append('\n');
+                sb.append("\n");
             }
             break;
             
@@ -468,13 +468,13 @@ public class LinearSystemState implements IState {
                         length = s[i][j].length();
                         k = 0 ;
                         while( k < maxLength - length + 1 ){
-                            sb.append(' ');
+                            sb.append(" ");
                             ++ k ;
                         }
                         sb.append( s[i][j] );
                         ++ j ;
                     }
-                    sb.append('\n');
+                    sb.append("\n");
                     ++ i ;
                 }
             }

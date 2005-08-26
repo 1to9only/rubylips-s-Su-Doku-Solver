@@ -49,8 +49,8 @@ public class Composer extends Thread {
         composeSolverThreshold ,
         singleSectorCandidatesFilter ,
         disjointSubsetsFilter ,
-        xWingsFilter ,
-        swordfishFilter ,
+        singleValuedChainsFilter ,
+        manyValuedChainsFilter ,
         nishioFilter ,
         guessFilter ;
     
@@ -73,18 +73,18 @@ public class Composer extends Thread {
     final static String[] featuredGrades = { "Easy" , 
                                              "Medium" ,
                                              "Hard" ,
-                                             "X-Wing" ,
-                                             "Swordfish" ,
+                                             "Single-Valued Strings" ,
+                                             "Many-Valued Strings" ,
                                              "Nishio" ,
                                              "Guess" };
     
-    final static int EASY      = 0 ,
-                     MEDIUM    = 1 ,
-                     HARD      = 2 ,
-                     X_WING    = 3 ,
-                     SWORDFISH = 4 ,
-                     NISHIO    = 5 ,
-                     GUESS     = 6 ;
+    final static int EASY                  = 0 ,
+                     MEDIUM                = 1 ,
+                     HARD                  = 2 ,
+                     SINGLE_VALUED_CHAINS  = 3 ,
+                     MANY_VALUED_CHAINS    = 4 ,
+                     NISHIO                = 5 ,
+                     GUESS                 = 6 ;
                              
     transient int cellsInRow ,
                   maskSize ,
@@ -135,8 +135,8 @@ public class Composer extends Thread {
                      boolean leastCandidatesHybridFilter ,
                      int singleSectorCandidatesFilter ,
                      int disjointSubsetsFilter ,
-                     int xWingsFilter ,
-                     int swordfishFilter ,
+                     int singleValuedStringsFilter ,
+                     int manyValuedStringsFilter ,
                      int nishioFilter ,
                      int guessFilter ,
                      boolean shuffle ,
@@ -152,8 +152,8 @@ public class Composer extends Thread {
         this.output = output instanceof PrintStream ? new PrintWriter( output ) : null ;
         this.singleSectorCandidatesFilter = singleSectorCandidatesFilter ;
         this.disjointSubsetsFilter = disjointSubsetsFilter ;
-        this.xWingsFilter = xWingsFilter ;
-        this.swordfishFilter = swordfishFilter ;
+        this.singleValuedChainsFilter = singleValuedStringsFilter ;
+        this.manyValuedChainsFilter = manyValuedStringsFilter ;
         this.nishioFilter = nishioFilter ;
         this.guessFilter = guessFilter ;
         this.shuffle = shuffle ;
@@ -172,8 +172,8 @@ public class Composer extends Thread {
                         guessFilter == 0 && 
                         ( singleSectorCandidatesFilter != 0 ||
                           disjointSubsetsFilter != 0 ||
-                          xWingsFilter != 0 ||
-                          swordfishFilter != 0 ||
+                          singleValuedStringsFilter != 0 ||
+                          manyValuedStringsFilter != 0 ||
                           nishioFilter != 0 );
             
         int i = 0 ;
@@ -201,8 +201,8 @@ public class Composer extends Thread {
 
         boolean singleSectorCandidates = false ,
                 disjointSubsets = false ,
-                xWings = false ,
-                swordfish = false ,
+                singleValuedChains = false ,
+                manyValuedChains = false ,
                 nishio = false ,
                 logical ;
 
@@ -268,14 +268,14 @@ public class Composer extends Thread {
                     disjointSubsetsFilter == -1 && disjointSubsets ){
                     return ;
                 }
-                xWings = lch.xWingsEliminations > 0 ; 
-                if( xWingsFilter == 1 && ! xWings || 
-                    xWingsFilter == -1 && xWings ){
+                singleValuedChains = lch.singleValuedChainsEliminations > 0 ; 
+                if( singleValuedChainsFilter == 1 && ! singleValuedChains || 
+                    singleValuedChainsFilter == -1 && singleValuedChains ){
                     return ;
                 }
-                swordfish = lch.swordfishEliminations > 0 ; 
-                if( swordfishFilter == 1 && ! swordfish || 
-                    swordfishFilter == -1 && swordfish ){
+                manyValuedChains = lch.manyValuedChainsEliminations > 0 ; 
+                if( manyValuedChainsFilter == 1 && ! manyValuedChains|| 
+                    manyValuedChainsFilter == -1 && manyValuedChains ){
                     return ;
                 }
                 nishio = lch.nishioEliminations > 0 ; 
@@ -318,23 +318,23 @@ public class Composer extends Thread {
                             multipleCategories = true ;
                         }
                     }
-                    if( xWings ){
-                        category = X_WING ;
+                    if( singleValuedChains ){
+                        category = SINGLE_VALUED_CHAINS ;
                         if( ! xmlFormat ){
                             if( multipleCategories ){
                                 sb.append(":");
                             }
-                            sb.append("X-Wings");
+                            sb.append("Single-Valued Chains");
                             multipleCategories = true ;
                         }
                     }
-                    if( swordfish ){
-                        category = SWORDFISH ;
+                    if( manyValuedChains ){
+                        category = MANY_VALUED_CHAINS ;
                         if( ! xmlFormat ){
                             if( multipleCategories ){
                                 sb.append(":");
                             }
-                            sb.append("Swordfish");
+                            sb.append("Many-Valued Chains");
                             multipleCategories = true ;
                         }
                     }
@@ -519,7 +519,7 @@ public class Composer extends Thread {
 
     public static void main( String[] args ){
         final String usage = "Usage: Composer [-a across] [-d down] [-ms max solns|-mm max masks] [-mu max unwinds] [-mc max complexity] [-s solvers] [-c threshold] [-r] [-v] [-shuffle] [-f] [-xml] -i|#cells" ,
-                     strategyTypes = "Valid strategy types are:\nSSC [Single Sector Candidates]\nDS [Disjoint Subsets]\nXWings\nSwordfish\nNishio";
+                     strategyTypes = "Valid strategy types are:\nSSC [Single Sector Candidates]\nDS [Disjoint Subsets]\nSVS [Single-Valued Strings]\nMVS [Many-Valued Strings]\nNishio";
         
         int boxesAcross = 3 ,
             boxesDown = 3 ,
@@ -532,8 +532,8 @@ public class Composer extends Thread {
             composeSolverThreshold = 0 ,
             singleSectorCandidatesFilter = 0 ,
             disjointSubsetsFilter = 0 ,
-            xwingsFilter = 0 ,
-            swordfishFilter = 0 ,
+            singleValuedChainsFilter = 0 ,
+            manyValuedChainsFilter = 0 ,
             nishioFilter = 0 ,
             guessFilter = 0 ,
             sign ;
@@ -633,10 +633,10 @@ public class Composer extends Thread {
                     singleSectorCandidatesFilter = sign ;
                 } else if( strategy.equalsIgnoreCase("ds") ) {
                     disjointSubsetsFilter = sign ;
-                } else if( strategy.equalsIgnoreCase("xwings") ) {
-                    xwingsFilter = sign ;
-                } else if( strategy.equalsIgnoreCase("swordfish") ){
-                    swordfishFilter = sign ;
+                } else if( strategy.equalsIgnoreCase("svc") ) {
+                    singleValuedChainsFilter = sign ;
+                } else if( strategy.equalsIgnoreCase("mvc") ){
+                    manyValuedChainsFilter = sign ;
                 } else if( strategy.equalsIgnoreCase("nishio") ){
                     nishioFilter = sign ;
                 } else if( strategy.equalsIgnoreCase("guess") ){
@@ -708,8 +708,8 @@ public class Composer extends Thread {
                           leastCandidatesHybridFilter ,
                           singleSectorCandidatesFilter ,
                           disjointSubsetsFilter ,
-                          xwingsFilter ,
-                          swordfishFilter ,
+                          singleValuedChainsFilter ,
+                          manyValuedChainsFilter ,
                           nishioFilter ,
                           guessFilter ,
                           shuffle ,

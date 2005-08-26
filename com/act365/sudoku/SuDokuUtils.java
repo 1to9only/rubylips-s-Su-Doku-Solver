@@ -25,6 +25,7 @@
 
 package com.act365.sudoku;
 
+import java.io.IOException ;
 import java.text.DateFormat ;
 import java.util.Date ;
 import java.util.StringTokenizer ;
@@ -140,9 +141,9 @@ public class SuDokuUtils {
                 k = 0 ;
                 while( k < ( fieldWidth + 1 )* cellsInRow + ( boxesAcross - 1 )* 2 ){
                     if( k % boxWidth == boxWidth - 1 ){
-                        sb.append('+');
+                        sb.append("+");
                     } else {
-                        sb.append('-');
+                        sb.append("-");
                     }
                     ++ k ;
                 }
@@ -163,7 +164,7 @@ public class SuDokuUtils {
                         }
                     }
                     while( k < 1 + fieldWidth - numberWidth ){
-                        sb.append(' ');
+                        sb.append(" ");
                         ++ k ;
                     }
                     switch( format ){
@@ -172,19 +173,27 @@ public class SuDokuUtils {
                             break;
                         case ALPHANUMERIC:
                             if( data[i][j] > 10 ){
-                                sb.append( (char)( 'A' + data[i][j] - 11 ) );
+                                try {
+                                    sb.append( (char)( 'A' + data[i][j] - 11 ) );
+                                } catch( IOException e ) {
+                                    sb.append(" ");
+                                }
                             } else {
                                 sb.append( data[i][j] - 1 );
                             }
                             break;
                         case TEXT:
-                            sb.append( text[data[i][j]-1] );
+                            try {
+                                sb.append( text[data[i][j]-1] );
+                            } catch( IOException e ){
+                                sb.append(" ");
+                            }
                             break;
                     }
                 } else {
-                    sb.append(' ');
+                    sb.append(" ");
                     while( k < fieldWidth ){
-                        sb.append('.');
+                        sb.append(".");
                         ++ k ;
                     }
                 }
@@ -239,7 +248,7 @@ public class SuDokuUtils {
                 while( j < cellsInRow ){
                     k = 0 ;
                     while( k < maxLength[j] + 2 ){
-                        sb.append('-');
+                        sb.append("-");
                         ++ k ;
                     }
                     if( ++ j < cellsInRow && j % boxesDown == 0 ){
@@ -253,14 +262,14 @@ public class SuDokuUtils {
                 k = 0 ;
                 if( ( length = data[i][j].length() ) > 0 ){
                     while( k < 2 + maxLength[j] - length ){
-                        sb.append(' ');
+                        sb.append(" ");
                         ++ k ;
                     }
                     sb.append( data[i][j] );
                 } else {
                     sb.append("  ");
                     while( k < maxLength[j] ){
-                        sb.append('.');
+                        sb.append(".");
                         ++ k ;
                     }
                 }
@@ -410,7 +419,7 @@ public class SuDokuUtils {
         sb.append("<checked>000000000000</checked>\n");
         sb.append("<xtra>0</xtra>\n");            
         sb.append("<puzzle-type>");
-        sb.append( cellsInRow == 9 && boxesAcross == 3 ? '0' : '1' );
+        sb.append( cellsInRow == 9 && boxesAcross == 3 ? "0" : "1" );
         sb.append("</puzzle-type>\n");
         sb.append("<cells-in-row>");
         sb.append( cellsInRow );

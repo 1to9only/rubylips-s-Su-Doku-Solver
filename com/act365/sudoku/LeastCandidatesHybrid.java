@@ -23,7 +23,7 @@
  * 59 Temple Place, Suite 330, Boston, MA 02111-1307 USA
  */
 
-package com.act365.sudoku;
+package com.act365.sudoku ;
 
 /**
  * LeastCandidatesHybrid combines the Least Candidates Cell and Least 
@@ -32,6 +32,34 @@ package com.act365.sudoku;
 
 public class LeastCandidatesHybrid extends StrategyBase implements IStrategy {
 
+    // Link types 
+    
+    final static int NONE = 0 ,
+                     MATCH = 1 ,
+                     STRONG = 2 ,
+                     WEAK = 3 ,
+                     CELL = 4 ;
+                     
+    final static int LEFT_LEFT   = 0 ,
+                     LEFT_RIGHT  = 1 ,
+                     RIGHT_LEFT  = 2 ,
+                     RIGHT_RIGHT = 3 ;
+    
+    // End-point booleans for weak linkage
+    
+    final static int DONT_KNOW     = -1 ,
+                     FALSE         = 0 ,
+                     TRUE          = 1 ,
+                     CONTRADICTION = 2 ;
+    
+    // Forced chain actions.
+    
+    final static int NO_ACTION = 0 ,
+                     ELIMINATE = 1 ,
+                     ADD_CHAIN = 2 ;
+                     
+    // Members
+    
     LeastCandidatesNumber lcn ;
     
     LeastCandidatesCell lcc ;
@@ -44,8 +72,8 @@ public class LeastCandidatesHybrid extends StrategyBase implements IStrategy {
     
     boolean useDisjointSubsets ,
             useSingleSectorCandidates ,
-            useXWings ,
-            useSwordfish ,
+            useSingleValuedChains ,
+            useManyValuedChains ,
             useNishio ,
             useGuesses ,
             checkInvulnerable ;
@@ -56,32 +84,46 @@ public class LeastCandidatesHybrid extends StrategyBase implements IStrategy {
         maxDisjointSubsetsSize ,
         singleSectorCandidatesCalls ,
         singleSectorCandidatesEliminations ,
-        xWingsCalls ,
-        xWingsEliminations ,
-        swordfishCalls ,
-        swordfishEliminations ,
+        chainsEliminations ,
+        singleValuedChainsCalls ,
+        singleValuedChainsEliminations ,
+        manyValuedChainsCalls ,
+        manyValuedChainsEliminations ,
         nishioCalls ,
         nishioEliminations ,
         nGuesses ,
-        maxStrings ,
-        maxStringLength ,
+        maxChains ,
+        maxChainLength ,
         nEliminated ;
     
-    int[] eliminatedX ,
-          eliminatedY ,
-          eliminatedValues ;
+    byte[] eliminatedX ,
+           eliminatedY ,
+           eliminatedValues ;
           
     // Arrays defined as members in order to improve performance.
 
-    transient int[] x , y , linkedValues , linkedCells ;
+    transient byte[] x , y , linkedValues , linkedCells ;
     
-    transient int[] stringR0 , stringC0 , stringR1 , stringC1 , stringLength ;
+    transient byte[] chainR0 , 
+                     chainC0 , 
+                     chainR1 , 
+                     chainC1 ,
+                     chainV0 ,
+                     chainV1 ,
+                     chainLength ,
+                     chainNComponents ;
     
-    transient boolean[][] isStringAscending ;
+    transient byte[][] chainOtherEnd0 ,
+                       chainOtherEnd1 ;
+
+    transient boolean[][] isLinkAscending ;
     
-    transient boolean[] union ;
+    transient boolean[] union ,
+                        isLinkStrong ;
             
-    transient int[][] mask , stringRoute ;
+    transient int[][] mask ,
+                      chainRoute ,
+                      chainComponents ; 
 
     /**
      * Sets up a LeastCandidatesHybrid II strategy with an optional random element.
@@ -104,7 +146,7 @@ public class LeastCandidatesHybrid extends StrategyBase implements IStrategy {
         }
         useDisjointSubsets = true ;
         useSingleSectorCandidates = true ;
-        useXWings = useSwordfish = useNishio = useAllLogicalMethods ;
+        useSingleValuedChains = useManyValuedChains = useNishio = useAllLogicalMethods ;
         useGuesses = true ;
     }
 
@@ -145,30 +187,38 @@ public class LeastCandidatesHybrid extends StrategyBase implements IStrategy {
             if( explain ){
                 invulnerableState.pushState( 0 );
 //                linearSystemState.pushState( 0 );
-                eliminatedX = new int[grid.cellsInRow];
-                eliminatedY = new int[grid.cellsInRow];
-                eliminatedValues = new int[grid.cellsInRow];
+                eliminatedX = new byte[grid.cellsInRow];
+                eliminatedY = new byte[grid.cellsInRow];
+                eliminatedValues = new byte[grid.cellsInRow];
             }
             if( useDisjointSubsets ){
-                x = new int[grid.cellsInRow];
-                y = new int[grid.cellsInRow];
-                linkedValues = new int[grid.cellsInRow];
-                linkedCells = new int[grid.cellsInRow];
+                x = new byte[grid.cellsInRow];
+                y = new byte[grid.cellsInRow];
+                linkedValues = new byte[grid.cellsInRow];
+                linkedCells = new byte[grid.cellsInRow];
                 union = new boolean[grid.cellsInRow];
             }
-            if( useXWings || useSwordfish ){
+            if( useSingleValuedChains || useManyValuedChains ){
                 // The following array size isn't a theoretical upper limit 
                 // but should prove adequate.
-                maxStrings = grid.cellsInRow * grid.cellsInRow * grid.cellsInRow ;
-                maxStringLength = 10 ; // Could be made final
-                stringR0 = new int[maxStrings];
-                stringC0 = new int[maxStrings];
-                stringR1 = new int[maxStrings];
-                stringC1 = new int[maxStrings];
-                stringLength = new int[maxStrings];
+                maxChains = grid.cellsInRow * grid.cellsInRow * grid.cellsInRow * grid.cellsInRow ;
+                maxChainLength = 20 ; // Could be made final
+                chainR0 = new byte[maxChains];
+                chainC0 = new byte[maxChains];
+                chainR1 = new byte[maxChains];
+                chainC1 = new byte[maxChains];
+                chainV0 = new byte[maxChains];
+                chainV1 = new byte[maxChains];
+                chainLength = new byte[maxChains];
+                chainOtherEnd0 = new byte[maxChains][2];
+                chainOtherEnd1 = new byte[maxChains][2];
+                isLinkStrong = new boolean[maxChains];
+                
                 if( explain ){
-                    stringRoute = new int[maxStrings][maxStringLength];
-                    isStringAscending = new boolean[maxStrings][maxStringLength];
+                    chainRoute = new int[maxChains][maxChainLength];
+                    isLinkAscending = new boolean[maxChains][maxChainLength];
+                    chainNComponents = new byte[maxChains];
+                    chainComponents = new int[maxChains][maxChainLength];
                 }
             }
             if( useNishio ){
@@ -179,8 +229,8 @@ public class LeastCandidatesHybrid extends StrategyBase implements IStrategy {
         singleCandidatureCalls = 0 ;
         disjointSubsetsCalls = disjointSubsetsEliminations = 0 ;
         singleSectorCandidatesCalls = singleSectorCandidatesEliminations = 0 ;
-        xWingsCalls = xWingsEliminations = 0 ;
-        swordfishCalls = swordfishEliminations = 0 ;
+        singleValuedChainsCalls = singleValuedChainsEliminations = 0 ;
+        manyValuedChainsCalls = manyValuedChainsEliminations = 0 ;
         nishioCalls = nishioEliminations = 0 ;
         nGuesses = 0 ;
         nEliminated = 0 ;
@@ -232,7 +282,7 @@ public class LeastCandidatesHybrid extends StrategyBase implements IStrategy {
                             continue ;
                         }
                     }
-                    if( useXWings && xWings( sb ) ){
+                    if( useSingleValuedChains && singleValuedChains( sb ) ){
                         if( explain && nEliminated > 0 ){
                             appendEliminations( sb );
                         }
@@ -242,7 +292,7 @@ public class LeastCandidatesHybrid extends StrategyBase implements IStrategy {
                             continue ;
                         }
                     }
-                   if( useSwordfish && swordfish( sb ) ){
+                   if( useManyValuedChains && manyValuedChains( sb ) ){
                        if( explain && nEliminated > 0 ){
                            appendEliminations( sb );
                        }
@@ -265,6 +315,7 @@ public class LeastCandidatesHybrid extends StrategyBase implements IStrategy {
                    break ;
                 }
             } catch ( Exception e ) {
+                e.printStackTrace(); // Temp
                 score = 0 ;
                 return ( nCandidates = 0 );
             }
@@ -331,11 +382,28 @@ public class LeastCandidatesHybrid extends StrategyBase implements IStrategy {
         invulnerableState.eliminateMove( x , y , v );
         linearSystemState.eliminateMove( x , y , v );
         if( explain ){
-            eliminatedX[nEliminated] = x ;
-            eliminatedY[nEliminated] = y ;
-            eliminatedValues[nEliminated] = v ;
+            eliminatedX[nEliminated] = (byte) x ;
+            eliminatedY[nEliminated] = (byte) y ;
+            eliminatedValues[nEliminated] = (byte) v ;
             ++ nEliminated ;            
         }
+    }
+    
+    /**
+     * Adds the move (x,y):=v to all state grids.
+     */
+
+    int addMove( int x , int y , int v ) {
+        CellState cellState = (CellState) lcc.state ; 
+        int i = 0 , nEliminated = 0 ;
+        while( i < grid.cellsInRow ){
+            if( i != v && ! cellState.eliminated[x][y][i] ){
+                eliminateMove( x , y , i );
+                ++ nEliminated ;
+            }
+            ++ i ;
+        }
+        return nEliminated ;
     }
     
     /**
@@ -346,7 +414,7 @@ public class LeastCandidatesHybrid extends StrategyBase implements IStrategy {
     void appendEliminations( StringBuffer sb ){
         sb.append("- The move");
         if( nEliminated > 1 ){
-            sb.append('s');
+            sb.append("s");
         }
         int i = 0 ;
         while( i < nEliminated ){
@@ -358,7 +426,7 @@ public class LeastCandidatesHybrid extends StrategyBase implements IStrategy {
                 sb.append(" and (");
             }
             sb.append( 1 + eliminatedX[i] );
-            sb.append(',');
+            sb.append(",");
             sb.append( 1 + eliminatedY[i] );
             sb.append("):=");
             sb.append( SuDokuUtils.toString( 1 + eliminatedValues[i] ));
@@ -366,25 +434,14 @@ public class LeastCandidatesHybrid extends StrategyBase implements IStrategy {
         }
         sb.append(" ha");
         if( nEliminated == 1 ){
-            sb.append('s');
+            sb.append("s");
         } else {
             sb.append("ve");
         }
         sb.append(" been eliminated.\n");
         nEliminated = 0 ;
     }
-    
-    /**
-     * Adds the move (x,y):=v to all state grids.
-     */
-/*
-    void addMove( int x , int y , int v ) throws Exception {
-        ((NumberState) lcn.state ).addMove( x , y , v );
-        ((CellState) lcc.state ).addMove( x , y , v );
-        invulnerableState.addMove( x , y , v );
-        linearSystemState.addMove( x , y , v );
-    }
-*/    
+        
     /**
      * Determines which underlying strategy to prefer.  
      * @return whether an undisputed candidate has been found
@@ -462,21 +519,21 @@ public class LeastCandidatesHybrid extends StrategyBase implements IStrategy {
                     j = 0 ;
                     while( j < grid.cellsInRow ){
                         if( union[j] ){
-                            linkedCells[i++] = j ;
+                            linkedCells[i++] = (byte) j ;
                         }
                         ++ j ;
                     }
                     i = 0 ;
                     while( i < subsetSize ){
                         if( s < grid.cellsInRow ){
-                            x[i] = s ;
+                            x[i] = (byte) s ;
                             y[i] = linkedCells[i] ;
                         } else if( s < 2 * grid.cellsInRow ){
                             x[i] = linkedCells[i] ;
-                            y[i] = s - grid.cellsInRow ;
+                            y[i] = (byte)( s - grid.cellsInRow );
                         } else {
-                            x[i] = ( s - 2 * grid.cellsInRow )/ grid.boxesAcross * grid.boxesAcross + linkedCells[i] / grid.boxesDown ;
-                            y[i] = ( s - 2 * grid.cellsInRow )% grid.boxesAcross * grid.boxesDown + linkedCells[i] % grid.boxesDown ;
+                            x[i] = (byte)( ( s - 2 * grid.cellsInRow )/ grid.boxesAcross * grid.boxesAcross + linkedCells[i] / grid.boxesDown );
+                            y[i] = (byte)( ( s - 2 * grid.cellsInRow )% grid.boxesAcross * grid.boxesDown + linkedCells[i] % grid.boxesDown );
                         }
                         j = 0 ;
                         eliminate:
@@ -542,7 +599,7 @@ public class LeastCandidatesHybrid extends StrategyBase implements IStrategy {
                 } else if( unionSize >= maxDisjointSubsetsSize || unionSize > subsetSize + nUnconsideredValues || unionSize >= nUnfilled ) {
                     ++ linkedValues[subsetSize-1];
                 } else {
-                    linkedValues[subsetSize] = linkedValues[subsetSize-1] + 1 ;
+                    linkedValues[subsetSize] = (byte)( linkedValues[subsetSize-1] + 1 );
                     ++ subsetSize ;
                 }
                 // Ensure that the last value in the subset is sensible.
@@ -784,375 +841,967 @@ public class LeastCandidatesHybrid extends StrategyBase implements IStrategy {
         return false ;
     }
     
-    /**
-     * Searches for the X-Wings pattern.
-     */
-    
-    boolean xWings( StringBuffer sb ){
-        ++ xWingsCalls ;
-        int i , j , v , nUnitStrings ; 
+    boolean singleValuedChains( StringBuffer sb ) throws Exception {
+        boolean anyMoveEliminated = false ;
+        int v ;
+        ++ singleValuedChainsCalls ;
         v = 0 ;
+        while( ! anyMoveEliminated && v < grid.cellsInRow ){
+            chainsEliminations = 0 ;
+            anyMoveEliminated = longChains( sb , unitChains( v , 0 ) );
+            singleValuedChainsEliminations += chainsEliminations ; 
+            ++ v ;   
+        }
+        return anyMoveEliminated ;
+    }
+    
+    boolean manyValuedChains( StringBuffer sb ) throws Exception {
+        boolean anyMoveEliminated = false ;
+        int v = 0 , nChains = 0 ;
+        ++ manyValuedChainsCalls ;
         while( v < grid.cellsInRow ){
-            nUnitStrings = unitStrings( v ) ;
-            i = 0 ;
-            while( i < nUnitStrings - 1 ){
-                j = i + 1 ;
-                while( j < nUnitStrings ){
-                    if( xWings( v , i , j , sb ) ){
-                        return true ;
-                    }
-                    ++ j ;
-                }
-                ++ i ;
+            nChains = unitChains( v , nChains );
+            ++ v ;   
+        }
+        chainsEliminations = 0 ;
+        anyMoveEliminated = longChains( sb , nChains );
+        manyValuedChainsEliminations += chainsEliminations ;
+        return anyMoveEliminated ;           
+    }
+    
+    /**
+     * Finds unit chains.
+     */    
+
+    int unitChains( int v , int nChains ){
+        int s , t0 , t1 , x0 , x1 , y0 , y1 ;
+        NumberState numberState = (NumberState) lcn.state ;
+        s = 0 ;
+        considerSector :
+        while( s < 3 * grid.cellsInRow && nChains < maxChains ){
+            if( numberState.nEliminated[v][s] == grid.cellsInRow - 1 ){
+                ++ s ;
+                continue ;
             }
-            ++ v ;
+            t0 = 0 ;
+            while( t0 < grid.cellsInRow ){
+                while( t0 < grid.cellsInRow && numberState.eliminated[v][s][t0] ){
+                    ++ t0 ;
+                }
+                if( t0 == grid.cellsInRow ){
+                    continue ;
+                }
+                t1 = t0 + 1 ;
+                while( t1 < grid.cellsInRow ){
+                    while( t1 < grid.cellsInRow && numberState.eliminated[v][s][t1] ){
+                        ++ t1 ;
+                    }
+                    if( t1 == grid.cellsInRow ){
+                        continue ;
+                    }
+                    if( s < grid.cellsInRow ){
+                        x0 = x1 = s ;
+                        y0 = t0 ;
+                        y1 = t1 ;
+                    } else if( s < 2 * grid.cellsInRow ){
+                        x0 = t0 ;
+                        x1 = t1 ;
+                        y0 = y1 = s - grid.cellsInRow ;
+                    } else {                    
+                        x0 = ( s - 2 * grid.cellsInRow )/ grid.boxesAcross * grid.boxesAcross + t0 / grid.boxesDown ;
+                        x1 = ( s - 2 * grid.cellsInRow )/ grid.boxesAcross * grid.boxesAcross + t1 / grid.boxesDown ;
+                        y0 = ( s - 2 * grid.cellsInRow )% grid.boxesAcross * grid.boxesDown + t0 % grid.boxesDown ;
+                        y1 = ( s - 2 * grid.cellsInRow )% grid.boxesAcross * grid.boxesDown + t1 % grid.boxesDown ;
+                        if( x0 == x1 || y0 == y1 ){
+                            ++ s ;
+                            continue considerSector ;
+                        }
+                    }
+                    chainR0[nChains] = (byte) x0 ;
+                    chainC0[nChains] = (byte) y0 ;
+                    chainR1[nChains] = (byte) x1 ;
+                    chainC1[nChains] = (byte) y1 ;
+                    chainV0[nChains] = chainV1[nChains] = (byte) v ;
+                    chainLength[nChains] = 1 ;
+                    if( ( isLinkStrong[nChains] = numberState.nEliminated[v][s] == grid.cellsInRow - 2 ) ){
+                        chainOtherEnd0[nChains][FALSE] = chainOtherEnd1[nChains][FALSE] = TRUE ;
+                        chainOtherEnd0[nChains][TRUE]  = chainOtherEnd1[nChains][TRUE]  = FALSE ;
+                    } else {
+                        chainOtherEnd0[nChains][FALSE] = chainOtherEnd1[nChains][FALSE] = DONT_KNOW ;
+                        chainOtherEnd0[nChains][TRUE]  = chainOtherEnd1[nChains][TRUE]  = FALSE ;
+                    }
+                    if( explain && maxChainLength >= 1 ){
+                        chainRoute[nChains][0] = nChains ;
+                        isLinkAscending[nChains][0] = true ;
+                        chainNComponents[nChains] = 1 ;
+                        chainComponents[nChains][0] = nChains ;
+                    }
+                    ++ nChains ;
+                    ++ t1 ;
+                }
+                ++ t0 ;
+            }
+            ++ s ;
+        }
+        return nChains ;
+    }
+    
+    /**
+     * Establishes whether there is a strong link at the point (r,c)
+     * for the values v0 and v1. 
+     */
+
+    boolean strongLink( int r , int c , int v0 , int v1 ){
+        if( v0 == v1 ){
+            return true ;   
+        } else {
+            CellState cellState = (CellState) lcc.state ;
+            return cellState.nEliminated[r][c] == grid.cellsInRow - 2 && 
+                 ! cellState.eliminated[r][c][v0] && 
+                 ! cellState.eliminated[r][c][v1] ;               
+        }
+    }
+    
+    /**
+     * Establishes whether there is a weak link between the points (r0,c0)
+     * and (r1,c1) for the values v0 and v1. 
+     */
+
+    boolean weakLink( int r0 , int c0 , int v0 , int r1 , int c1 , int v1 ){
+        if( v0 == v1 ){
+            NumberState numberState = (NumberState) lcn.state ;
+            if( r0 == r1 ){
+                return numberState.nEliminated[v0][r0] < grid.cellsInRow - 2 ;
+            } else if( c0 == c1 ) {
+                return numberState.nEliminated[v0][grid.cellsInRow+c0] < grid.cellsInRow - 2 ;
+            } else {
+                final int b0 = r0 / grid.boxesAcross * grid.boxesAcross + c0 / grid.boxesDown ,
+                          b1 = r1 / grid.boxesAcross * grid.boxesAcross + c1 / grid.boxesDown ;
+                return b0 == b1 && numberState.nEliminated[v0][2*grid.cellsInRow+b0] < grid.cellsInRow - 2 ;                    
+            }
+        } else if( r0 == r1 && c0 == c1 ){
+            return cellLink( r0 , c0 , v0 , v1 );
+        } else {
+            return false ;
+        }
+    }
+    
+    /**
+     * Establishes whether there is a weak cell link at the point (r,c).
+     */
+
+    boolean cellLink( int r , int c , int v0 , int v1 ){
+        if( v0 != v1 ){
+            CellState cellState = (CellState) lcc.state ;
+            return cellState.nEliminated[r][c] < grid.cellsInRow - 2 && 
+                 ! cellState.eliminated[r][c][v0] && 
+                 ! cellState.eliminated[r][c][v1] ;                                           
         }
         return false ;
     }
 
     /**
-     * Finds unit strings - sectors with two candidates for the given value.
-     */    
+     * Establishes the type of link (if any) that exists between two given strings.
+     */
 
-    int unitStrings( int v ){
-        int nStrings , s , t0 , t1 , x0 , x1 , y0 , y1 ;
-        NumberState numberState = (NumberState) lcn.state ;
-        nStrings = 0 ;
-        s = 0 ;
-        while( s < 3 * grid.cellsInRow && nStrings < maxStrings ){
-            if( numberState.nEliminated[v][s] != grid.cellsInRow - 2 ){
-                ++ s ;
-                continue ;
+    int linkType( int i , int j ){
+        if( chainR0[i] == chainR0[j] && chainC0[i] == chainC0[j] &&
+            chainR1[i] == chainR1[j] && chainC1[i] == chainC1[j] ){
+                return 4 * MATCH ;
+        } else if( chainR0[i] == chainR0[j] && chainC0[i] == chainC0[j] && 
+                !( chainR1[i] == chainR1[j] && chainC1[i] == chainC1[j] ) ){
+            if( strongLink( chainR0[i] , chainC0[i] , chainV0[i] , chainV0[j] ) ){
+                return 4 * STRONG + LEFT_LEFT ;
+            } else if( cellLink( chainR0[i] , chainC0[i] , chainV0[i] , chainV0[j] ) ){
+                return 4 * CELL + LEFT_LEFT ;
+            } else {
+                return NONE ;   
             }
-            t0 = 0 ;
-            while( numberState.eliminated[v][s][t0] ){
-                ++ t0 ;
+        } else if( chainR1[i] == chainR1[j] && chainC1[i] == chainC1[j] && 
+                !( chainR0[i] == chainR0[j] && chainC0[i] == chainC0[j] ) ){
+            if( strongLink( chainR1[i] , chainC1[i] , chainV1[i] , chainV1[j] ) ){
+                return 4 * STRONG + RIGHT_RIGHT ;   
+            } else if( cellLink( chainR1[i] , chainC1[i] , chainV1[i] , chainV1[j] ) ){
+                return 4 * CELL + RIGHT_RIGHT ;
+            } else {
+                return NONE ;   
             }
-            t1 = t0 + 1 ;
-            while( numberState.eliminated[v][s][t1] ){
-                ++ t1 ;
+        } else if( chainR0[i] == chainR1[j] && chainC0[i] == chainC1[j] && 
+                !( chainR1[i] == chainR0[j] && chainC1[i] == chainC0[j] ) ){
+            if( strongLink( chainR0[i] , chainC0[i] , chainV0[i] , chainV1[j] ) ){
+                return 4 * STRONG + LEFT_RIGHT ;   
+            } else if( cellLink( chainR0[i] , chainC0[i] , chainV0[i] , chainV1[j] ) ){
+                return 4 * CELL + LEFT_RIGHT ;
+            } else {
+                return NONE ;   
             }
-            if( s < grid.cellsInRow ){
-                x0 = x1 = s ;
-                y0 = t0 ;
-                y1 = t1 ;
-            } else if( s < 2 * grid.cellsInRow ){
-                x0 = t0 ;
-                x1 = t1 ;
-                y0 = y1 = s - grid.cellsInRow ;
-            } else {                    
-                x0 = ( s - 2 * grid.cellsInRow )/ grid.boxesAcross * grid.boxesAcross + t0 / grid.boxesDown ;
-                x1 = ( s - 2 * grid.cellsInRow )/ grid.boxesAcross * grid.boxesAcross + t1 / grid.boxesDown ;
-                y0 = ( s - 2 * grid.cellsInRow )% grid.boxesAcross * grid.boxesDown + t0 % grid.boxesDown ;
-                y1 = ( s - 2 * grid.cellsInRow )% grid.boxesAcross * grid.boxesDown + t1 % grid.boxesDown ;
-                if( x0 == x1 || y0 == y1 ){
-                    ++ s ;
-                    continue ;
-                }
-            }
-            stringR0[nStrings] = x0 ;
-            stringC0[nStrings] = y0 ;
-            stringR1[nStrings] = x1 ;
-            stringC1[nStrings] = y1 ;
-            stringLength[nStrings] = 1 ;
-            if( explain && maxStringLength >= 1 ){
-                stringRoute[nStrings][0] = nStrings ;
-                isStringAscending[nStrings][0] = true ;
-            }
-            ++ nStrings ;
-            ++ s ;
-        }
-        return nStrings ;
+        } else if( chainR1[i] == chainR0[j] && chainC1[i] == chainC0[j] && 
+                !( chainR0[i] == chainR1[j] && chainC0[i] == chainC1[j] ) ){
+            if( strongLink( chainR1[i] , chainC1[i] , chainV1[i] , chainV0[j] ) ){
+                return 4 * STRONG + RIGHT_LEFT ;   
+            } else if( cellLink( chainR1[i] , chainC1[i] , chainV1[i] , chainV0[j] ) ){
+                return 4 * CELL + RIGHT_LEFT ;
+            } else {
+                return NONE ;   
+            }    
+        } else {
+            return NONE ;
+        }   
     }
-    
+
     /**
-     * Looks for the swordfish pattern.
-     */        
+     * Constructs weakly-linked strings.
+     */
     
-    boolean swordfish( StringBuffer sb ){
-        ++ swordfishCalls ;
-        int v , i , j , k , kOffset , x0 , y0 , x1 , y1 , r0 , c0 , r1 , c1 ;
-        int nStrings , nUnitStrings , longStringsBegin , longStringsEnd ;
-        boolean isOrderReversed , isIReversed , isJReversed ;
-        v = 0 ;
-        while( v < grid.cellsInRow ){
-            nStrings = nUnitStrings = unitStrings( v );
-            // Attempt to build longer strings.
-            longStringsBegin = 0 ;
-            longStringsEnd = nStrings ;
-            while( longStringsBegin < longStringsEnd ){
-                i = 0 ;
-                while( i < nUnitStrings ){
-                    j = Math.max( 1 + i , longStringsBegin );
-                    considerLongStrings:
-                    while( j < longStringsEnd && nStrings < maxStrings ){
-                        if( stringR0[i] == stringR0[j] && stringC0[i] == stringC0[j] && 
-                         !( stringR1[i] == stringR1[j] && stringC1[i] == stringC1[j] ) ){
-                            x0 = stringR1[i];
-                            y0 = stringC1[i];
-                            x1 = stringR1[j];
-                            y1 = stringC1[j];
-                            isIReversed = true ;
-                            isJReversed = false ;
-                        } else if( stringR1[i] == stringR1[j] && stringC1[i] == stringC1[j] && 
-                                !( stringR0[i] == stringR0[j] && stringC0[i] == stringC0[j] ) ){
-                            x0 = stringR0[i];
-                            y0 = stringC0[i];
-                            x1 = stringR0[j];
-                            y1 = stringC0[j];
-                            isIReversed = false ;
-                            isJReversed = true ;
-                        } else if( stringR0[i] == stringR1[j] && stringC0[i] == stringC1[j] && 
-                                !( stringR1[i] == stringR0[j] && stringC1[i] == stringC0[j] ) ){
-                            x0 = stringR1[i];
-                            y0 = stringC1[i];
-                            x1 = stringR0[j];
-                            y1 = stringC0[j];
-                            isIReversed = true ;
-                            isJReversed = true ;
-                        } else if( stringR1[i] == stringR0[j] && stringC1[i] == stringC0[j] && 
-                                !( stringR0[i] == stringR1[j] && stringC0[i] == stringC1[j] ) ){
-                            x0 = stringR0[i];
-                            y0 = stringC0[i];
-                            x1 = stringR1[j];
-                            y1 = stringC1[j]; 
-                            isIReversed = false ;
-                            isJReversed = false ;
-                        } else {
-                            ++ j ;
-                            continue ;
-                        }
-                        if( x0 < x1 || x0 == x1 && y0 < y1 ){
-                            r0 = x0 ;
-                            c0 = y0 ; 
-                            r1 = x1 ;
-                            c1 = y1 ;
-                            isOrderReversed = false ; 
-                        } else {
-                            r0 = x1 ;
-                            c0 = y1 ; 
-                            r1 = x0 ;
-                            c1 = y0 ; 
-                            isOrderReversed = true ;
-                            isIReversed = ! isIReversed ;
-                            isJReversed = ! isJReversed ;
-                        }
-                        // Check for cyclic dependencies.
-                        k = 0 ;
-                        while( k < nStrings ){
-                            if( r0 == stringR0[k] && c0 == stringC0[k] && r1 == stringR1[k] && c1 == stringC1[k] ){
-                                ++ j ;
-                                continue considerLongStrings ;
-                            }
-                            ++ k ;
-                        }
-                        stringR0[nStrings] = r0 ;
-                        stringC0[nStrings] = c0 ; 
-                        stringR1[nStrings] = r1 ;
-                        stringC1[nStrings] = c1 ; 
-                        stringLength[nStrings] = 1 + stringLength[j];
-                        if( explain && stringLength[nStrings] <= maxStringLength ){
-                            // Write 'i' string.
-                            kOffset = isOrderReversed ? stringLength[j] : 0 ;
-                            stringRoute[nStrings][kOffset] = stringRoute[i][0];
-                            isStringAscending[nStrings][kOffset] = ! isIReversed ;
-                            // Write 'j' string.
-                            kOffset = isOrderReversed ? 0 : 1 ;
-                            k = 0 ;
-                            while( k < stringLength[j] ){
-                                if( isJReversed ){
-                                    stringRoute[nStrings][k+kOffset] = stringRoute[j][stringLength[j]-1-k];
-                                    isStringAscending[nStrings][k+kOffset] = ! isStringAscending[j][stringLength[j]-1-k];
-                                } else {
-                                    stringRoute[nStrings][k+kOffset] = stringRoute[j][k];
-                                    isStringAscending[nStrings][k+kOffset] = isStringAscending[j][k];
-                                }
-                                ++ k ;
-                            }
-                        }
-                        ++ nStrings ;
-                        ++ j ;
-                    }
-                    ++ i ;
-                }
-                longStringsBegin = longStringsEnd ;
-                longStringsEnd = nStrings ;
-            }
-            if( nStrings == maxStrings ){
-                System.err.println("String buffer is full with " + nStrings + " elements");
-            }
-            // Look for swordfish patterns.
+    boolean longChains( StringBuffer sb , int nChains ){
+        int i , j , type , chainsBegin , chainsEnd ;
+        chainsBegin = 0 ;
+        chainsEnd   = nChains ;
+        while( chainsBegin < chainsEnd ){
+            // Test for linkage to others.            
             i = 0 ;
-            while( i < nStrings - 1 ){
-                if( stringLength[i] % 2 == 0 ){
-                    ++ i ;
-                    continue ;
-                }
-                j = i + 1 ;
-                while( j < nStrings ){
-                    if( stringLength[j] == 1 || stringLength[j] % 2 == 0 ){
-                        ++ j ;
-                        continue ;
-                    }
-                    if( xWings( v , i , j , sb ) ){
-                        return true ;
+            while( i < chainsEnd ){
+                j = Math.max( i + 1 , chainsBegin );
+                while( j < chainsEnd ){
+                    type = linkType( i , j );
+                    if( type / 4 == STRONG || type / 4 == CELL ){
+                        if( ( nChains = connect( i , j , type , nChains ) ) == maxChains ){
+                            System.err.println("Chain buffer is full with " + nChains + " elements");
+                            return false ;
+                        }                  
+                        // Test for weak linkage to self.
+                        if( weakLink( chainR0[nChains-1] , chainC0[nChains-1] , chainV0[nChains-1] , chainR1[nChains-1] , chainC1[nChains-1] , chainV1[nChains-1] ) && cyclicChain( nChains - 1 , sb ) ){
+                            return true ;
+                        }
+                    } else if( type / 4 == MATCH ){
+                        switch( forcedChains( i , j , sb , nChains ) ){
+                            case ELIMINATE:
+                                return true ;
+                            case ADD_CHAIN:
+                                ++ nChains ;
+                                // Test for weak linkage to self.
+                                if( weakLink( chainR0[nChains-1] , chainC0[nChains-1] , chainV0[nChains-1] , chainR1[nChains-1] , chainC1[nChains-1] , chainV1[nChains-1] ) && cyclicChain( nChains - 1 , sb ) ){
+                                    return true ;
+                                }
+                        }
                     }                    
                     ++ j ;
                 }
                 ++ i ;
             }
-            ++ v ;
+            // Consider any newly-created links.
+            chainsBegin = chainsEnd ;
+            chainsEnd = nChains ;
         }
         return false ;
     }
-
-    /**
-     * Establishes whether the two two-candidate sector indexed i and j form an
-     * X-Wing or Swordfish.
-     */
     
-    boolean xWings( int v , int i , int j , StringBuffer sb ){
-        int k ;
-        boolean anyMoveEliminated = false ;
-        CellState cellState = (CellState) lcc.state ;
-        NumberState numberState = (NumberState) lcn.state ;
-        if( stringR0[i] == stringR0[j] && stringC0[i] == stringC0[j] ||
-            stringR0[i] == stringR1[j] && stringC0[i] == stringC1[j] ||
-            stringR1[i] == stringR0[j] && stringC1[i] == stringC0[j] ||
-            stringR1[i] == stringR1[j] && stringC1[i] == stringC1[j] ){
-                return anyMoveEliminated ;
-        }
-        if( stringR0[i] == stringR0[j] && stringR1[i] == stringR1[j] ){
-            k = 0 ;
-            while( k < grid.cellsInRow ){
-                if( k == stringC0[i] || k == stringC0[j] ){
-                    ++ k ;
-                    continue ;
-                }
-                if( ! cellState.eliminated[stringR0[i]][k][v] ){
-                    eliminateMove( stringR0[i] , k , v );
-                    anyMoveEliminated = true ;
-                    if( stringLength[i] == 1 && stringLength[j] == 1 ){
-                        ++ xWingsEliminations ;
-                    } else {
-                        ++ swordfishEliminations ;
-                    }
-                }
-                ++ k ;
-            }
-            k = 0 ;
-            while( k < grid.cellsInRow ){
-                if( k == stringC1[i] || k == stringC1[j] ){
-                    ++ k ;
-                    continue ;
-                }
-                if( ! cellState.eliminated[stringR1[i]][k][v] ){
-                    eliminateMove( stringR1[i] , k , v );
-                    anyMoveEliminated = true ;
-                    if( stringLength[i] == 1 && stringLength[j] == 1 ){
-                        ++ xWingsEliminations ;
-                    } else {
-                        ++ swordfishEliminations ;
-                    }
-                }
-                ++ k ;
-            }
-        }
-        if( stringC0[i] == stringC0[j] && stringC1[i] == stringC1[j] ){
-            k = 0 ;
-            while( k < grid.cellsInRow ){
-                if( k == stringR0[i] || k == stringR0[j] ){
-                    ++ k ;
-                    continue ;
-                }
-                if( ! cellState.eliminated[k][stringC0[i]][v] ){
-                    eliminateMove( k , stringC0[i] , v );
-                    anyMoveEliminated = true ;
-                    if( stringLength[i] == 1 && stringLength[j] == 1 ){
-                        ++ xWingsEliminations ;
-                    } else {
-                        ++ swordfishEliminations ;
-                    }
-                }
-                ++ k ;
-            }
-            k = 0 ;
-            while( k < grid.cellsInRow ){
-                if( k == stringR1[i] || k == stringR1[j] ){
-                    ++ k ;
-                    continue ;
-                }
-                if( ! cellState.eliminated[k][stringC1[i]][v] ){
-                    eliminateMove( k , stringC1[i] , v );
-                    anyMoveEliminated = true ;
-                    if( stringLength[i] == 1 && stringLength[j] == 1 ){
-                        ++ xWingsEliminations ;
-                    } else {
-                        ++ swordfishEliminations ;
-                    }
-                }
-                ++ k ;
-            }
-        }                    
-        if( anyMoveEliminated ){
-            if( explain ){
-                sb.append( SuDokuUtils.toString( 1 + v ) );
-                sb.append("s must appear in the cells (");
-                sb.append( 1 + stringR0[i] );
-                sb.append(",");
-                sb.append( 1 + stringC0[i] );
-                sb.append(") and (");
-                sb.append( 1 + stringR1[j] );
-                sb.append(",");
-                sb.append( 1 + stringC1[j] );
-                sb.append(") or the cells (");
-                sb.append( 1 + stringR0[j] );
-                sb.append(",");
-                sb.append( 1 + stringC0[j] );
-                sb.append(") and (");
-                sb.append( 1 + stringR1[i] );
-                sb.append(",");
-                sb.append( 1 + stringC1[i] );
-                sb.append("). [");
-                if( stringLength[j] == 1 ){
-                    sb.append("X-Wing ");
-                } else {
-                    sb.append( stringLength[j] );
-                    sb.append("-leg Swordfish ");
-                }
-                appendSwordfish( sb , i );
-                sb.append(" & ");
-                appendSwordfish( sb , j );
-                sb.append("]\n");                            
-            }
-            return true ;
-        }
-        return false ;
-    }
-
     /**
-     * Appends a description of the given swordfish leg to the given string buffer.
+     * Tests for forced chains.
      */
 
-    void appendSwordfish( StringBuffer sb , int s ){
-        int l = stringRoute[s][0] ;
-        sb.append('(');
-        sb.append( 1 + ( isStringAscending[s][0] ? stringR0[l] : stringR1[l] ) );
-        sb.append(',');
-        sb.append( 1 + ( isStringAscending[s][0] ? stringC0[l] : stringC1[l] ) );
-        sb.append(')');
+    int forcedChains( int i , int j , StringBuffer sb , int nChains ){
+/*        
+        if( chainV0[i] != chainV0[j] || chainV1[i] != chainV1[j] ){
+            return NO_ACTION ;
+        }
+*/        
+        boolean contains , contradiction , regardless ;
+        int r0 , c0 , v0 , n0 , r1 , c1 , v1 , n1 , mappedBoolean ;
+        int otherEnd0True , otherEnd0False , otherEnd1True , otherEnd1False ;
+        CellState cellState = (CellState) lcc.state ;
+        
+        // Map the logic table for chain i onto chain j.
+        
+        n0 = grid.cellsInRow - cellState.nEliminated[chainR0[i]][chainC0[i]];
+        n1 = grid.cellsInRow - cellState.nEliminated[chainR1[i]][chainC1[i]];
+        
+        if( ( mappedBoolean = mapBoolean( TRUE , chainV0[i] , chainV0[j] , n0 ) ) != DONT_KNOW ){
+            otherEnd0True = sumBooleans( mapBoolean( chainOtherEnd0[i][mappedBoolean] , chainV1[i] , chainV1[j] , n1 ) , chainOtherEnd0[j][TRUE] );
+        } else {
+            otherEnd0True = chainOtherEnd0[j][TRUE] ;            
+        }
+        if( ( mappedBoolean = mapBoolean( FALSE , chainV0[i] , chainV0[j] , n0 ) ) != DONT_KNOW ){
+            otherEnd0False = sumBooleans( mapBoolean( chainOtherEnd0[i][mappedBoolean] , chainV1[i] , chainV1[j] , n1 ) , chainOtherEnd0[j][FALSE] );
+        } else {
+            otherEnd0False = chainOtherEnd0[j][FALSE] ;            
+        }
+        if( ( mappedBoolean = mapBoolean( TRUE , chainV1[i] , chainV1[j] , n1 ) ) != DONT_KNOW ){
+            otherEnd1True = sumBooleans( mapBoolean( chainOtherEnd1[i][mappedBoolean] , chainV0[i] , chainV0[j] , n0 ) , chainOtherEnd1[j][TRUE] );
+        } else {
+            otherEnd1True = chainOtherEnd1[j][TRUE] ;            
+        }
+        if( ( mappedBoolean = mapBoolean( FALSE , chainV1[i] , chainV1[j] , n1 ) ) != DONT_KNOW ){
+            otherEnd1False = sumBooleans( mapBoolean( chainOtherEnd1[i][mappedBoolean] , chainV0[i] , chainV0[j] , n0 ) , chainOtherEnd1[j][FALSE] );
+        } else {
+            otherEnd1False = chainOtherEnd1[j][FALSE] ;            
+        }
+
+        // Check whether any new infomation has been made available.
+        if( otherEnd0True == chainOtherEnd0[j][TRUE] && 
+            otherEnd0False == chainOtherEnd0[j][FALSE] &&
+            otherEnd1True == chainOtherEnd1[j][TRUE] &&
+            otherEnd1False == chainOtherEnd1[j][FALSE] ){
+            return NO_ACTION ;
+        }
+
+        // Process the new information.
+        if( otherEnd0True == CONTRADICTION ){
+            contradiction = true ;
+            contains = true ;
+            r0 = chainR0[j];
+            c0 = chainC0[j];
+            v0 = chainV0[j];
+            r1 = chainR1[j];
+            c1 = chainC1[j];
+            v1 = chainV1[j];
+        } else if( otherEnd0False == CONTRADICTION ) {
+            contradiction = true ;
+            contains = false ;
+            r0 = chainR0[j];
+            c0 = chainC0[j];
+            v0 = chainV0[j];
+            r1 = chainR1[j];
+            c1 = chainC1[j];
+            v1 = chainV1[j];
+        } else if( otherEnd1True == CONTRADICTION ) {
+            contradiction = true ;
+            contains = true ;
+            r0 = chainR1[j];
+            c0 = chainC1[j];
+            v0 = chainV1[j];
+            r1 = chainR0[j];
+            c1 = chainC0[j];
+            v1 = chainV0[j];
+        } else if( otherEnd1False == CONTRADICTION ){
+            contradiction = true ;
+            contains = false ;
+            r0 = chainR1[j];
+            c0 = chainC1[j];
+            v0 = chainV1[j];
+            r1 = chainR0[j];
+            c1 = chainC0[j];
+            v1 = chainV0[j];
+        } else {
+            contradiction = false ;
+            contains = false ;
+            r0 = c0 = v0 = r1 = c1 = v1 = 0 ;
+        }
+        if( contradiction ){        
+            if( explain ){
+                sb.append("Consider the chains ");
+                appendChain( sb , j );
+                sb.append(" and ");
+                appendChain( sb , i );
+                sb.append(".\nWhen the cell (");
+                sb.append( 1 + r0 );
+                sb.append(",");
+                sb.append( 1 + c0 );
+                sb.append(") ");
+                if( contains ){
+                    sb.append("contains");
+                } else {
+                    sb.append("doesn't contain");
+                }
+                sb.append(" the value ");
+                sb.append( SuDokuUtils.toString( 1 + v0 ) );
+                sb.append(", one chain states that the cell (");
+                sb.append( 1 + r1 );
+                sb.append(",");
+                sb.append( 1 + c1 );
+                sb.append(") contains the value ");
+                sb.append( SuDokuUtils.toString( 1 + v1 ) );
+                sb.append(" while the other says it doesn't - a situation that is clearly illegal.\nTherefore, the cell (");
+                sb.append( 1 + r0 );
+                sb.append(",");
+                sb.append( 1 + c0 );
+                sb.append(") ");
+                if( contains ){
+                    sb.append("cannot");
+                } else {
+                    sb.append("must");
+                }
+                sb.append(" contain the value ");
+                sb.append( SuDokuUtils.toString( 1 + v0 ) );
+                sb.append(".\n");
+            }
+            if( contains ){
+                eliminateMove( r0 , c0 , v0 );
+                ++ chainsEliminations ;
+            } else {
+                chainsEliminations += addMove( r0 , c0 , v0 );
+            }
+            return ELIMINATE ;            
+        }                
+        if( otherEnd0True != DONT_KNOW && otherEnd0True == otherEnd0False ){
+            r0 = chainR0[j];
+            c0 = chainC0[j];
+            v0 = chainV0[j];
+            r1 = chainR1[j];
+            c1 = chainC1[j];
+            v1 = chainV1[j];
+            contains = otherEnd0True == TRUE ;
+            regardless = true ;
+        } else if( otherEnd1True != DONT_KNOW && otherEnd1True == otherEnd1False ) {
+            r0 = chainR1[j];
+            c0 = chainC1[j];
+            v0 = chainV1[j];
+            r1 = chainR0[j];
+            c1 = chainC0[j];
+            v1 = chainV0[j];
+            contains = otherEnd1True == TRUE ;
+            regardless = true ;
+        } else {
+            regardless = false ;
+        }
+        if( regardless ){
+            if( explain ){
+                sb.append("Consider the chains ");
+                appendChain( sb , j );
+                sb.append(" and ");
+                appendChain( sb , i );
+                sb.append(".\nRegardless of whether the cell (");
+                sb.append( 1 + r0 );
+                sb.append(",");
+                sb.append( 1 + c0 );
+                sb.append(") contains the value ");
+                sb.append( SuDokuUtils.toString( 1 + v0 ) );
+                sb.append(", the cell (");
+                sb.append( 1 + r1 );
+                sb.append(",");
+                sb.append( 1 + c1 );
+                sb.append(") ");
+                if( contains ){
+                    sb.append("contains ");
+                } else {
+                    sb.append("doesn't contain ");
+                }
+                sb.append("the value ");
+                sb.append( SuDokuUtils.toString( 1 + v1 ) );
+                sb.append(".\n");
+                    
+            }        
+            if( contains ){
+                chainsEliminations += addMove( r1 , c1 , v1 );
+            } else {
+                eliminateMove( r1 , c1 , v1 );
+                ++ chainsEliminations ;
+            }
+            return ELIMINATE ;
+        }
+        // When the logic table for the combined chain is superior to that for
+        // the constituent chains, store a new chain.
+        if( ( otherEnd0True != chainOtherEnd0[i][TRUE] || otherEnd0False != chainOtherEnd0[i][FALSE] ||
+              otherEnd1True != chainOtherEnd1[i][TRUE] || otherEnd1False != chainOtherEnd1[i][FALSE] ) &&
+            ( otherEnd0True != chainOtherEnd0[j][TRUE] || otherEnd0False != chainOtherEnd0[j][FALSE] ||
+              otherEnd1True != chainOtherEnd1[j][TRUE] || otherEnd1False != chainOtherEnd1[j][FALSE] ) ){
+
+            chainR0[nChains] = chainR0[i];
+            chainC0[nChains] = chainC0[i];
+            chainV0[nChains] = chainV0[i];
+            chainOtherEnd0[nChains][TRUE] = (byte) otherEnd0True;   
+            chainOtherEnd0[nChains][FALSE] = (byte) otherEnd0False;   
+            chainR1[nChains] = chainR1[i];
+            chainC1[nChains] = chainC1[i];
+            chainV1[nChains] = chainV1[i];
+            chainOtherEnd1[nChains][TRUE] = (byte) otherEnd1True;   
+            chainOtherEnd1[nChains][FALSE] = (byte) otherEnd1False;   
+            chainLength[nChains] = chainLength[i];
+            // Record the route.
+            if( explain && chainLength[nChains] <= maxChainLength ){
+                chainNComponents[nChains] = (byte)( chainNComponents[i] + chainNComponents[j] );
+                int k = 0 ;
+                while( k < chainNComponents[i] ){
+                    chainComponents[nChains][k] = chainComponents[i][k];
+                    ++ k ;
+                }
+                while( k < chainNComponents[nChains] ){
+                    chainComponents[nChains][k] = chainComponents[j][k-chainNComponents[i]];
+                    ++ k ;
+                }
+            }
+
+            return ADD_CHAIN ;                 
+        }
+                      
+        return NO_ACTION ;
+    }
+    
+    /**
+     * Tests for a cyclic chain at position s.
+     */
+
+    boolean cyclicChain( int s , StringBuffer sb ){   
+        boolean anyValueEliminated = false ;
+        if( chainOtherEnd0[s][TRUE]  == TRUE ||
+            chainOtherEnd0[s][FALSE] == TRUE ||
+            chainOtherEnd1[s][TRUE]  == TRUE ||
+            chainOtherEnd1[s][FALSE] == TRUE ){
+            if( explain ){
+                sb.append("Consider the chain ");
+                appendChain( sb , s );
+                sb.append(".\n");
+            }
+            if( chainOtherEnd0[s][TRUE] == TRUE ){
+                anyValueEliminated |= cyclicElimination1( sb , chainR0[s] , chainC0[s] , chainV0[s] , chainR1[s] , chainC1[s] , chainV1[s] );
+            }
+            if( chainOtherEnd1[s][TRUE] == TRUE ){
+                anyValueEliminated |= cyclicElimination1( sb , chainR1[s] , chainC1[s] , chainV1[s] , chainR0[s] , chainC0[s] , chainV0[s] );
+            }                
+            if( chainOtherEnd0[s][FALSE] == TRUE ){
+                anyValueEliminated |= cyclicElimination2( sb , chainR0[s] , chainC0[s] , chainV0[s] , chainR1[s] , chainC1[s] , chainV1[s] );
+            } else if( chainOtherEnd1[s][FALSE] == TRUE ){
+                anyValueEliminated |= cyclicElimination2( sb , chainR1[s] , chainC1[s] , chainV1[s] , chainR0[s] , chainC0[s] , chainV0[s] );
+            }                
+        }
+        return anyValueEliminated ;
+    }
+    
+    boolean cyclicElimination1( StringBuffer sb , int r0 , int c0 , int v0 , int r1 , int c1 , int v1 ){
+        if( explain ){
+            sb.append("When the cell (");
+            sb.append( 1 + r0 );
+            sb.append(",");
+            sb.append( 1 + c0 );
+            sb.append(") contains the value ");
+            sb.append( SuDokuUtils.toString( 1 + v0 ) );
+            sb.append(", ");
+            if( v0 == v1 ){
+                sb.append("so does the cell (");
+                sb.append( 1 + r1 );
+                sb.append(",");
+                sb.append( 1 + c1 );
+                sb.append(")");
+            } else {
+                sb.append("it likewise contains the value ");
+                sb.append( SuDokuUtils.toString( 1 + v1 ) );
+            }
+            sb.append(" - a situation that is clearly illegal.\nTherefore, the cell (");
+            sb.append( 1 + r0 );
+            sb.append(",");
+            sb.append( 1 + c0 );
+            sb.append(") cannot contain the value ");
+            sb.append( SuDokuUtils.toString( 1 + v0 ) );
+            sb.append(".\n");
+        }
+        eliminateMove( r0 , c0 , v0 );
+        ++ chainsEliminations ;
+        return true ;    
+    }
+    
+    boolean cyclicElimination2( StringBuffer sb , int r0 , int c0 , int v0 , int r1 , int c1 , int v1 ){
+        int i ;
+        if( explain ){
+            sb.append("The cell (");
+            sb.append( 1 + r1 );
+            sb.append(",");
+            sb.append( 1 + c1 );
+            sb.append(") must contain the value ");
+            sb.append( SuDokuUtils.toString( 1 + v1 ) );
+            sb.append(" if ");
+            if( v0 == v1 ){
+                sb.append("the cell (");
+                sb.append( 1 + r0 );
+                sb.append(",");
+                sb.append( 1 + c0 );
+                sb.append(") doesn't.\n");
+            } else {
+                sb.append("it doesn't contain the value ");
+                sb.append( SuDokuUtils.toString( 1 + v0 ) );
+                sb.append(".\n");
+            }
+            sb.append("Therefore, these two ");
+            if( v0 == v1 ){
+                sb.append("cells");
+            } else {
+                sb.append("values");
+            }
+            sb.append(" are the only candidates for ");
+            if( v0 == v1 ){
+                sb.append("the value ");
+                sb.append( SuDokuUtils.toString( 1 + v1 ) );
+                sb.append(" in ");                        
+                if( r0 == r1 ){
+                    sb.append("Row ");
+                    sb.append( 1 + r0 );
+                } else if( c0 == c1 ) {
+                    sb.append("Column ");
+                    sb.append( 1 + c0 );
+                } else {
+                    sb.append("Box [");
+                    sb.append( 1 + r0 / grid.boxesAcross );
+                    sb.append(",");
+                    sb.append( 1 + c0 / grid.boxesDown );
+                    sb.append("]");
+                }
+            } else {
+                sb.append("the cell (");
+                sb.append( 1 + r0 );
+                sb.append(",");
+                sb.append( 1 + c0 );
+                sb.append(")");
+            }
+            sb.append(".\n");
+        }                
+        // Eliminate.
+        if( v0 == v1 ){
+            NumberState numberState = (NumberState) lcn.state ;
+            if( r0 == r1 ){
+                i = 0 ;
+                while( i < grid.cellsInRow ){
+                    if( ! numberState.eliminated[v0][r0][i] && i != c0 && i != c1 ){
+                        eliminateMove( r0 , i , v0 );
+                        ++ chainsEliminations ;
+                    }
+                    ++ i ;
+                }
+            } else if( c0 == c1 ) {
+                i = 0 ;
+                while( i < grid.cellsInRow ){
+                    if( ! numberState.eliminated[v0][grid.cellsInRow+c0][i] && i != r0 && i != r1 ){
+                        eliminateMove( i , c0 , v0 );
+                        ++ chainsEliminations ;
+                    }
+                    ++ i ;
+                }
+            } else {
+                int x , y ;
+                final int b = r0 / grid.boxesAcross * grid.boxesAcross + c0 / grid.boxesDown ;
+                i = 0 ;
+                while( i < grid.cellsInRow ){
+                    x = b / grid.boxesAcross * grid.boxesAcross + i / grid.boxesDown ;
+                    y = b % grid.boxesAcross * grid.boxesDown + i % grid.boxesDown ;                                    
+                    if( ! numberState.eliminated[v0][2*grid.cellsInRow+b][i] && !( x == r0 && y == c0 || x == r1 && y == c1 ) ){
+                        eliminateMove( x , y , v0 );
+                        ++ chainsEliminations ;
+                    }
+                    ++ i ;
+                }
+            }
+        } else {
+            CellState cellState = (CellState) lcc.state ;
+            i = 0 ;
+            while( i < grid.cellsInRow ){
+                if( ! cellState.eliminated[r0][c0][i] && i != v0 && i != v1 ){
+                    eliminateMove( r0 , c0 , i );
+                    ++ chainsEliminations ;
+                }
+                ++ i ;
+            }
+        }
+        return true ;
+    }
+    
+    /**
+     * Connects string pairs.
+     */
+
+    int connect( int i , int j , int type , int nChains ){
+        int r0 = 0 , c0 = 0 , v0 = 0 , r1 = 0 , c1 = 0 , v1 = 0 , k , kOffset ;
+        boolean isIReversed = false , 
+                isJReversed = false , 
+                isOrderReversed ;
+        int otherEnd0True = 0 ,
+            otherEnd0False = 0 ,
+            otherEnd1True = 0 ,
+            otherEnd1False = 0 ;
+        switch( type % 4 ){
+            case LEFT_LEFT :
+            r0 = chainR1[i];
+            c0 = chainC1[i];
+            v0 = chainV1[i];
+            r1 = chainR1[j];
+            c1 = chainC1[j];
+            v1 = chainV1[j];
+            if( type / 4 == STRONG ){
+                if( chainV0[i] == chainV0[j] ){
+                    otherEnd0True  = chainOtherEnd1[i][TRUE] != DONT_KNOW ? chainOtherEnd0[j][chainOtherEnd1[i][TRUE]] : DONT_KNOW ;
+                    otherEnd0False = chainOtherEnd1[i][FALSE] != DONT_KNOW ? chainOtherEnd0[j][chainOtherEnd1[i][FALSE]] : DONT_KNOW ;
+                    otherEnd1True  = chainOtherEnd1[j][TRUE] != DONT_KNOW ? chainOtherEnd0[i][chainOtherEnd1[j][TRUE]] : DONT_KNOW ;
+                    otherEnd1False = chainOtherEnd1[j][FALSE] != DONT_KNOW ? chainOtherEnd0[i][chainOtherEnd1[j][FALSE]] : DONT_KNOW ;
+                } else {
+                    otherEnd0True  = chainOtherEnd1[i][TRUE] != DONT_KNOW ? chainOtherEnd0[j][1-chainOtherEnd1[i][TRUE]] : DONT_KNOW ;
+                    otherEnd0False = chainOtherEnd1[i][FALSE] != DONT_KNOW ? chainOtherEnd0[j][1-chainOtherEnd1[i][FALSE]] : DONT_KNOW ;
+                    otherEnd1True  = chainOtherEnd1[j][TRUE] != DONT_KNOW ? chainOtherEnd0[i][1-chainOtherEnd1[j][TRUE]] : DONT_KNOW ;
+                    otherEnd1False = chainOtherEnd1[j][FALSE] != DONT_KNOW ? chainOtherEnd0[i][1-chainOtherEnd1[j][FALSE]] : DONT_KNOW ;                            
+                }
+            } else {
+                otherEnd0True  = chainOtherEnd1[i][TRUE] == TRUE ? chainOtherEnd0[j][FALSE] : DONT_KNOW ;
+                otherEnd0False = chainOtherEnd1[i][FALSE] == TRUE ? chainOtherEnd0[j][FALSE] : DONT_KNOW ;
+                otherEnd1True  = chainOtherEnd1[j][TRUE] == TRUE ? chainOtherEnd0[i][FALSE] : DONT_KNOW ;
+                otherEnd1False = chainOtherEnd1[j][FALSE] == TRUE ? chainOtherEnd0[i][FALSE] : DONT_KNOW ;
+            }
+            isIReversed = true ;
+            isJReversed = false ;
+            break ;
+        case RIGHT_RIGHT :
+            r0 = chainR0[i];
+            c0 = chainC0[i];
+            v0 = chainV0[i];
+            r1 = chainR0[j];
+            c1 = chainC0[j];
+            v1 = chainV0[j];
+            if( type / 4 == STRONG ){
+                if( chainV1[i] == chainV1[j] ){
+                    otherEnd0True  = chainOtherEnd0[i][TRUE] != DONT_KNOW ? chainOtherEnd1[j][chainOtherEnd0[i][TRUE]] : DONT_KNOW ;
+                    otherEnd0False = chainOtherEnd0[i][FALSE] != DONT_KNOW ? chainOtherEnd1[j][chainOtherEnd0[i][FALSE]] : DONT_KNOW ;
+                    otherEnd1True  = chainOtherEnd0[j][TRUE] != DONT_KNOW ? chainOtherEnd1[i][chainOtherEnd0[j][TRUE]] : DONT_KNOW ;
+                    otherEnd1False = chainOtherEnd0[j][FALSE] != DONT_KNOW ? chainOtherEnd1[i][chainOtherEnd0[j][FALSE]] : DONT_KNOW ;
+                } else {
+                    otherEnd0True  = chainOtherEnd0[i][TRUE] != DONT_KNOW ? chainOtherEnd1[j][1-chainOtherEnd0[i][TRUE]] : DONT_KNOW ;
+                    otherEnd0False = chainOtherEnd0[i][FALSE] != DONT_KNOW ? chainOtherEnd1[j][1-chainOtherEnd0[i][FALSE]] : DONT_KNOW ;
+                    otherEnd1True  = chainOtherEnd0[j][TRUE] != DONT_KNOW ? chainOtherEnd1[i][1-chainOtherEnd0[j][TRUE]] : DONT_KNOW ;
+                    otherEnd1False = chainOtherEnd0[j][FALSE] != DONT_KNOW ? chainOtherEnd1[i][1-chainOtherEnd0[j][FALSE]] : DONT_KNOW ;
+                }
+            } else {
+                otherEnd0True  = chainOtherEnd0[i][TRUE] == TRUE ? chainOtherEnd1[j][FALSE] : DONT_KNOW ;
+                otherEnd0False = chainOtherEnd0[i][FALSE] == TRUE ? chainOtherEnd1[j][FALSE] : DONT_KNOW ;
+                otherEnd1True  = chainOtherEnd0[j][TRUE] == TRUE ? chainOtherEnd1[i][FALSE] : DONT_KNOW ;
+                otherEnd1False = chainOtherEnd0[j][FALSE] == TRUE ? chainOtherEnd1[i][FALSE] : DONT_KNOW ;
+            }
+            isIReversed = false ;
+            isJReversed = true ;
+            break ;
+        case LEFT_RIGHT :
+            r0 = chainR1[i];
+            c0 = chainC1[i];
+            v0 = chainV1[i];
+            r1 = chainR0[j];
+            c1 = chainC0[j];
+            v1 = chainV0[j];
+            if( type / 4 == STRONG ){
+                if( chainV0[i] == chainV1[j] ){
+                    otherEnd0True  = chainOtherEnd1[i][TRUE] != DONT_KNOW ? chainOtherEnd1[j][chainOtherEnd1[i][TRUE]] : DONT_KNOW ;
+                    otherEnd0False = chainOtherEnd1[i][FALSE] != DONT_KNOW ? chainOtherEnd1[j][chainOtherEnd1[i][FALSE]] : DONT_KNOW ;
+                    otherEnd1True  = chainOtherEnd0[j][TRUE] != DONT_KNOW ? chainOtherEnd0[i][chainOtherEnd0[j][TRUE]] : DONT_KNOW ;
+                    otherEnd1False = chainOtherEnd0[j][FALSE] != DONT_KNOW ? chainOtherEnd0[i][chainOtherEnd0[j][FALSE]] : DONT_KNOW ;
+                } else {
+                    otherEnd0True  = chainOtherEnd1[i][TRUE] != DONT_KNOW ? chainOtherEnd1[j][1-chainOtherEnd1[i][TRUE]] : DONT_KNOW ;
+                    otherEnd0False = chainOtherEnd1[i][FALSE] != DONT_KNOW ? chainOtherEnd1[j][1-chainOtherEnd1[i][FALSE]] : DONT_KNOW ;
+                    otherEnd1True  = chainOtherEnd0[j][TRUE] != DONT_KNOW ? chainOtherEnd0[i][1-chainOtherEnd0[j][TRUE]] : DONT_KNOW ;
+                    otherEnd1False = chainOtherEnd0[j][FALSE] != DONT_KNOW ? chainOtherEnd0[i][1-chainOtherEnd0[j][FALSE]] : DONT_KNOW ;
+                }
+            } else {
+                otherEnd0True  = chainOtherEnd1[i][TRUE] == TRUE ? chainOtherEnd1[j][FALSE] : DONT_KNOW ;
+                otherEnd0False = chainOtherEnd1[i][FALSE] == TRUE ? chainOtherEnd1[j][FALSE] : DONT_KNOW ;
+                otherEnd1True  = chainOtherEnd0[j][TRUE] == TRUE ? chainOtherEnd0[i][FALSE] : DONT_KNOW ;
+                otherEnd1False = chainOtherEnd0[j][FALSE] == TRUE ? chainOtherEnd0[i][FALSE] : DONT_KNOW ;
+            }
+            isIReversed = true ;
+            isJReversed = true ;
+            break ;
+        case RIGHT_LEFT :
+            r0 = chainR0[i];
+            c0 = chainC0[i];
+            v0 = chainV0[i];
+            r1 = chainR1[j];
+            c1 = chainC1[j]; 
+            v1 = chainV1[j];
+            if( type / 4 == STRONG ){
+                if( chainV1[i] == chainV0[j] ){
+                    otherEnd0True  = chainOtherEnd0[i][TRUE] != DONT_KNOW ? chainOtherEnd0[j][chainOtherEnd0[i][TRUE]] : DONT_KNOW ;
+                    otherEnd0False = chainOtherEnd0[i][FALSE] != DONT_KNOW ? chainOtherEnd0[j][chainOtherEnd0[i][FALSE]] : DONT_KNOW ;
+                    otherEnd1True  = chainOtherEnd1[j][TRUE] != DONT_KNOW ? chainOtherEnd1[i][chainOtherEnd1[j][TRUE]] : DONT_KNOW ;
+                    otherEnd1False = chainOtherEnd1[j][FALSE] != DONT_KNOW ? chainOtherEnd1[i][chainOtherEnd1[j][FALSE]] : DONT_KNOW ;
+                } else {
+                    otherEnd0True  = chainOtherEnd0[i][TRUE] != DONT_KNOW ? chainOtherEnd0[j][1-chainOtherEnd0[i][TRUE]] : DONT_KNOW ;
+                    otherEnd0False = chainOtherEnd0[i][FALSE] != DONT_KNOW ? chainOtherEnd0[j][1-chainOtherEnd0[i][FALSE]] : DONT_KNOW ;
+                    otherEnd1True  = chainOtherEnd1[j][TRUE] != DONT_KNOW ? chainOtherEnd1[i][1-chainOtherEnd1[j][TRUE]] : DONT_KNOW ;
+                    otherEnd1False = chainOtherEnd1[j][FALSE] != DONT_KNOW ? chainOtherEnd1[i][1-chainOtherEnd1[j][FALSE]] : DONT_KNOW ;
+                }
+            } else {
+                otherEnd0True  = chainOtherEnd0[i][TRUE] == TRUE ? chainOtherEnd0[j][FALSE] : DONT_KNOW ;
+                otherEnd0False = chainOtherEnd0[i][FALSE] == TRUE ? chainOtherEnd0[j][FALSE] : DONT_KNOW ;
+                otherEnd1True  = chainOtherEnd1[j][TRUE] == TRUE ? chainOtherEnd1[i][FALSE] : DONT_KNOW ;
+                otherEnd1False = chainOtherEnd1[j][FALSE] == TRUE ? chainOtherEnd1[i][FALSE] : DONT_KNOW ;
+            }
+            isIReversed = false ;
+            isJReversed = false ;
+            break ;
+        }
+        // Check that some information is retained.
+        if( otherEnd0True == DONT_KNOW &&
+            otherEnd0False == DONT_KNOW &&
+            otherEnd1True == DONT_KNOW &&
+            otherEnd1False == DONT_KNOW ){
+                return nChains ;
+        }
+        // Check whether the chain direction should be reversed.
+        if( r0 > r1 || r0 == r1 && c0 > c1 ){
+            isOrderReversed = true ;
+            isIReversed = ! isIReversed ;
+            isJReversed = ! isJReversed ;
+            int tmp ;
+            tmp = r0 ; r0 = r1 ; r1 = tmp ;
+            tmp = c0 ; c0 = c1 ; c1 = tmp ;
+            tmp = v0 ; v0 = v1 ; v1 = tmp ;
+            tmp = otherEnd0True ; otherEnd0True = otherEnd1True ; otherEnd1True = tmp ;
+            tmp = otherEnd0False ; otherEnd0False = otherEnd1False ; otherEnd1False = tmp ;            
+        } else {
+            isOrderReversed = false ;
+        }
+        // Check for cyclic dependencies.
+        k = 0 ;
+        while( k < nChains ){
+            if( r0 == chainR0[k] && c0 == chainC0[k] && v0 == chainV0[k] && 
+                otherEnd0True == chainOtherEnd0[k][TRUE] && otherEnd0False == chainOtherEnd0[k][FALSE] &&
+                r1 == chainR1[k] && c1 == chainC1[k] && v1 == chainV1[k] && 
+                otherEnd1True == chainOtherEnd1[k][TRUE] && otherEnd1False == chainOtherEnd1[k][FALSE] ){
+                    return nChains ;
+            }
+            ++ k ;
+        }
+        // Record the endpoint details. (isLinkStrong is only meaningful for unit links so isn't recorded here).
+        chainR0[nChains] = (byte) r0 ;
+        chainC0[nChains] = (byte) c0 ;
+        chainV0[nChains] = (byte) v0 ;
+        chainOtherEnd0[nChains][TRUE] = (byte) otherEnd0True;   
+        chainOtherEnd0[nChains][FALSE] = (byte) otherEnd0False;   
+        chainR1[nChains] = (byte) r1 ;
+        chainC1[nChains] = (byte) c1 ;
+        chainV1[nChains] = (byte) v1 ;
+        chainOtherEnd1[nChains][TRUE] = (byte) otherEnd1True;   
+        chainOtherEnd1[nChains][FALSE] = (byte) otherEnd1False;   
+        chainLength[nChains] = (byte)( chainLength[i] + chainLength[j] );       
+        // Record the route, if necessary
+        if( explain && chainLength[nChains] <= maxChainLength ){
+            chainNComponents[nChains] = 1 ;
+            chainComponents[nChains][0] = nChains ;
+            // Write 'i' string.
+            kOffset = isOrderReversed ? chainLength[j] : 0 ;
+            k = 0 ;
+            while( k < chainLength[i] ){
+                if( isIReversed ){
+                    chainRoute[nChains][k+kOffset] = chainRoute[i][chainLength[i]-1-k];
+                    isLinkAscending[nChains][k+kOffset] = ! isLinkAscending[i][chainLength[i]-1-k];
+                } else {
+                    chainRoute[nChains][k+kOffset] = chainRoute[i][k];
+                    isLinkAscending[nChains][k+kOffset] = isLinkAscending[i][k];
+                }
+                ++ k ;
+            }
+            // Write 'j' string.
+            kOffset = isOrderReversed ? 0 : chainLength[i] ;
+            k = 0 ;
+            while( k < chainLength[j] ){
+                if( isJReversed ){
+                    chainRoute[nChains][k+kOffset] = chainRoute[j][chainLength[j]-1-k];
+                    isLinkAscending[nChains][k+kOffset] = ! isLinkAscending[j][chainLength[j]-1-k];
+                } else {
+                    chainRoute[nChains][k+kOffset] = chainRoute[j][k];
+                    isLinkAscending[nChains][k+kOffset] = isLinkAscending[j][k];
+                }
+                ++ k ;
+            }
+        }
+        return ++ nChains ;
+    }
+    
+    /**
+     * Appends a description of the given string to the given string buffer.
+     */
+
+    void appendChain( StringBuffer sb , int s ){
+        appendChain( sb , s , false );
+    }
+    
+    void appendChain( StringBuffer sb , int s , boolean displayBooleans ){
+        if( chainNComponents[s] > 1 ){
+            appendComponentChain( sb , chainComponents[s][0] );
+            int i = 1 ;
+            while( i < chainNComponents[s] ){
+                sb.append(" X ");
+                appendComponentChain( sb , chainComponents[s][i] );
+                ++ i ;
+            }
+        } else {   
+            appendComponentChain( sb , s );
+        }
+        if( displayBooleans ){
+            sb.append("\nT: ");
+            sb.append( booleanChar( chainOtherEnd0[s][TRUE] ));
+            sb.append(" ");
+            sb.append( booleanChar( chainOtherEnd1[s][TRUE] ));
+            sb.append("\n");
+            sb.append("F: ");
+            sb.append( booleanChar( chainOtherEnd0[s][FALSE] ));
+            sb.append(" ");
+            sb.append( booleanChar( chainOtherEnd1[s][FALSE] ));
+        }
+    }
+    
+    void appendComponentChain( StringBuffer sb , int s ){
+        if( chainLength[s] > maxChainLength ){
+            sb.append("Chain length exceeds ");
+            sb.append( maxChainLength );
+            return ;
+        }
+        int l = chainRoute[s][0] ;
+        sb.append("(");
+        sb.append( 1 + ( isLinkAscending[s][0] ? chainR0[l] : chainR1[l] ) );
+        sb.append(",");
+        sb.append( 1 + ( isLinkAscending[s][0] ? chainC0[l] : chainC1[l] ) );
+        sb.append(")");
         int i = 0 ;
-        while( i < stringLength[s] ){
-            l = stringRoute[s][i];
-            sb.append("-(");
-            sb.append( 1 + ( isStringAscending[s][i] ? stringR1[l] : stringR0[l] ) );
-            sb.append(',');
-            sb.append( 1 + ( isStringAscending[s][i] ? stringC1[l] : stringC0[l] ) );
-            sb.append(')');
+        while( i < chainLength[s] ){
+            l = chainRoute[s][i] ;
+            sb.append( isLinkStrong[l] ? "-" : "~" );
+            sb.append( isLinkAscending[s][i] ? SuDokuUtils.toString( 1 + chainV1[l] ) : SuDokuUtils.toString( 1 + chainV0[l] ) );
+            sb.append( isLinkStrong[l] ? "-" : "~" );
+            sb.append("(");
+            sb.append( 1 + ( isLinkAscending[s][i] ? chainR1[l] : chainR0[l] ) );
+            sb.append(",");
+            sb.append( 1 + ( isLinkAscending[s][i] ? chainC1[l] : chainC0[l] ) );
+            sb.append(")");
             ++ i ;
         }
     }
-                
+    
+    String booleanChar( int bool ){
+        switch( bool ){
+            case TRUE:
+                return "T";
+            case FALSE:
+                return "F";
+            case DONT_KNOW:
+                return "?";
+            case CONTRADICTION:
+                return "X";
+            default:
+                return "!";            
+        }
+    }
+    
+    /**
+     * Combines the information stored in two Boolean variables.
+     */
+    
+    int sumBooleans( int bool1 , int bool2 ){
+        if( bool1 == DONT_KNOW ){
+            return bool2 ;
+        } else if( bool2 == DONT_KNOW || bool1 == bool2 ) {
+            return bool1 ;
+        } else {
+            return CONTRADICTION ;
+        }
+    }
+
+    /**
+     * Maps a boolean variable from one chain to the other.
+     */
+
+    int mapBoolean( int bool , int vi , int vj , int n ){
+        if( vi == vj ){
+            return bool ;   
+        } else if( bool == TRUE ){
+            return FALSE ;   
+        } else if( bool == FALSE && n == 2 ){
+            return TRUE ;
+        } else {
+            return DONT_KNOW ;
+        }
+    }
+    
     /**
      * Searches for moves that would make it impossible to place the remaining values.
      * @param sb explanation
@@ -1413,11 +2062,11 @@ public class LeastCandidatesHybrid extends StrategyBase implements IStrategy {
         if( checkInvulnerable ){
             invulnerableState.addMove( x , y , value - 1 );
             linearSystemState.addMove( x , y , value - 1 );
+            if( explain && nMoves < grid.cellsInRow * grid.cellsInRow ){
+                invulnerableState.pushState( nMoves );
+//                linearSystemState.pushState( nMoves ); 
+            }
         }        
-        if( explain && nMoves < grid.cellsInRow * grid.cellsInRow ){
-            invulnerableState.pushState( nMoves );
-//            linearSystemState.pushState( nMoves ); 
-        }
         // Underlying state variables
 		lcn.updateState( x , y , value , reason , writeState );
         lcc.updateState( x , y , value , reason , writeState );
@@ -1512,8 +2161,9 @@ public class LeastCandidatesHybrid extends StrategyBase implements IStrategy {
         while( i < nMoves ){
             sb.append( ( 1 + i ) + ". (" + ( 1 + xMoves[i] ) + "," + ( 1 + yMoves[i] ) + "):=" + grid.data[xMoves[i]][yMoves[i]] + "\n");
             ++ i ;
-        }        
-        sb.append("\nCell State:\n");
+        }  
+        sb.append("\n");      
+        sb.append("Cell State:\n");
         sb.append( lcn.state.toString() );
         sb.append("Number State:\n");
         sb.append( lcc.state.toString() );

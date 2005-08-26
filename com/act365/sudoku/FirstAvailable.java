@@ -142,10 +142,10 @@ public class FirstAvailable extends StrategyBase implements IStrategy {
     
     /**
      * Removes the current cell coordinates from the thread.
-     * @see com.act365.sudoku.IStrategy#unwind(int,boolean)
+     * @see com.act365.sudoku.IStrategy#unwind(int,boolean,boolean)
      */
     
-	public boolean unwind( int newNMoves , boolean reset ) {
+	public boolean unwind( int newNMoves , boolean reset , boolean eliminate ) {
         if( newNMoves < 0 ){
             return false ;
         } 

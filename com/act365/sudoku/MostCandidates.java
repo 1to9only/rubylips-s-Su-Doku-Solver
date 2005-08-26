@@ -125,16 +125,18 @@ public class MostCandidates extends StrategyBase implements IStrategy {
      * Note that when a puzzle is created, the first value
      * is set without loss of generality. Therefore the thread 
      * is only ever unwound until a single move remains.
-     * @see com.act365.sudoku.IStrategy#unwind(int,boolean)
+     * @see com.act365.sudoku.IStrategy#unwind(int,boolean,boolean)
      */
     
-    public boolean unwind( int newNMoves , boolean reset ) {
+    public boolean unwind( int newNMoves , boolean reset , boolean eliminate ) {
         if( newNMoves < ( mask == null ? 0 : 1 ) ){
             return false ;
         }
         // Unwind thread.
         state.popState( newNMoves );
-        state.eliminateMove( xMoves[newNMoves] , yMoves[newNMoves] , values[newNMoves] );
+        if( eliminate ){
+            state.eliminateMove( xMoves[newNMoves] , yMoves[newNMoves] , values[newNMoves] );
+        }
         if( reset ){
             int i = newNMoves ;
             while( i < nMoves ){
