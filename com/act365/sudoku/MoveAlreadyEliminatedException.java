@@ -37,6 +37,6 @@ public class MoveAlreadyEliminatedException extends MoveException {
      */
 
     public MoveAlreadyEliminatedException( int x , int y , int value ){
-        super("The move (" + ( 1 + x ) + "," + ( 1 + y ) + "):=" + SuDokuUtils.toString( 1 + value ) + " has already been eliminated" , x , y , value );        
+        super("The move (" + ( 1 + x ) + "," + ( 1 + y ) + "):=" + SuDokuUtils.valueToString( value ) + " has already been eliminated" , x , y , value );        
     }
 }

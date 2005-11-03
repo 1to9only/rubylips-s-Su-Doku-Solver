@@ -300,7 +300,7 @@ public class NumberState implements IState {
     
     public String toString() {
         
-        StringBuffer sb = new StringBuffer();
+        StringBuilder sb = new StringBuilder();
         
         String[][] data = new String[cellsInRow][cellsInRow];
         int[] maxLength = new int[cellsInRow];
@@ -308,7 +308,7 @@ public class NumberState implements IState {
         v = 0 ;
         while( v < cellsInRow ){
             sb.append("Value ");
-            sb.append( SuDokuUtils.toString( v + 1 ) );
+            SuDokuUtils.appendValue( sb , v );
             sb.append(":\n\n");
             i = 0 ;
             while( i < cellsInRow ){
@@ -317,7 +317,7 @@ public class NumberState implements IState {
                     if( eliminated[v][i][j] ){
                         data[i][j] = ".";
                     } else if( nEliminated[v][i] == cellsInRow - 1 ){
-                        data[i][j] = SuDokuUtils.toString( v + 1 );
+                        data[i][j] = SuDokuUtils.valueToString( v );
                     } else {
                         data[i][j] = "?";
                     }

@@ -44,7 +44,7 @@ public class Traversal {
      * @param capacity
      */
     
-    public Traversal( int capacity , int maxElims ){
+    public Traversal( int capacity ){
         x = new int[capacity];
         y = new int[capacity];
         z = new int[capacity];
@@ -230,7 +230,7 @@ public class Traversal {
      */
 
     String toString( int start , int end ){
-        StringBuffer sb = new StringBuffer();
+        StringBuilder sb = new StringBuilder();
         int d = end > 0 ? 1 + depth[end-1] : 0 ;
         while( -- end >= start ){
             if( depth[end] >= d ){

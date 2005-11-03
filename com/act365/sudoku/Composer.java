@@ -25,6 +25,8 @@
 
 package com.act365.sudoku;
 
+import com.act365.sudoku.masks.*;
+
 import java.io.* ;
 import java.text.* ;
 import java.util.* ;
@@ -47,15 +49,17 @@ public class Composer extends Thread {
         maxComplexity ,
         nSolvers ,
         composeSolverThreshold ,
-        singleSectorCandidatesFilter ,
+        lockedSectorCandidatesFilter ,
         disjointSubsetsFilter ,
+        twoSectorDisjointSubsetsFilter ,
         singleValuedChainsFilter ,
         manyValuedChainsFilter ,
         nishioFilter ,
         guessFilter ;
     
     boolean logicalFilter ,
-            shuffle ,
+            shuffleGrid ,
+            shuffleMask ,
             xmlFormat ;
     
     MaskFactory maskFactory ;
@@ -73,31 +77,35 @@ public class Composer extends Thread {
     final static String[] featuredGrades = { "Easy" , 
                                              "Medium" ,
                                              "Hard" ,
+                                             "Two-Sector Disjoint Subsets" ,
                                              "Single-Valued Strings" ,
                                              "Many-Valued Strings" ,
                                              "Nishio" ,
                                              "Guess" };
     
-    final static int EASY                  = 0 ,
-                     MEDIUM                = 1 ,
-                     HARD                  = 2 ,
-                     SINGLE_VALUED_CHAINS  = 3 ,
-                     MANY_VALUED_CHAINS    = 4 ,
-                     NISHIO                = 5 ,
-                     GUESS                 = 6 ;
+    final static int EASY                        = 0 ,
+                     MEDIUM                      = 1 ,
+                     HARD                        = 2 ,
+                     TWO_SECTOR_DISJOINT_SUBSETS = 3 ,
+                     SINGLE_VALUED_CHAINS        = 4 ,
+                     MANY_VALUED_CHAINS          = 5 ,
+                     NISHIO                      = 6 ,
+                     GUESS                       = 7 ;
                              
     transient int cellsInRow ,
                   maskSize ,
                   nSolns ,
                   nMasks ,
                   nThreads ,
+                  nUnstartable ,
                   maxPuzzleComplexity ,
                   mostComplex ,
                   tempSolutions ;
     
     transient boolean allSolutionsFound ;
     
-    transient boolean[] isAlive ;
+    transient boolean[] isAlive , 
+                        isStartable;
     
     transient LeastCandidatesHybrid lch ;
     
@@ -133,13 +141,16 @@ public class Composer extends Thread {
                      int composeSolverThreshold ,
                      PrintStream output ,
                      boolean leastCandidatesHybridFilter ,
-                     int singleSectorCandidatesFilter ,
+                     int lockedSectorCandidatesFilter ,
                      int disjointSubsetsFilter ,
+                     int twoSectorDisjointSubsetsFilter ,
                      int singleValuedStringsFilter ,
                      int manyValuedStringsFilter ,
                      int nishioFilter ,
                      int guessFilter ,
-                     boolean shuffle ,
+                     boolean explain ,
+                     boolean shuffleGrid ,
+                     boolean shuffleMask ,
                      boolean xmlFormat ) throws Exception {
         this.gridContainer = gridContainer ;                       
         this.maxSolns = maxSolns ;
@@ -149,14 +160,16 @@ public class Composer extends Thread {
         this.maskFactory = maskFactory ;
         this.nSolvers = nSolvers ;
         this.composeSolverThreshold = composeSolverThreshold ;
-        this.output = output instanceof PrintStream ? new PrintWriter( output ) : null ;
-        this.singleSectorCandidatesFilter = singleSectorCandidatesFilter ;
+        this.output = output != null ? new PrintWriter( output ) : null ;
+        this.lockedSectorCandidatesFilter = lockedSectorCandidatesFilter ;
         this.disjointSubsetsFilter = disjointSubsetsFilter ;
+        this.twoSectorDisjointSubsetsFilter = twoSectorDisjointSubsetsFilter ;
         this.singleValuedChainsFilter = singleValuedStringsFilter ;
         this.manyValuedChainsFilter = manyValuedStringsFilter ;
         this.nishioFilter = nishioFilter ;
         this.guessFilter = guessFilter ;
-        this.shuffle = shuffle ;
+        this.shuffleGrid = shuffleGrid ;
+        this.shuffleMask = shuffleMask ;
         this.xmlFormat = xmlFormat ;
         
         maskSize = maskFactory.getFilledCells();
@@ -164,28 +177,30 @@ public class Composer extends Thread {
         solvers = new Solver[nSolvers];
         composeSolvers = new LeastCandidatesHybrid[nSolvers];
         isAlive = new boolean[nSolvers];
+        isStartable = new boolean[nSolvers];
         solverMasks = new boolean[nSolvers][cellsInRow][cellsInRow];
         solverGrids = new Grid[nSolvers];
         puzzles = new Vector();
-        lch = new LeastCandidatesHybrid( false , true , true , true );
+        lch = new LeastCandidatesHybrid( false , true , false , true , explain );
         logicalFilter = guessFilter == -1 || 
                         guessFilter == 0 && 
-                        ( singleSectorCandidatesFilter != 0 ||
+                        ( lockedSectorCandidatesFilter != 0 ||
                           disjointSubsetsFilter != 0 ||
                           singleValuedStringsFilter != 0 ||
+                          twoSectorDisjointSubsetsFilter != 0 ||
                           manyValuedStringsFilter != 0 ||
                           nishioFilter != 0 );
             
         int i = 0 ;
         while( i < nSolvers ){
-            composeSolvers[i] = new LeastCandidatesHybrid( false , leastCandidatesHybridFilter , false , false );
+            composeSolvers[i] = new LeastCandidatesHybrid( false , leastCandidatesHybridFilter , false , false , false );
             solverGrids[i] = new Grid( boxesAcross , cellsInRow / boxesAcross );
             ++ i ;
         }
         
         startTime = new Date().getTime();
         
-        if( xmlFormat && this.output instanceof PrintWriter ){
+        if( xmlFormat && this.output != null ){
             this.output.print( SuDokuUtils.libraryBookHeader( getClass().getName() , cellsInRow , boxesAcross , featuredGrades ) );
         }
     }
@@ -199,8 +214,9 @@ public class Composer extends Thread {
     
     public synchronized void addSolution( int solverIndex ){
 
-        boolean singleSectorCandidates = false ,
+        boolean lockedSectorCandidates = false ,
                 disjointSubsets = false ,
+                twoSectorDisjointSubsets = false ,
                 singleValuedChains = false ,
                 manyValuedChains = false ,
                 nishio = false ,
@@ -211,7 +227,7 @@ public class Composer extends Thread {
             category = GUESS ;
 
         // We might already have enough puzzles from the other threads.
-        if( nSolns >= maxSolns ){
+        if( maxSolns > 0 && nSolns >= maxSolns ){
             return ;
         }
         // The grid might have been completed by the composeSolver,
@@ -236,8 +252,8 @@ public class Composer extends Thread {
         lch.reset();
         // Ensure that the puzzle appears in the correct form.
         Grid puzzle = (Grid) solution.clone(); 
-        if( shuffle ){
-            puzzle.shuffle();
+        if( shuffleGrid ){
+            puzzle.shuffle( true , false , false );
         } else {
             puzzle.rectify( solverMasks[solverIndex] );
         }
@@ -258,14 +274,19 @@ public class Composer extends Thread {
             }          
             puzzle.solve( lch , 1 );  
             if( logical ){
-                singleSectorCandidates = lch.singleSectorCandidatesEliminations > 0 ; 
-                if( singleSectorCandidatesFilter == 1 && ! singleSectorCandidates || 
-                    singleSectorCandidatesFilter == -1 && singleSectorCandidates ){
+                lockedSectorCandidates = lch.lockedSectorCandidatesEliminations > 0 ; 
+                if( lockedSectorCandidatesFilter == 1 && ! lockedSectorCandidates || 
+                    lockedSectorCandidatesFilter == -1 && lockedSectorCandidates ){
                     return ;
                 }
                 disjointSubsets = lch.disjointSubsetsEliminations > 0 ; 
                 if( disjointSubsetsFilter == 1 && ! disjointSubsets || 
                     disjointSubsetsFilter == -1 && disjointSubsets ){
+                    return ;
+                }
+                twoSectorDisjointSubsets = lch.twoSectorDisjointSubsetsEliminations > 0 ; 
+                if( twoSectorDisjointSubsetsFilter == 1 && ! twoSectorDisjointSubsets || 
+                    twoSectorDisjointSubsetsFilter == -1 && twoSectorDisjointSubsets ){
                     return ;
                 }
                 singleValuedChains = lch.singleValuedChainsEliminations > 0 ; 
@@ -284,7 +305,7 @@ public class Composer extends Thread {
                     return ;
                 }
             }
-            if( output instanceof PrintWriter ){
+            if( output != null ){
                 if( ! xmlFormat ){
                     double t = ( new Date().getTime() - startTime )/ 1000. ;
                     output.println( "Puzzle " + ( 1 + nSolns ) +":\n");
@@ -295,16 +316,16 @@ public class Composer extends Thread {
                     output.println( "Time = " + new DecimalFormat("#0.000").format( t ) + "s" );
                 }
                 boolean multipleCategories = false ;
-                StringBuffer sb = ! xmlFormat ? new StringBuffer() : null ;
+                StringBuilder sb = ! xmlFormat ? new StringBuilder() : null ;
                 if( logical ){
                     category = EASY ;
-                    if( singleSectorCandidates ){
+                    if( lockedSectorCandidates ){
                         category = MEDIUM ;
                         if( ! xmlFormat ){
                             if( multipleCategories ){
                                 sb.append(":");
                             }
-                            sb.append("Single Sector Candidates");
+                            sb.append("Locked Sector Candidates");
                             multipleCategories = true ;
                         }
                     }
@@ -315,6 +336,16 @@ public class Composer extends Thread {
                                 sb.append(":");
                             }
                             sb.append("Disjoint Subsets");
+                            multipleCategories = true ;
+                        }
+                    }
+                    if( twoSectorDisjointSubsets ){
+                        category = TWO_SECTOR_DISJOINT_SUBSETS ;
+                        if( ! xmlFormat ){
+                            if( multipleCategories ){
+                                sb.append(":");
+                            }
+                            sb.append("Two-Sector Disjoint Subsets");
                             multipleCategories = true ;
                         }
                     }
@@ -348,14 +379,22 @@ public class Composer extends Thread {
                             multipleCategories = true ;
                         }
                     }
-                    if( ! xmlFormat && sb.length() > 0 ){
-                        output.println( sb.toString() );
+                    sb.append("\n");
+                }
+                if( lch.explainsReasoning() ){
+                    int i = 0 ;
+                    while( i < lch.getThreadLength() ){
+                        sb.append( ( 1 + i ) + ". " + lch.getReason( i ) );
+                        ++ i ;
                     }
+                }
+                if( sb != null && sb.length() > 0 ){
+                    output.println( sb.toString() );
                 }
             }
             lch.reset();
             puzzles.addElement( puzzle );
-            if( output instanceof PrintWriter ){
+            if( output != null ){
                 if( xmlFormat ){
                     output.println( puzzle.toXML( 1 + nSolns , featuredGrades[category] ) );
                 } else {
@@ -390,12 +429,15 @@ public class Composer extends Thread {
      * @param solverIndex index of solver to restart with a new mask
      */
     
-    synchronized void startThread( int solverIndex ){
+    synchronized boolean startThread( int solverIndex ){
         boolean[][] mask = null ;
+        if( shuffleMask ){
+            maskFactory.shuffle();
+        }
         try {
             mask = (boolean[][]) maskFactory.nextElement();
         } catch ( NoSuchElementException e ) {
-            return ;
+            return false ;
         }
         ++ nMasks ;
         int r , c ;
@@ -424,6 +466,7 @@ public class Composer extends Thread {
         while( ! solvers[solverIndex].isAlive() );
         isAlive[solverIndex] = true ;
         ++ nThreads ;
+        return true ;
     }
     
     /**
@@ -432,23 +475,27 @@ public class Composer extends Thread {
      * @see Solver
      */
     
-    public void run(){
+    @Override public void run(){
         nSolns = 0 ;
         nMasks = 0 ;
         allSolutionsFound = false ;
         nThreads = 0 ;
+        nUnstartable = 0 ;
         // Set off the solver threads, one per mask.
         int i = 0 ;
         while( i < nSolvers && ( maxMasks == 0 || nMasks < maxMasks ) ){
             isAlive[i] = false ;
-            startThread( i ++ );
+            if( !( isStartable[i] = startThread( i ) ) ){
+                ++ nUnstartable ;
+            }
+            ++ i ;
         }
         // Wait for the reports back.
         synchronized( this ){
             while( ! allSolutionsFound && nThreads > 0 && ( maxMasks == 0 || nMasks <= maxMasks ) ){
                 try {
                     while( ! allSolutionsFound && 
-                           nThreads == nSolvers && 
+                           nThreads + nUnstartable == nSolvers && 
                            ( maxMasks == 0 || nMasks <= maxMasks ) ){
                         wait();
                     }                
@@ -457,8 +504,10 @@ public class Composer extends Thread {
                 }
                 i = 0 ;
                 while( i < nSolvers ){
-                    if( ! isAlive[i] ){
-                        startThread( i );                        
+                    if( ! isAlive[i] && isStartable[i] ){
+                        if( !( isStartable[i] = startThread( i ) ) ){
+                            ++ nUnstartable ;                        
+                        }
                     }
                     ++ i ;
                 }
@@ -478,12 +527,12 @@ public class Composer extends Thread {
                 }
                 ++ i ;
             }
-            if( gridContainer instanceof GridContainer ){
+            if( gridContainer != null ){
                 if( puzzles.size() > 0 ){
                     gridContainer.setGrid( (Grid) puzzles.elementAt( 0 ) );
                 }
             } else {
-                if( xmlFormat && output instanceof PrintWriter ){
+                if( xmlFormat && output != null ){
                     output.println( SuDokuUtils.libraryBookFooter() );
                     output.close();
                 } else {
@@ -508,7 +557,6 @@ public class Composer extends Thread {
      * <br><code>[-mu max unwinds]</code> stipulates a limit on the complexity permitted on a single mask.
      * <br><code>[-s solvers]</code> stipulates the number of solver (or, equivalently, threads) to execute simultaneously. The default is 3.
      * <br><code>[-c threshold]</code> stipulates the tree depth beyond which the compose solver will be invoked. The default value is 0.
-     * <br><code>[-r]</code> stipulates whether a random initial mask should be used. The default is no.
      * <br><code>[-v]</code> stipualtes whether the Composer should run in verbose mode. The default is no.
      * <br><code>[-f]</code> stipulates that the full set of Least Candidates Hybrid algorithms should be used to solve.
      * <br><code>[-shuffle]</code> stipulates that the puzzles should be randomly shuffled.
@@ -518,7 +566,7 @@ public class Composer extends Thread {
      */
 
     public static void main( String[] args ){
-        final String usage = "Usage: Composer [-a across] [-d down] [-ms max solns|-mm max masks] [-mu max unwinds] [-mc max complexity] [-s solvers] [-c threshold] [-r] [-v] [-shuffle] [-f] [-xml] -i|#cells" ,
+        final String usage = "Usage: Composer [-a across] [-d down] [-ms max solns|-mm max masks] [-mu max unwinds] [-mc max complexity] [-s solvers] [-c threshold] [-v] [-shuffle] [-iter] [-f] [-xml] -i|#cells" ,
                      strategyTypes = "Valid strategy types are:\nSSC [Single Sector Candidates]\nDS [Disjoint Subsets]\nSVS [Single-Valued Strings]\nMVS [Many-Valued Strings]\nNishio";
         
         int boxesAcross = 3 ,
@@ -529,20 +577,22 @@ public class Composer extends Thread {
             maxComplexity = Integer.MAX_VALUE ,
             nSolvers = defaultThreads ,
             filledCells = 0 ,
+            maskType = MaskUtils.ROTATE_2 ,
             composeSolverThreshold = 0 ,
-            singleSectorCandidatesFilter = 0 ,
+            lockedSectorCandidatesFilter = 0 ,
             disjointSubsetsFilter = 0 ,
             singleValuedChainsFilter = 0 ,
+            twoSectorDisjointSubsetsFilter = 0 ,
             manyValuedChainsFilter = 0 ,
             nishioFilter = 0 ,
             guessFilter = 0 ,
             sign ;
             
-        boolean randomize = false ,
-                trace = false ,
+        boolean explain = false ,
                 standardInput = false ,
                 leastCandidatesHybridFilter = false ,
-                shuffle = false ,
+                shuffleGrid = false ,
+                shuffleMask = true ,
                 xmlFormat = false ;
         
         // Process command-line args.
@@ -609,14 +659,21 @@ public class Composer extends Thread {
                     System.err.println( usage );
                     System.exit( 1 );
                 }
-            } else if( args[i].equals("-r") ){
-                randomize = true ;
+            } else if( args[i].equals("-mask") ) {
+                try {
+                    maskType = MaskUtils.getMaskType( args[++i] );
+                } catch( Exception e ) {
+                    System.err.println( e.getMessage() );
+                    System.exit( 1 );
+                }
             } else if( args[i].equals("-v") ){
-                trace = true ;
+                explain = true ;
             } else if( args[i].equals("-f") ){
                 leastCandidatesHybridFilter = true ;
             } else if( args[i].equals("-shuffle") ){
-                shuffle = true ;
+                shuffleGrid = true ;
+            } else if( args[i].equals("-iter") ){
+                shuffleMask = false ;
             } else if( args[i].equals("-xml") ) {
                 xmlFormat = true ;
             } else if( args[i].charAt( 0 ) == '+' ) {
@@ -629,10 +686,12 @@ public class Composer extends Thread {
             }
             if( sign != 0 ){
                 String strategy = args[i].substring( 1 );
-                if( strategy.equalsIgnoreCase("ssc") ){
-                    singleSectorCandidatesFilter = sign ;
+                if( strategy.equalsIgnoreCase("lsc") ){
+                    lockedSectorCandidatesFilter = sign ;
                 } else if( strategy.equalsIgnoreCase("ds") ) {
                     disjointSubsetsFilter = sign ;
+                } else if( strategy.equalsIgnoreCase("2ds") ) {
+                    twoSectorDisjointSubsetsFilter = sign ;
                 } else if( strategy.equalsIgnoreCase("svc") ) {
                     singleValuedChainsFilter = sign ;
                 } else if( strategy.equalsIgnoreCase("mvc") ){
@@ -668,10 +727,11 @@ public class Composer extends Thread {
         }
         // Read a mask from standard input.
         MaskFactory maskFactory = null ;
+        
         try {
             if( standardInput ){
                 String text ;
-                StringBuffer maskText = new StringBuffer();
+                StringBuilder maskText = new StringBuilder();
                 BufferedReader standardInputReader = new BufferedReader( new InputStreamReader( System.in ) );
                 try {
                     while( ( text = standardInputReader.readLine() ) != null ){
@@ -685,10 +745,14 @@ public class Composer extends Thread {
                     System.err.println( e.getMessage() );
                     System.exit( 3 );               
                 }
-                maskFactory = new MaskFactory( maskText.toString() );                                
+                boolean[][] mask = new boolean[boxesAcross*boxesDown][boxesAcross*boxesDown];
+                MaskFactory.populate( mask , maskText.toString() );
+                maskFactory = new UserDefined( mask );                                
             } else {
-                maskFactory = new MaskFactory( boxesAcross * boxesDown , filledCells , boxesAcross );
+                maskFactory = MaskUtils.createMaskFactory( maskType , boxesAcross * boxesDown , boxesAcross , null );
             }
+            filledCells = maskFactory.setFilledCells( filledCells );
+            maskFactory.shuffle();
         } catch ( Exception e ) {
             System.err.println( e.getMessage() );
             System.exit( 2 );
@@ -704,15 +768,18 @@ public class Composer extends Thread {
                           maskFactory , 
                           nSolvers , 
                           composeSolverThreshold , 
-                          trace ? System.out : null ,
+                          System.out ,
                           leastCandidatesHybridFilter ,
-                          singleSectorCandidatesFilter ,
+                          lockedSectorCandidatesFilter ,
                           disjointSubsetsFilter ,
+                          twoSectorDisjointSubsetsFilter ,
                           singleValuedChainsFilter ,
                           manyValuedChainsFilter ,
                           nishioFilter ,
                           guessFilter ,
-                          shuffle ,
+                          explain ,
+                          shuffleGrid ,
+                          shuffleMask ,
                           xmlFormat ).start();  
         } catch ( Exception e ) {
             System.out.println( e.getMessage() );

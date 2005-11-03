@@ -25,6 +25,8 @@
 
 package com.act365.sudoku;
 
+import com.act365.sudoku.masks.MaskUtils ;
+
 import java.awt.* ;
 import java.awt.datatransfer.* ;
 import java.awt.event.* ;
@@ -76,21 +78,27 @@ public class ControlContainer extends com.act365.awt.Container
 
     Label solns ,
           time ,
-          singleSectorCandidatesEliminations ,
+          lockedSectorCandidatesEliminations ,
           disjointSubsetsEliminations ,
+          twoSectorDisjointSubsetsEliminations ,
           singleValuedStringsEliminations ,
           manyValuedStringsEliminations ,
           nishioEliminations ,
+          permutateAdjacentSectorsEliminations ,
           nGuesses ;
 
     Choice format ,
-           copyType ;
+           copyType ,
+           maskType ,
+           reasoningFormat ;
               
-    Checkbox singleSectorCandidates ,
+    Checkbox lockedSectorCandidates ,
              disjointSubsets ,
+             twoSectorDisjointSubsets ,
              singleValuedStrings ,
              manyValuedStrings ,
              nishio ,
+             permutateAdjacentSectors ,
              guess ;
              
     SuDokuClipboard clipboard ;
@@ -140,9 +148,10 @@ public class ControlContainer extends com.act365.awt.Container
         shuffle.addActionListener( this );
         format = new Choice();
         i = 0 ;
-        while( i < SuDokuUtils.labels.length ){
-            format.add( SuDokuUtils.labels[i++] );
+        while( i < SuDokuUtils.ValueFormat.values().length ){
+            format.add( SuDokuUtils.ValueFormat.values()[i++].toString() );
         }
+        format.select( SuDokuUtils.defaultValueFormat.toString() );
         format.addItemListener( this );
         text = new TextField( 9 );
             
@@ -170,14 +179,23 @@ public class ControlContainer extends com.act365.awt.Container
         minFilledCells = new TextField( 2 );
         interrupt = new Button("Break");
         interrupt.addActionListener( this );
-    
+        maskType = new Choice();
+        i = 0 ;
+        while( i < MaskUtils.longLabels.length ){
+            maskType.add( MaskUtils.longLabels[i++] );
+        }
+        maskType.addItemListener( this );
+
         // Add the Strategy controls.
-        singleSectorCandidates = new Checkbox("Single Sector Candidates" , grid.getStrategy().useSingleSectorCandidates );
-        singleSectorCandidates.addItemListener( this );
-        singleSectorCandidatesEliminations = new Label("0");
+        lockedSectorCandidates = new Checkbox("Locked Sector Candidates" , grid.getStrategy().useLockedSectorCandidates );
+        lockedSectorCandidates.addItemListener( this );
+        lockedSectorCandidatesEliminations = new Label("0");
         disjointSubsets = new Checkbox("Disjoint Subsets" , grid.getStrategy().useDisjointSubsets );
         disjointSubsets.addItemListener( this );
         disjointSubsetsEliminations = new Label("0");
+        twoSectorDisjointSubsets = new Checkbox("Two-Sector Disjoint Subsets" , grid.getStrategy().useTwoSectorDisjointSubsets );
+        twoSectorDisjointSubsets.addItemListener( this );
+        twoSectorDisjointSubsetsEliminations = new Label("0");
         singleValuedStrings = new Checkbox("Single-Valued Chains" , grid.getStrategy().useSingleValuedChains );
         singleValuedStrings.addItemListener( this );
         singleValuedStringsEliminations = new Label("0");
@@ -187,11 +205,21 @@ public class ControlContainer extends com.act365.awt.Container
         nishio = new Checkbox("Nishio" , grid.getStrategy().useNishio );
         nishio.addItemListener( this );
         nishioEliminations = new Label("0");
+        permutateAdjacentSectors = new Checkbox("Permutate Sectors" , grid.getStrategy().useAdjacentSectorPermutation );
+        permutateAdjacentSectors.addItemListener( this );
+        permutateAdjacentSectorsEliminations = new Label("0");
         guess = new Checkbox("Guess" , grid.getStrategy().useGuesses );
         guess.addItemListener( this );
         nGuesses = new Label("0");
         
         // Add the Reasoning area
+        reasoningFormat = new Choice();
+        i = 0 ;
+        while( i < SuDokuUtils.ReasoningFormat.values().length ){
+            reasoningFormat.add( SuDokuUtils.ReasoningFormat.values()[i++].toString() );
+        }
+        reasoningFormat.select( SuDokuUtils.defaultReasoningFormat.toString() );
+        reasoningFormat.addItemListener( this );
         reasoningArea = new TextArea();
         reasoningArea.setEditable( false );
         reasoningArea.addMouseListener( this );
@@ -226,33 +254,40 @@ public class ControlContainer extends com.act365.awt.Container
         addComponent( new Label("Filled Cells") , 4 , 5 , 2 , 1 , 1 , 0 );
         addComponent( minFilledCells , 6 , 5 , 1 , 1 , 1 , 0 );
         addComponent( interrupt , 8 , 5 , 3 , 1 , 1 , 0 );
-        
-        addComponent( new Label("Pattern:") , 0 , 6 , 2 , 1 , 1 , 0 );
-        addComponent( singleSectorCandidates , 4 , 6 , 3 , 1 , 1 , 0 );
-        addComponent( singleSectorCandidatesEliminations , 10 , 6 , 1 , 1 , 1 , 0 );
-        addComponent( disjointSubsets , 4 , 7 , 3 , 1 , 1 , 0 );
-        addComponent( disjointSubsetsEliminations , 10 , 7 , 1 , 1 , 1 , 0 );
-        addComponent( singleValuedStrings , 4 , 8 , 3 , 1 , 1 , 0 );
-        addComponent( singleValuedStringsEliminations , 10 , 8 , 1 , 1 , 1 , 0 );
-        addComponent( manyValuedStrings , 4 , 9 , 3 , 1 , 1 , 0 );
-        addComponent( manyValuedStringsEliminations , 10 , 9 , 1 , 1 , 1 , 0 );
-        addComponent( nishio , 4 , 10 , 3 , 1 , 1 , 0 );
-        addComponent( nishioEliminations , 10 , 10 , 1 , 1 , 1 , 0 );
-        
-        addComponent( guess , 4 , 11 , 3 , 1 , 1 , 0 );
-        addComponent( nGuesses , 10 , 11 , 1 , 1 , 1 , 0 );
+        addComponent( new Label("Symmetry") , 0 , 6 , 3 , 1 , 1 , 0 );
+        addComponent( maskType , 4 , 6 , 3 , 1 , 1 , 0 );
                 
-        addComponent( reasoningArea , 0 , 12 , 11 , 5 , 1 , 1 );
+        addComponent( new Label("Strategy:") , 0 , 7 , 2 , 1 , 1 , 0 );
+        addComponent( lockedSectorCandidates , 4 , 7 , 3 , 1 , 1 , 0 );
+        addComponent( lockedSectorCandidatesEliminations , 10 , 7 , 1 , 1 , 1 , 0 );
+        addComponent( disjointSubsets , 4 , 8 , 3 , 1 , 1 , 0 );
+        addComponent( disjointSubsetsEliminations , 10 , 8 , 1 , 1 , 1 , 0 );
+        addComponent( twoSectorDisjointSubsets , 4 , 9 , 3 , 1 , 1 , 0 );
+        addComponent( twoSectorDisjointSubsetsEliminations , 10 , 9 , 1 , 1 , 1 , 0 );
+        addComponent( singleValuedStrings , 4 , 10 , 3 , 1 , 1 , 0 );
+        addComponent( singleValuedStringsEliminations , 10 , 10 , 1 , 1 , 1 , 0 );
+        addComponent( manyValuedStrings , 4 , 11 , 3 , 1 , 1 , 0 );
+        addComponent( manyValuedStringsEliminations , 10 , 11 , 1 , 1 , 1 , 0 );
+        addComponent( nishio , 4 , 12 , 3 , 1 , 1 , 0 );
+        addComponent( nishioEliminations , 10 , 12 , 1 , 1 , 1 , 0 );
+        addComponent( permutateAdjacentSectors , 4 , 13 , 3 , 1 , 1 , 0 );
+        addComponent( permutateAdjacentSectorsEliminations , 10 , 13 , 1 , 1 , 1 , 0 );
+        addComponent( guess , 4 , 14 , 3 , 1 , 1 , 0 );
+        addComponent( nGuesses , 10 , 14 , 1 , 1 , 1 , 0 );
+                
+        addComponent( new Label("Format:") , 0 , 15 , 2 , 1 , 1 , 0 );
+        addComponent( reasoningFormat , 2 , 15 , 3 , 1 , 1 , 0 );
+        addComponent( reasoningArea , 0 , 16 , 11 , 5 , 1 , 1 );
           
 		write();	
     }    
 
     /**
-     * The ControlContainer looks best at 300x500.
+     * The size at which the ControlContainer looks its best.
      */
 	
-    public Dimension getBestSize() {
-		return new Dimension( 300 , 500 );
+    @Override public Dimension getBestSize() {
+		return new Dimension( 300 , 750 );
 	}
 
 	/**
@@ -285,7 +320,7 @@ public class ControlContainer extends com.act365.awt.Container
         } else if( evt.getSource() == shuffle ){
             grid.shuffle();
         } else if( evt.getSource() == copy ) {
-            StringBuffer sb = new StringBuffer();
+            StringBuilder sb = new StringBuilder();
             read();
             grid.read();
             switch( SuDokuUtils.defaultCopyType ){
@@ -302,8 +337,8 @@ public class ControlContainer extends com.act365.awt.Container
                     break;
             }
             if( isApplet ){
-                clipboard.show();
                 clipboard.setText( sb.toString() );
+                clipboard.setVisible( true );
             } else {
                 getToolkit().getSystemClipboard().setContents( new StringSelection( sb.toString() ) , this );
             }
@@ -311,19 +346,19 @@ public class ControlContainer extends com.act365.awt.Container
             read();
             String pasteText = null ;
             if( isApplet ){
-                if( clipboard instanceof SuDokuClipboard ){
+                if( clipboard != null ){
                     pasteText = clipboard.getText();
                 }
             } else {
                 Transferable transferable = getToolkit().getSystemClipboard().getContents( this );
-                if( transferable instanceof Transferable ){
+                if( transferable != null ){
                     try {
                         pasteText = (String) transferable.getTransferData( DataFlavor.stringFlavor );
                     } catch( Exception e ) {
                     }
                 }
             }
-            if( pasteText instanceof String ){
+            if( pasteText != null ){
                 try {
                     grid.paste( pasteText );
                     boxesAcross = grid.getBoxesAcross();
@@ -357,7 +392,7 @@ public class ControlContainer extends com.act365.awt.Container
 			}
 		} else if( evt.getSource() == compose ) {
 			read();
-			grid.startComposer( minFilledCellsValue );
+			minFilledCellsValue = grid.startComposer( minFilledCellsValue );
 			write();
         } else if( evt.getSource() == interrupt ) {
             grid.stopComposer();
@@ -422,22 +457,30 @@ public class ControlContainer extends com.act365.awt.Container
      */
 
     public void itemStateChanged( ItemEvent evt ){
-        if( evt.getSource() == singleSectorCandidates ){
-            grid.getStrategy().useSingleSectorCandidates = singleSectorCandidates.getState();
+        if( evt.getSource() == lockedSectorCandidates ){
+            grid.getStrategy().useLockedSectorCandidates = lockedSectorCandidates.getState();
         } else if( evt.getSource() == disjointSubsets ){
             grid.getStrategy().useDisjointSubsets = disjointSubsets.getState();
+        } else if( evt.getSource() == twoSectorDisjointSubsets ){
+            grid.getStrategy().useTwoSectorDisjointSubsets = twoSectorDisjointSubsets.getState();
         } else if( evt.getSource() == singleValuedStrings ){
             grid.getStrategy().useSingleValuedChains = singleValuedStrings.getState();
         } else if( evt.getSource() == manyValuedStrings ){
             grid.getStrategy().useManyValuedChains = manyValuedStrings.getState();
         } else if( evt.getSource() == nishio ){
             grid.getStrategy().useNishio = nishio.getState();
+        } else if( evt.getSource() == permutateAdjacentSectors ){
+            grid.getStrategy().useAdjacentSectorPermutation = permutateAdjacentSectors.getState();
         } else if( evt.getSource() == guess ) {
             grid.getStrategy().useGuesses = guess.getState();
         } else if( evt.getSource() == format ) {
-            SuDokuUtils.defaultFormat = format.getSelectedIndex();
+            SuDokuUtils.defaultValueFormat = SuDokuUtils.ValueFormat.values()[ format.getSelectedIndex() ];
         } else if( evt.getSource() == copyType ){
             SuDokuUtils.defaultCopyType = copyType.getSelectedIndex();
+        } else if( evt.getSource() == maskType ){
+            grid.maskType = maskType.getSelectedIndex();
+        } else if( evt.getSource() == reasoningFormat ){
+            SuDokuUtils.defaultReasoningFormat = SuDokuUtils.ReasoningFormat.values()[ reasoningFormat.getSelectedIndex() ];
         }
     }
     
@@ -473,16 +516,19 @@ public class ControlContainer extends com.act365.awt.Container
 		across.setText( Integer.toString( boxesAcross ) );
 		down.setText( Integer.toString( boxesDown ) );
 		minFilledCells.setText( Integer.toString( minFilledCellsValue ));
-        singleSectorCandidatesEliminations.setText( Integer.toString( grid.getStrategy().singleSectorCandidatesEliminations ) );
+        lockedSectorCandidatesEliminations.setText( Integer.toString( grid.getStrategy().lockedSectorCandidatesEliminations ) );
         disjointSubsetsEliminations.setText( Integer.toString( grid.getStrategy().disjointSubsetsEliminations ) );
+        twoSectorDisjointSubsetsEliminations.setText( Integer.toString( grid.getStrategy().twoSectorDisjointSubsetsEliminations ) );
         singleValuedStringsEliminations.setText( Integer.toString( grid.getStrategy().singleValuedChainsEliminations ) );
         manyValuedStringsEliminations.setText( Integer.toString( grid.getStrategy().manyValuedChainsEliminations ) );
         nishioEliminations.setText( Integer.toString( grid.getStrategy().nishioEliminations ) );
+        permutateAdjacentSectorsEliminations.setText( Integer.toString( grid.getStrategy().adjacentSectorPermutationEliminations ) );
         nGuesses.setText( Integer.toString( grid.getStrategy().nGuesses ) );
         if( SuDokuUtils.text.length != cellsInRow ){
             SuDokuUtils.setDefaultText( cellsInRow ); 
         }
         text.setText( new String( SuDokuUtils.text ) );
+        minFilledCells.setText( Integer.toString( minFilledCellsValue ) );
 	}
     
     /**

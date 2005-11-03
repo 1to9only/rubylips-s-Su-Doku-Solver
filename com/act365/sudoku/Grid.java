@@ -117,23 +117,24 @@ public class Grid implements Cloneable , Serializable {
 
         StringTokenizer st = new StringTokenizer( s , " ");
         
-        // Determine the dimensions of the grid.
+        // Attempt to determine the dimensions of the grid.
         
         int boxesDown = 0 ,
             boxesAcross = 1 ;
         
-        String token ;
+        String token = st.nextToken();
             
-        while( ! ( token = st.nextToken() ).equals("\n") ){
+        while( token.indexOf('\n') == -1 ){
             if( token.equals("*") || token.equals("|") || token.equals("¦") ){
                 ++ boxesAcross ;
             } else if( boxesAcross == 1 ){
                 ++ boxesDown ;
             }
+            token = st.nextToken();
         }
-        
-        resize( boxesAcross , boxesDown );
-        
+        if( boxesAcross > 1 && boxesDown > 1 ){
+            resize( boxesAcross , boxesDown );            
+        }
         SuDokuUtils.populate( data , s );        
         return this ;
     }
@@ -627,63 +628,73 @@ public class Grid implements Cloneable , Serializable {
     /**
      * Randomly shuffles the current grid. 
      */
-    
+
     public Grid shuffle(){
+        return shuffle( true , true , true );    
+    }
+    
+    public Grid shuffle( boolean rearrange , boolean rotate , boolean reflect ){
         int pick ;
         Random generator = new Random();
         // Rearrange the data within the grid.
-        int i , j , size = cellsInRow ;
-        byte[] substitute = new byte[cellsInRow];
-        while( size > 0 ){
-            i = -1 ;
-            pick = Math.abs( generator.nextInt() % size );
-            while( pick -- >= 0 ){
-                while( substitute[++i] > 0 );
-            }
-            substitute[i] = (byte) size -- ;
-        }
-        i = 0 ;
-        while( i < cellsInRow ){
-            j = 0 ;
-            while( j < cellsInRow ){
-                if( data[i][j] > 0 ){
-                    data[i][j] = substitute[data[i][j]-1]; 
+        if( rearrange ){
+            int i , j , size = cellsInRow ;
+            byte[] substitute = new byte[cellsInRow];
+            while( size > 0 ){
+                i = -1 ;
+                pick = Math.abs( generator.nextInt() % size );
+                while( pick -- >= 0 ){
+                    while( substitute[++i] > 0 );
                 }
-                ++ j ;
+                substitute[i] = (byte) size -- ;
             }
-            ++ i ;
+            i = 0 ;
+            while( i < cellsInRow ){
+                j = 0 ;
+                while( j < cellsInRow ){
+                    if( data[i][j] > 0 ){
+                        data[i][j] = substitute[data[i][j]-1]; 
+                    }
+                    ++ j ;
+                }
+                ++ i ;
+            }
         }
         // Rotate
-        pick = Math.abs( generator.nextInt() % 4 );
-        switch( pick ){
-            case 0 :
-            break;
+        if( rotate ){
+            pick = Math.abs( generator.nextInt() % 4 );
+            switch( pick ){
+                case 0 :
+                break;
             
-            case 1:
-            quarterRotate();
-            break;
+                case 1:
+                quarterRotate();
+                break;
             
-            case 2:
-            halfRotate();
-            break;
+                case 2:
+                halfRotate();
+                break;
             
-            case 3:
-            halfRotate().quarterRotate();
-            break;
+                case 3:
+                halfRotate().quarterRotate();
+                break;
+            }
         }
         // Reflect
-        pick = Math.abs( generator.nextInt() % 16 );
-        if( ( pick & 1 ) == 1 ){
-            reflectLeftRight(); 
-        }
-        if( ( pick & 2 ) == 2 ){
-            reflectTopBottom(); 
-        }
-        if( ( pick & 4 ) == 4 ){
-            reflectTopLeftBottomRight(); 
-        }
-        if( ( pick & 8 ) == 8 ){
-            reflectTopRightBottomLeft(); 
+        if( reflect ){
+            pick = Math.abs( generator.nextInt() % 16 );
+            if( ( pick & 1 ) == 1 ){
+                reflectLeftRight(); 
+            }
+            if( ( pick & 2 ) == 2 ){
+                reflectTopBottom(); 
+            }
+            if( ( pick & 4 ) == 4 ){
+                reflectTopLeftBottomRight(); 
+            }
+            if( ( pick & 8 ) == 8 ){
+                reflectTopRightBottomLeft(); 
+            }
         }
         //
         return this ;
@@ -695,7 +706,7 @@ public class Grid implements Cloneable , Serializable {
 
     public String toXML( int serial , String grade ) {
         
-        StringBuffer sb = new StringBuffer();
+        StringBuilder sb = new StringBuilder();
         
         int i , j ;
         sb.append("<puzzle>\n");

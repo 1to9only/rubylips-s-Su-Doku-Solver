@@ -87,7 +87,7 @@ public class MaskState {
      */
 
 	public void addCell( int x, int y ) throws Exception {
-        int i , j , cx , cy ;
+        int i , j ;
         // Check that it's a valid candidate.
         if( mask[x][y] ){
             throw new Exception("The cell (" + ( 1 + x ) + "," + ( 1 + y ) + ") has already been filled");

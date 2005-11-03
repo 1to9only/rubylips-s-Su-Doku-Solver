@@ -41,10 +41,12 @@ public class LeastCandidatesCell extends StrategyBase implements IStrategy {
     /**
      * Creates a new LeastCandidatesCell instance.
      * @param randomize whether the final candidate should be randomly chosen from the set of possibles
+     * @param explain whether each move should be explained
      */
     
-    public LeastCandidatesCell( boolean randomize ){
-        this( randomize , randomize , true );
+    public LeastCandidatesCell( boolean randomize , 
+                                boolean explain ){
+        this( randomize , randomize , explain );
     }
     
     /**
@@ -79,7 +81,7 @@ public class LeastCandidatesCell extends StrategyBase implements IStrategy {
         CellState cellState = (CellState) state ;
 		// Find the unpopulated cells with the smallest number of candidates.		
 		int i , j , k , maxEliminated = -1 ;
-        StringBuffer sb ;
+        StringBuilder sb ;
         nCandidates = 0 ;
 		i = 0 ;
         findMaxEliminated:
@@ -119,9 +121,9 @@ public class LeastCandidatesCell extends StrategyBase implements IStrategy {
                             yCandidates[nCandidates] = j ;
                             valueCandidates[nCandidates] = (byte)( k + 1 );
                             if( explain ){
-                                sb = new StringBuffer();
+                                sb = new StringBuilder();
                                 sb.append("The value ");
-                                sb.append( SuDokuUtils.toString( k + 1 ) );
+                                SuDokuUtils.appendValue( sb , k );
                                 sb.append(" is ");
                                 if( score > 1 ){
                                     sb.append("one of ");
@@ -130,11 +132,9 @@ public class LeastCandidatesCell extends StrategyBase implements IStrategy {
                                 } else {
                                     sb.append("the only candidate ");
                                 }
-                                sb.append("for the cell (");
-                                sb.append( i + 1 );
-                                sb.append(",");
-                                sb.append( j + 1 );
-                                sb.append(").\n");
+                                sb.append("for the cell ");
+                                SuDokuUtils.appendCell( sb , i , j );
+                                sb.append(".\n");
                                 reasonCandidates[nCandidates] = sb ;
                             }
                             ++ nCandidates ;

@@ -41,10 +41,11 @@ public class LeastCandidatesNumber extends StrategyBase implements IStrategy {
     /**
      * Creates a new LeastCandidatesNumber instance to solve the given grid.
      * @param randomize whether the final candidate should be randomly chosen from the set of possibles
+     * @param explain whether each move should be explained
      */
     
-    public LeastCandidatesNumber( boolean randomize ){
-        this( randomize , randomize , true );
+    public LeastCandidatesNumber( boolean randomize , boolean explain ){
+        this( randomize , randomize , explain );
     }
     
     /**
@@ -103,7 +104,7 @@ public class LeastCandidatesNumber extends StrategyBase implements IStrategy {
         NumberState numberState = (NumberState) state ;
         // Find the unpopulated cells with the smallest number of candidates.       
         int i , j , k , x , y , maxEliminated = -1 ;
-        StringBuffer sb ;
+        StringBuilder sb ;
         nCandidates = 0 ;
         i = 0 ;
         findMaxEliminated:
@@ -177,12 +178,10 @@ public class LeastCandidatesNumber extends StrategyBase implements IStrategy {
                             yCandidates[nCandidates] = y ;
                             valueCandidates[nCandidates] = (byte)( i + 1 );
                             if( explain ){
-                                sb = new StringBuffer();
-                                sb.append("The cell (");
-                                sb.append( x + 1 );
-                                sb.append(",");
-                                sb.append( y + 1 );
-                                sb.append(") is ");
+                                sb = new StringBuilder();
+                                sb.append("The cell ");
+                                SuDokuUtils.appendCell( sb , x , y );
+                                sb.append(" is ");
                                 if( score > 1 ){
                                     sb.append("one of ");
                                     sb.append( score );
@@ -191,21 +190,9 @@ public class LeastCandidatesNumber extends StrategyBase implements IStrategy {
                                     sb.append("the only candidate ");
                                 }                                                             
                                 sb.append("for the value ");
-                                sb.append( SuDokuUtils.toString( i + 1 ) );
+                                SuDokuUtils.appendValue( sb , i );
                                 sb.append(" in ");
-                                if( j < grid.cellsInRow ){
-                                    sb.append("Row ");
-                                    sb.append( x + 1 );
-                                } else if( j < 2 * grid.cellsInRow ){
-                                    sb.append("Column ");
-                                    sb.append( y + 1 );
-                                } else {
-                                    sb.append("Box [");
-                                    sb.append( 1 + ( j - 2 * grid.cellsInRow )/grid.boxesAcross );
-                                    sb.append(",");
-                                    sb.append( 1 + ( j - 2 * grid.cellsInRow )% grid.boxesAcross );
-                                    sb.append("]");
-                                }
+                                SuDokuUtils.appendSector( sb , grid.cellsInRow , grid.boxesAcross , j );
                                 sb.append(".\n");
                                 reasonCandidates[nCandidates] = sb ;
                             }

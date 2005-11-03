@@ -245,7 +245,7 @@ public class LinearSystemState implements IState {
 	 * @see com.act365.sudoku.IState#eliminateMove(int, int, int)
 	 */
      
-	public void eliminateMove( int x , int y , int v ) {
+    public void eliminateMove( int x , int y , int v ) {
         final int j = x * cellsInRow + y ;
         int i = 0 ;
         while( i < nRows[v] ){
@@ -259,9 +259,10 @@ public class LinearSystemState implements IState {
      * @return the number of constraints in the reduced system
      */
     
-    int reduce( int v ) throws MoveCantBeEliminatedException {
-        int i , c , cc , r , pivotRow , pivotValue , previousPivotRow ;
+    int reduce( int v ) {
+        int c , c2 , c3 , r , pivotRow , pivotValue , previousPivotRow ;
         byte temp ;
+        boolean divisible ;
 
         previousPivotRow = -1 ;
         pivotRow = 0 ;
@@ -289,30 +290,43 @@ public class LinearSystemState implements IState {
             pivotValue = a[v][pivotRow][c];
             if( pivotValue == 1 ){
             } else if( pivotValue == -1 ) {
-                cc = c ;
-                while( cc < cellsInRow * cellsInRow + 1 ){
-                    a[v][pivotRow][cc] = (byte) - a[v][pivotRow][cc];
-                    ++ cc ;
+                c2 = c ;
+                while( c2 < cellsInRow * cellsInRow + 1 ){
+                    a[v][pivotRow][c2] = (byte) - a[v][pivotRow][c2];
+                    ++ c2 ;
                 }                            
             } else {
-                cc = c ;
-                while( cc < cellsInRow * cellsInRow + 1 ){
-                    if( a[v][pivotRow][cc] % pivotValue != 0 ){
-                        throw new MoveCantBeEliminatedException( cc / cellsInRow , cc % cellsInRow , v );
-                    } else {
-                        a[v][pivotRow][cc] /= pivotValue ;
+                c2 = c ;
+                // Check whether it's possible to divide through by the pivot ratio.
+                divisible = true ;
+                while( divisible && c2 < cellsInRow * cellsInRow + 1 ){
+                    if( a[v][pivotRow][c2] % pivotValue != 0 ){
+                        divisible = false ;
+                        break;
                     }
-                    ++ cc ;
+                    ++ c2 ;
+                }
+                // Divide through.
+                c2 = c ;
+                if( divisible ){
+                    while( c2 < cellsInRow * cellsInRow + 1 ){
+                        a[v][pivotRow][c2++] /= pivotValue ;
+                    }      
+                } else if( pivotValue < 0 ){
+                    while( c2 < cellsInRow * cellsInRow + 1 ){
+                        a[v][pivotRow][c2] = (byte) -a[v][pivotRow][c2];
+                        ++ c2 ;
+                    }      
                 }
             }
             // Swap rows, if necessary.
             if( pivotRow != previousPivotRow + 1 ){
-                cc = c ;
-                while( cc < cellsInRow * cellsInRow + 1 ){
-                    temp = a[v][previousPivotRow+1][cc] ;
-                    a[v][previousPivotRow+1][cc] = a[v][pivotRow][cc];
-                    a[v][pivotRow][cc] = temp ;
-                    ++ cc ;
+                c2 = c ;
+                while( c2 < cellsInRow * cellsInRow + 1 ){
+                    temp = a[v][previousPivotRow+1][c2] ;
+                    a[v][previousPivotRow+1][c2] = a[v][pivotRow][c2];
+                    a[v][pivotRow][c2] = temp ;
+                    ++ c2 ;
                 }
                 pivotRow = previousPivotRow + 1 ;
             }
@@ -320,39 +334,53 @@ public class LinearSystemState implements IState {
             r = 0 ;
             while( r < nRows[v] ){
                 if( r != pivotRow && ( pivotValue = a[v][r][c] ) != 0 ){
-                    cc = c ;
-                    while( cc < cellsInRow * cellsInRow + 1 ){
-                        a[v][r][cc] -= pivotValue * a[v][pivotRow][cc];
-                        ++ cc ;
+                    c2 = c ;
+                    while( c2 < cellsInRow * cellsInRow + 1 ){
+                        a[v][r][c2] -= pivotValue * a[v][pivotRow][c2];
+                        ++ c2 ;
                     }
                     // Normalize the new row.
-                    cc = 0 ;
-                    while( cc < cellsInRow * cellsInRow + 1 ){
-                        if( a[v][r][cc] != 0 ){
-                            pivotValue = a[v][r][cc];
+                    c2 = 0 ;
+                    while( c2 < cellsInRow * cellsInRow + 1 ){
+                        if( a[v][r][c2] != 0 ){
+                            pivotValue = a[v][r][c2];
                             break;
                         }
-                        ++ cc ;
+                        ++ c2 ;
                     }
-                    if( cc == cellsInRow * cellsInRow + 1 ){
+                    if( c2 == cellsInRow * cellsInRow + 1 ){
                         // It's a row of zeros.
                         ++ r ;
                         continue ;
                     }
                     if( pivotValue == 1 ){
                     } else if( pivotValue == -1 ) {
-                        while( cc < cellsInRow * cellsInRow + 1 ){
-                            a[v][r][cc] = (byte) - a[v][r][cc];
-                            ++ cc ;
+                        while( c2 < cellsInRow * cellsInRow + 1 ){
+                            a[v][r][c2] = (byte) - a[v][r][c2];
+                            ++ c2 ;
                         }                            
                     } else {
-                        while( cc < cellsInRow * cellsInRow + 1 ){
-                            if( a[v][r][cc] % pivotValue != 0 ){
-                                throw new MoveCantBeEliminatedException( cc / cellsInRow , cc % cellsInRow , v );
-                            } else {
-                                a[v][r][cc] /= pivotValue ;
+                        c3 = c2 ;
+                        // Check whether it's possible to divide through by the pivot ratio.
+                        divisible = true ;
+                        while( divisible && c3 < cellsInRow * cellsInRow + 1 ){
+                            if( a[v][pivotRow][c3] % pivotValue != 0 ){
+                                divisible = false ;
+                                break;
                             }
-                            ++ cc ;
+                            ++ c3 ;
+                        }
+                        // Divide through.
+                        c3 = c2 ;
+                        if( divisible ){
+                            while( c3 < cellsInRow * cellsInRow + 1 ){
+                                a[v][pivotRow][c3++] /= pivotValue ;
+                            }      
+                        } else if( pivotValue < 0 ){
+                            while( c3 < cellsInRow * cellsInRow + 1 ){
+                                a[v][pivotRow][c3] = (byte) -a[v][pivotRow][c3];
+                                ++ c3 ;
+                            }      
                         }
                     }
                 }
@@ -371,7 +399,7 @@ public class LinearSystemState implements IState {
      
     public String toString() {
         
-        StringBuffer sb = new StringBuffer();
+        StringBuilder sb = new StringBuilder();
         
         int v = 0 ;
         while( v < cellsInRow ){
@@ -389,7 +417,7 @@ public class LinearSystemState implements IState {
 
     public String toString( int v , int displayFormat ) {
 
-        StringBuffer sb = new StringBuffer();
+        StringBuilder sb = new StringBuilder();
                 
         int i , j ; 
         
@@ -431,7 +459,7 @@ public class LinearSystemState implements IState {
                             sb.append(",");
                             sb.append( 1 + j % cellsInRow );
                             sb.append(",");
-                            sb.append( SuDokuUtils.toString( 1 + v ) );
+                            SuDokuUtils.appendValue( sb , v );
                             sb.append("]");
                         }
                         ++ j ;

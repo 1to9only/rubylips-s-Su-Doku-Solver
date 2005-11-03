@@ -47,7 +47,7 @@ public abstract class StrategyBase {
                     yMoves ,
                     values ;
     
-    protected StringBuffer[] reasons ;
+    protected StringBuilder[] reasons ;
           
     protected int nMoves ;
     
@@ -58,7 +58,7 @@ public abstract class StrategyBase {
                     
     protected byte[] valueCandidates ;
     
-    protected StringBuffer[] reasonCandidates ;
+    protected StringBuilder[] reasonCandidates ;
                     
     protected int nCandidates ;
     
@@ -120,12 +120,12 @@ public abstract class StrategyBase {
             xMoves = new int[grid.cellsInRow*grid.cellsInRow];
             yMoves = new int[grid.cellsInRow*grid.cellsInRow];
             values = new int[grid.cellsInRow*grid.cellsInRow];
-            reasons = new StringBuffer[grid.cellsInRow*grid.cellsInRow];
+            reasons = new StringBuilder[grid.cellsInRow*grid.cellsInRow];
             stateWrite = new boolean[grid.cellsInRow*grid.cellsInRow];
             xCandidates = new int[grid.cellsInRow*grid.cellsInRow*grid.cellsInRow];
             yCandidates = new int[grid.cellsInRow*grid.cellsInRow*grid.cellsInRow];
             valueCandidates = new byte[grid.cellsInRow*grid.cellsInRow*grid.cellsInRow];
-            reasonCandidates = new StringBuffer[grid.cellsInRow*grid.cellsInRow*grid.cellsInRow];
+            reasonCandidates = new StringBuilder[grid.cellsInRow*grid.cellsInRow*grid.cellsInRow];
         }
 
         nMoves = 0 ;
@@ -141,7 +141,7 @@ public abstract class StrategyBase {
         if( explain ){
             i = 0 ;
             while( i < grid.cellsInRow * grid.cellsInRow ){
-                reasons[i++] = new StringBuffer();
+                reasons[i++] = new StringBuilder();
             }
         }        
         if( state instanceof IState ){
@@ -158,9 +158,11 @@ public abstract class StrategyBase {
                 }
                 ++ i ;
             }
+/*            
             if( explain ){
                 state.pushState( 0 );
             }
+*/            
         }
     }
     
@@ -199,9 +201,7 @@ public abstract class StrategyBase {
         }
         // Store current state variables on thread.
         if( writeState ){
-            if( ! explain ){
-                state.pushState( nMoves );
-            }
+            state.pushState( nMoves );
             stateWrite[nMoves] = true ;
         } else {
             stateWrite[nMoves] = false ;
@@ -216,9 +216,6 @@ public abstract class StrategyBase {
         ++ nMoves ;
         // Update state variables
         state.addMove( x , y , value - 1 );
-        if( explain && nMoves < grid.cellsInRow * grid.cellsInRow ){
-            state.pushState( nMoves );
-        }
         return true ;
     }
 
@@ -239,10 +236,11 @@ public abstract class StrategyBase {
             reasons[newNMoves].append( 1 + yMoves[newNMoves] );
             reasons[newNMoves].append("):=");
             reasons[newNMoves].append( 1 + values[newNMoves] );
-            reasons[newNMoves].append(" would lead to a contradiction.\n");
+            reasons[newNMoves].append(" leads to a contradiction.\n");
             int i = newNMoves + 1 ;
             while( i < nMoves ){
-                reasons[i++] = new StringBuffer();
+                reasons[i].delete( 0 , reasons[i].length() );
+                ++ i ;
             }
         }
         state.popState( newNMoves );
@@ -435,7 +433,7 @@ public abstract class StrategyBase {
      */
     
     public String toString(){
-        StringBuffer sb = new StringBuffer();
+        StringBuilder sb = new StringBuilder();
         int i = 0 ;
         while( i < nMoves ){
             sb.append( ( 1 + i ) + ". (" + ( 1 + xMoves[i] ) + "," + ( 1 + yMoves[i] ) + "):=" + grid.data[xMoves[i]][yMoves[i]] + "\n");

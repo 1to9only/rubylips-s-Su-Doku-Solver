@@ -211,11 +211,11 @@ public class CellState implements IState {
      * Produces a string representation of the state grid.
      */
     
-    public String toString() {
+    @Override public String toString() {
         boolean multipleValues ;
         int i , j , v , length ;
         int[] maxLength = new int[cellsInRow];
-        StringBuffer sb = new StringBuffer();
+        StringBuilder sb = new StringBuilder();
         String[][] candidates = new String[cellsInRow][cellsInRow];
         i = 0 ;
         while( i < cellsInRow ){
@@ -231,7 +231,7 @@ public class CellState implements IState {
                         } else {
                             multipleValues = true ;
                         }
-                        sb.append( SuDokuUtils.toString( 1 + v ) );
+                        SuDokuUtils.appendValue( sb , v );
                     }
                     ++ v ;
                 }

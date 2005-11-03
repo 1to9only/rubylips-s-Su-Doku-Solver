@@ -25,7 +25,6 @@
 
 package com.act365.sudoku;
 
-import java.io.IOException ;
 import java.text.DateFormat ;
 import java.util.Date ;
 import java.util.StringTokenizer ;
@@ -41,18 +40,27 @@ public class SuDokuUtils {
      * as numbers or letters.
      */
     
-    public final static int NUMERIC      = 0 ,
-                            ALPHANUMERIC = 1 ,
-                            TEXT         = 2 ;
-
-    public final static String[] labels = { "Numeric from 1", "Alphanumeric from 0", "Text" };
+    public enum ValueFormat { NUMERIC { @Override public String toString() { return "Numeric from 1" ;} } , 
+                              ALPHANUMERIC_0 { @Override public String toString() { return "Alphanumeric from 0" ;} } , 
+                              ALPHANUMERIC_1 { @Override public String toString() { return "Alphanumeric from 1" ;} } , 
+                              TEXT { @Override public String toString() { return "Text" ; } } };
     
     /**
      * The default display format for values greater than or equal to 10.
      */
     
-    public static int defaultFormat = NUMERIC ;
+    public static ValueFormat defaultValueFormat = ValueFormat.ALPHANUMERIC_1 ;
 
+    /**
+     * How the reasoning should be written.
+     */
+    
+    public enum ReasoningFormat { MATRIX { @Override public String toString() { return "Matrix" ;} } ,
+                                  FORUM {@Override public String toString() { return "Forum" ;} } };
+    
+    
+    public static ReasoningFormat defaultReasoningFormat = ReasoningFormat.MATRIX ;
+    
     // Copy types
     
     public final static int PLAIN_TEXT          = 0 ,
@@ -120,16 +128,16 @@ public class SuDokuUtils {
      * @param format format for numbers greater than or equal to 10
      */
 
-    public static String toString( byte[][] data , int boxesAcross , int maxDatum , int format ){
+    public static String toString( byte[][] data , int boxesAcross , int maxDatum , ValueFormat format ){
         
         final int cellsInRow = data.length ,
                   boxesDown = data.length / boxesAcross ;
                   
-        StringBuffer sb = new StringBuffer();
+        StringBuilder sb = new StringBuilder();
         
-        int i , j , k , v ;
+        int i , j , k ;
         int number = maxDatum , fieldWidth = 1 , numberWidth , boxWidth ;
-        if( format == NUMERIC ){
+        if( format == ValueFormat.NUMERIC ){
             while( ( number /= 10 ) >= 1 ){
                 ++ fieldWidth ;
             }
@@ -158,7 +166,7 @@ public class SuDokuUtils {
                 if( data[i][j] > 0 ){
                     numberWidth = 1 ;
                     number = data[i][j];
-                    if( format == NUMERIC ){
+                    if( format == ValueFormat.NUMERIC ){
                         while( ( number /= 10 ) >= 1 ){
                             ++ numberWidth ;
                         }
@@ -171,23 +179,22 @@ public class SuDokuUtils {
                         case NUMERIC:
                             sb.append( data[i][j] );
                             break;
-                        case ALPHANUMERIC:
+                        case ALPHANUMERIC_0:
                             if( data[i][j] > 10 ){
-                                try {
-                                    sb.append( (char)( 'A' + data[i][j] - 11 ) );
-                                } catch( IOException e ) {
-                                    sb.append(" ");
-                                }
+                                sb.append( (char)( 'A' + data[i][j] - 11 ) );
                             } else {
                                 sb.append( data[i][j] - 1 );
                             }
                             break;
-                        case TEXT:
-                            try {
-                                sb.append( text[data[i][j]-1] );
-                            } catch( IOException e ){
-                                sb.append(" ");
+                        case ALPHANUMERIC_1:
+                            if( data[i][j] >= 10 ){
+                                sb.append( (char)( 'A' + data[i][j] - 10 ) );
+                            } else {
+                                sb.append( data[i][j] );
                             }
+                            break;
+                        case TEXT:
+                            sb.append( text[data[i][j]-1] );
                             break;
                     }
                 } else {
@@ -212,7 +219,7 @@ public class SuDokuUtils {
      */
 
     public static String toString( byte[][] data , int boxesAcross , int maxDatum ){
-        return toString( data , boxesAcross , maxDatum , defaultFormat );
+        return toString( data , boxesAcross , maxDatum , defaultValueFormat );
     }    
 
     /**
@@ -221,7 +228,7 @@ public class SuDokuUtils {
      */
 
     public static String toString( byte[][] data , int boxesAcross ){
-        return toString( data , boxesAcross , data.length , defaultFormat );
+        return toString( data , boxesAcross , data.length , defaultValueFormat );
     }
     
     /**
@@ -238,9 +245,9 @@ public class SuDokuUtils {
         final int cellsInRow = data.length ,
                   boxesDown = data.length / boxesAcross ;
                   
-        StringBuffer sb = new StringBuffer();
+        StringBuilder sb = new StringBuilder();
         
-        int i , j , k , v , length ;
+        int i , j , k , length ;
         i = 0 ;
         while( i < cellsInRow ){
             if( i > 0 && i % boxesAcross == 0 ){
@@ -288,17 +295,25 @@ public class SuDokuUtils {
      * Populates a data array according to a string in the given format.
      */
 
-    public static void populate( byte[][] data , String s , int format ){        
-        StringTokenizer st = new StringTokenizer( s , " \t\n\r*|¦-+");
-        String token ;
-        int i , j ;
+    public static void populate( byte[][] data , String s , ValueFormat format ){   
+        String token , whitespace = " \t\n\r*|¦-+";
+        StringTokenizer st = new StringTokenizer( s , whitespace );
+        int i , j , cursor = 0 ;
         char c ;
         i = 0 ;
         while( i < data.length ){
             j = 0 ;
             while( j < data[0].length ){
-                token = st.nextToken();
-                data[i][j++] = parse( token );
+                if( data.length >= 10 ){
+                    token = st.nextToken();
+                } else {
+                    c = s.charAt( cursor ++ );
+                    while( whitespace.indexOf( c ) != -1 ){
+                        c = s.charAt( cursor ++ );
+                    }
+                    token = Character.toString( c );
+                }
+                data[i][j++] = parse( token , format );
             }
             ++ i ;
         }
@@ -309,7 +324,7 @@ public class SuDokuUtils {
      */
 
     public static void populate( byte[][] data , String s ){
-        populate( data , s , defaultFormat );
+        populate( data , s , defaultValueFormat );
     }        
     
     /**
@@ -317,7 +332,7 @@ public class SuDokuUtils {
      * into a data value.
      */
     
-    public static byte parse( String s , int format ){
+    public static byte parse( String s , ValueFormat format ){
         byte datum = 0 ;
         char c ;
         switch( format ){
@@ -327,7 +342,7 @@ public class SuDokuUtils {
             } catch( NumberFormatException e ) {
             }
             break;
-        case ALPHANUMERIC:  
+        case ALPHANUMERIC_0:  
             if( s.length() == 1 ){
                 c = s.charAt( 0 );
                 if( c >= 'A' && c <= 'Z' ){
@@ -340,6 +355,22 @@ public class SuDokuUtils {
             }
             try {
                 datum = (byte)( 1 + Byte.parseByte( s ) );
+            } catch( NumberFormatException e ) {
+            }
+            break;
+        case ALPHANUMERIC_1:  
+            if( s.length() == 1 ){
+                c = s.charAt( 0 );
+                if( c >= 'A' && c <= 'Z' ){
+                    datum = (byte)( c - 'A' + 10 );
+                    break ;
+                } else if( c >= 'a' && c <= 'z' ){
+                    datum = (byte)( c - 'a' + 10 );
+                    break ;
+                }
+            }
+            try {
+                datum = Byte.parseByte( s );
             } catch( NumberFormatException e ) {
             }
             break;
@@ -363,37 +394,7 @@ public class SuDokuUtils {
      */
     
     public static byte parse( String s ){
-        return parse( s , defaultFormat );
-    }
-    
-    /**
-     * Writes out a single item of data in the specified format.
-     */
-
-    public static String toString( int datum , int format ){
-        if( datum > 0 ){
-            switch( format ){
-            case NUMERIC:
-                return Integer.toString( datum );
-            case ALPHANUMERIC:
-                if( datum > 10 ){
-                    return Character.toString( (char)( 'A' + datum - 11 ) );
-                } else {
-                    return Integer.toString( datum - 1 );                        
-                }
-            case TEXT:
-                return new String( text , datum - 1 , 1 );
-            }
-        }
-        return new String();
-    }
-    
-    /**
-     * Writes out a single item of data in the default format.
-     */
-
-    public static String toString( int datum ){
-        return toString( datum , defaultFormat );
+        return parse( s , defaultValueFormat );
     }
     
     /**
@@ -405,7 +406,7 @@ public class SuDokuUtils {
                                             int boxesAcross ,
                                             String[] featuredGrades ){
         
-        StringBuffer sb = new StringBuffer();
+        StringBuilder sb = new StringBuilder();
         
         sb.append("<?xml version=\"1.0\" encoding=\"UTF-8\" standalone=\"no\"?>\n");
         sb.append("<sudoku-book>\n");
@@ -448,5 +449,175 @@ public class SuDokuUtils {
 
     public static String libraryBookFooter() {
         return "</sudoku-book>\n" ;
+    }
+    
+    public static StringBuilder appendCell( StringBuilder sb , int r , int c , ReasoningFormat format ){
+        switch( format ){
+        case MATRIX :
+            sb.append('(');
+            sb.append( 1 + r );
+            sb.append(',');
+            sb.append( 1 + c );
+            sb.append(')');
+            break;
+        case FORUM :
+            sb.append('r');
+            sb.append( 1 + r );
+            sb.append('c');
+            sb.append( 1 + c );
+            break;
+        default:
+            assert false ;
+        }
+        return sb ;
+    }
+    
+    public static StringBuilder appendCell( StringBuilder sb , int r , int c ){
+        return appendCell( sb , r , c , defaultReasoningFormat );
+    }
+    
+    public static StringBuilder appendSector( StringBuilder sb , int cellsInRow , int boxesAcross , int sector , ReasoningFormat format ){
+        switch( format ){
+        case MATRIX :
+            if( sector < cellsInRow ){
+                sb.append("Row ");
+                sb.append( 1 + sector );
+            } else if( sector < 2 * cellsInRow ) {
+                sb.append("Column ");
+                sb.append( 1 + sector % cellsInRow );
+            } else {
+                sb.append("Box [");
+                sb.append( 1 + sector % cellsInRow / boxesAcross );
+                sb.append(',');
+                sb.append( 1 + sector % cellsInRow % boxesAcross );
+                sb.append(']');
+            }
+            break ;
+        case FORUM :
+            if( sector < cellsInRow ){
+                sb.append("Row ");
+            } else if( sector < 2 * cellsInRow ){
+                sb.append("Column ");
+            } else {
+                sb.append("Box ");
+            }
+            sb.append( 1 + sector % cellsInRow );
+            break ;
+        default:
+            assert false ;
+        }
+        return sb ;
+    }
+    
+    public static StringBuilder appendSector( StringBuilder sb , int cellsInRow , int boxesAcross , int sector ){
+        return appendSector( sb , cellsInRow , boxesAcross , sector , defaultReasoningFormat );
+    }
+    
+    public static StringBuilder appendRow( StringBuilder sb , int r ){
+        sb.append("Row ");
+        sb.append( 1 + r );
+        return sb ;
+    }
+    
+    public static StringBuilder appendColumn( StringBuilder sb , int c ){
+        sb.append("Column ");
+        sb.append( 1 + c );
+        return sb ;
+    }
+    
+    public static StringBuilder appendBox( StringBuilder sb , int boxesAcross , int box , ReasoningFormat format ){
+        sb.append("Box ");
+        switch( format ){
+        case MATRIX:
+            sb.append('[');
+            sb.append( 1 + box / boxesAcross );
+            sb.append(',');
+            sb.append( 1 + box % boxesAcross );
+            sb.append(']');
+            break ;
+        case FORUM:
+            sb.append( 1 + box );
+            break ;
+        }
+        return sb ;
+    }
+    
+    public static StringBuilder appendBox( StringBuilder sb , int boxesAcross , int box ){
+        return appendBox( sb , boxesAcross , box , defaultReasoningFormat );
+    }
+    
+    public static StringBuilder appendBox( StringBuilder sb , int boxesAcross , int boxesDown , int r , int c , ReasoningFormat format ){
+        sb.append("Box ");
+        switch( format ){
+        case MATRIX:
+            sb.append('[');
+            sb.append( 1 + r / boxesAcross );
+            sb.append(',');
+            sb.append( 1 + c / boxesDown );
+            sb.append(']');
+            break ;
+        case FORUM:
+            sb.append( 1 + r / boxesAcross * boxesAcross + c / boxesDown );
+            break ;
+        }
+        return sb ;
+    }
+
+    public static StringBuilder appendBox( StringBuilder sb , int boxesAcross , int boxesDown , int r , int c ){
+        return appendBox( sb , boxesAcross , boxesDown , r , c , defaultReasoningFormat );
+    }
+    
+    public static String valueToString( int value , ValueFormat format ){
+        if( value >= 0 ){
+            switch( format ){
+            case NUMERIC:
+                return Integer.toString( 1 + value );
+            case ALPHANUMERIC_0:
+                if( value >= 10 ){
+                    return Character.toString((char)( 'A' + value - 10 ) );
+                }
+                return Integer.toString( value );                
+            case ALPHANUMERIC_1:
+                if( value >= 9 ){
+                    return Character.toString((char)( 'A' + value - 9 ) );
+                }
+                return Integer.toString( 1 + value );                
+            case TEXT:
+                return Character.toString( text[value] );
+            default:
+                assert false ;
+            }
+        }
+        return new String();
+    }
+    
+    public static String valueToString( int value ){
+        return valueToString( value , defaultValueFormat );
+    }
+    
+    public static StringBuilder appendValue( StringBuilder sb , int v , ValueFormat format ){
+        sb.append( valueToString( v , format ) );
+        return sb ;
+    }
+    
+    public static StringBuilder appendValue( StringBuilder sb , int v ){
+        sb.append( valueToString( v ) );
+        return sb ;
+    }
+    
+    public static StringBuilder appendMove( StringBuilder sb , 
+                                            int r , 
+                                            int c , 
+                                            int value , 
+                                            ValueFormat valueFormat ,
+                                            ReasoningFormat reasoningFormat ){
+        appendCell( sb , r , c , reasoningFormat );
+        sb.append(":=");
+        appendValue( sb , value , valueFormat );
+        return sb ;
+    }
+    
+    public static StringBuilder appendMove( StringBuilder sb , int r , int c , int value ){
+        return appendMove( sb , r , c , value , defaultValueFormat , defaultReasoningFormat );
     }
 }

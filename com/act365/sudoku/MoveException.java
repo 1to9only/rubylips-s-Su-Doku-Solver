@@ -35,6 +35,7 @@ public abstract class MoveException extends Exception {
     int x , y , value ;
     
     protected MoveException( String s , int x , int y , int value ) {
+        super( s );
         this.x = x ;
         this.y = y ;
         this.value = value ;    

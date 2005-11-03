@@ -25,7 +25,6 @@
 
 package com.act365.sudoku;
 
-import java.io.* ;
 import java.util.* ;
 
 /**
@@ -37,21 +36,109 @@ import java.util.* ;
  * will be a reflection of a mask that appeared earlier in the sequence.
  */
 
-public class MaskFactory implements Enumeration {
+public abstract class MaskFactory implements Enumeration {
+
+    int sector ;
     
-    int nBalls ,
-        nSlots ,
-        cellsInRow ,
-        filledCells ;
-        
-    int[] g0 , g ;
+    int[] sectorBalls0 ;
     
-    boolean fillCentreCell ,
-            haveIterated ;
+    protected int[][] g ;
     
-    boolean[][] mask ,
-                previousMask ;
+    int[][] g0 ;
     
+    boolean[] haveIteratedBalls ;
+    
+    boolean haveIteratedSectors ;
+    
+    protected boolean[][] mask ;
+    
+    boolean[][] previousMask ;
+    
+    protected int nSectors ,
+                  cellsInRow ,
+                  filledCells ;
+    
+    protected int[] sectorBalls ,
+                    sectorSlots ,
+                    sectorMin ,
+                    sectorMax ;
+    
+    static Random random ;
+    
+    /**
+     * Iterates sequentially through all possible settings of the vector x,
+     * which has elements xMin[i] <= x[i] <= xMax[i].
+     */
+    
+    static void iterate( int[] x , int[] xMin , int[] xMax ){
+        int s = x.length ;
+        while( -- s >= 0 && x[s] == xMax[s] );
+        if( s >= 0 ){
+            ++ x[s];
+        }
+        while( ++ s < x.length ){
+            x[s] = xMin[s];
+        }
+    }
+    
+    /**
+     * Iterates sequentially through all possible settings of the vector x,
+     * which has elements that satisfy Sum(x[i]) = xSum.
+     */
+    
+    static void iterate( int[] x , int xSum ){
+        int i , s = 0 ;
+        while( ++ s < x.length && x[s] == 0 );
+        if( s < x.length ){
+            -- x[s];
+            i = x.length ;
+            while( i > s ){
+                -- i ;
+                xSum -= x[i]; 
+            }
+        } else {
+            i = x.length ;
+        }  
+        x[--i] = xSum ;          
+        while( i > 0 ){
+            x[--i] = 0 ;
+        }
+    }
+    
+    /**
+     * Randomly allocates to the vector x, which has elements 
+     * xMin[i] <= x[i] <= xMax[i].
+     */
+    
+    static void randomlyAllocate( int[] x , int[] xMin , int[] xMax ){
+        if( random == null ){
+            random = new Random();            
+        }
+        int i = 0 ;
+        while( i < x.length ){
+            if( xMin[i] < xMax[i] ){
+                x[i] = xMin[i] + Math.abs( random.nextInt() % ( xMax[i] - xMin[i] ) );
+            } else {
+                x[i] = xMin[i];
+            }
+            ++ i ; 
+        }
+    }
+
+    /**
+     * Randomly allocates to the vector x, which has elements with Sum(x[i]) = xSum.
+     */
+    
+    static void randomlyAllocate( int[] x , int xSum ){
+        if( random == null ){
+            random = new Random();            
+        }
+        while( xSum > 0 ){
+            ++ x[Math.abs( random.nextInt() % x.length )];
+            -- xSum ;
+        }
+    }
+
     /**
      * Creates a new MaskFactory. The sequence starts in its natural start
      * position, which is usually some distance from the masks that are 
@@ -61,9 +148,9 @@ public class MaskFactory implements Enumeration {
      * @throws Exception thrown if cellsInRow and filledCells are incompatible
      */
     
-    public MaskFactory( int cellsInRow , int filledCells ) throws Exception {
-        resize( cellsInRow , filledCells );
-        initiate( false );
+    public MaskFactory( int cellsInRow ) {
+        resize( cellsInRow );
+//        initiate( false );
     }
 
     /**
@@ -74,14 +161,14 @@ public class MaskFactory implements Enumeration {
      * @param randomize whether the start position should be randomized
      * @throws Exception thrown if cellsInRow and filledCells are incompatible
      */
-    
+/*    
     public MaskFactory( int cellsInRow , 
                         int filledCells ,
                         boolean randomize ) throws Exception {
         this( cellsInRow , filledCells );
         initiate( randomize );
     }
-
+*/
     /**
      * Creates a new MaskFactory. The sequence starts at the given
      * mask.
@@ -90,14 +177,14 @@ public class MaskFactory implements Enumeration {
      * @param mask start mask
      * @throws Exception thrown if cellsInRow and filledCells are incompatible
      */
-    
+/*    
     public MaskFactory( int cellsInRow , 
                         int filledCells ,
                         boolean[][] mask ) throws Exception {
         this( cellsInRow , filledCells );
         initiate( mask );
     }
-
+*/
     /**
      * Creates a new MaskFactory. The sequence starts at the mask 
      * specified by a given gap sequence.
@@ -106,14 +193,14 @@ public class MaskFactory implements Enumeration {
      * @param gaps gap sequence that defines the start mask
      * @throws Exception thrown if cellsInRow and filledCells are incompatible
      */
-    
+/*    
     public MaskFactory( int cellsInRow , 
                         int filledCells ,
                         int[] gaps ) throws Exception {
         this( cellsInRow , filledCells );
         initiate( gaps );
     }
-
+*/
     /**
      * Creates a new MaskFactory. The sequence starts at the mask specified
      * by the string, which should be in the format used by
@@ -121,11 +208,11 @@ public class MaskFactory implements Enumeration {
      * @param s string representation of start mask
      * @throws Exception thrown if cellsInRow and filledCells are incompatible
      */
-    
+/*    
     public MaskFactory( String s ) throws Exception {
         initiate( s );
     }
-
+*/
     /**
      * Creates a new MaskFactory. The sequence will start from a mask with
      * uniformly-distributed filled cells.
@@ -134,57 +221,147 @@ public class MaskFactory implements Enumeration {
      * @param boxesAcross grid dimension
      * @throws Exception thrown if cellsInRow and filledCells are incompatible
      */
-    
+/*    
     public MaskFactory( int cellsInRow , 
                         int filledCells ,
                         int boxesAcross ) throws Exception {
         this( cellsInRow , filledCells );
         initiate( boxesAcross );
     }
+*/
+    public abstract int countSectors();
 
+    public abstract boolean areSectorsValid();
+    
+    public abstract int allocateSectors( int filledCells );
+    
+    public abstract void populateMask();
+    
     /**
      * Resizes the masks produced by the factory.
      * @param cellsInRow number of cell per row on the grid 
-     * @param filledCells number of cells on the grid that will be initially filled
-     * @throws Exception throw when cells in row is even and filled cells is odd
      */
     
-    void resize( int cellsInRow , int filledCells ) throws Exception {
-        if( this.cellsInRow == cellsInRow && this.filledCells == filledCells ){
+    void resize( int cellsInRow ) {
+        if( this.cellsInRow == cellsInRow ){
             return ;
         }
         this.cellsInRow = cellsInRow ;
-        this.filledCells = filledCells ;
         mask = new boolean[cellsInRow][cellsInRow];
         previousMask = new boolean[cellsInRow][cellsInRow];
-        // Calculate the number of 'balls' to be fitted into the 'slots'.
-        if( cellsInRow % 2 == 1 ){
-            if( filledCells % 2 == 1 ){
-                fillCentreCell = true ; 
-                nBalls = ( filledCells - 1 )/ 2 ;
-            } else {
-                fillCentreCell = false ;                     
-                nBalls = filledCells / 2 ;                       
-            }
-            nSlots = ( cellsInRow * cellsInRow - 1 )/ 2 ;
-        } else {
-            if( filledCells % 2 == 1 ){
-                throw new Exception("Number of filled cells should be even");
-            } else {
-                fillCentreCell = false ; // Default setting - there's no centre cell
-                nBalls = filledCells / 2 ;
-                nSlots = cellsInRow * cellsInRow / 2 ;
-            }
-        }        
-        g = new int[ nBalls + 1 ];
-        g0 = new int[ nBalls + 1 ];        
+        nSectors = countSectors();
+        sectorBalls0 = new int[nSectors];
+        sectorMin = new int[nSectors];
+        sectorMax = new int[nSectors];
+        sectorBalls = new int[nSectors];
+        sectorSlots = new int[nSectors];
+        g = new int[nSectors][];
+        g0 = new int[nSectors][];       
+        haveIteratedBalls = new boolean[nSectors]; 
     }
     
     /**
-     * Generates the next mask. It's guaranteed that the new mask
+     * Sets the number of cells to be filled on the mask.
+     * The returned number is the actual number of cells filled, 
+     * which might exceed the requested number if the current 
+     * symmetry type so demands.
+     */
+    
+    public int setFilledCells( int filledCells ){
+        if( this.filledCells != filledCells ){
+            this.filledCells = allocateSectors( filledCells );        
+        }
+        return this.filledCells ;
+    }
+    
+    // Various private functions to iterate through the set of possible masks.
+    
+    void resetBalls( int sector ){
+        g0[sector][sectorBalls[sector]] = g[sector][sectorBalls[sector]] = sectorSlots[sector] - sectorBalls[sector] ;
+        int i = 0 ;
+        while( i < sectorBalls[sector] ){
+            g0[sector][i] = g[sector][i] = 0 ;
+            ++ i ;
+        }
+        haveIteratedBalls[sector] = false ;
+    }
+    
+    void iterateBalls( int sector ){
+        iterate( g[sector] , sectorSlots[sector] - sectorBalls[sector] );
+        haveIteratedBalls[sector] = true ;
+    }
+    
+    boolean hasMoreBalls( int sector ){
+        if( ! haveIteratedBalls[sector] ){
+            return true ;
+        }
+        int i = 0 ;
+        while( i < 1 + sectorBalls[sector] ){
+            if( g[sector][i] != g0[sector][i] ){
+                return true ;   
+            }
+            ++ i ;
+        }
+        return false ;
+    }
+
+    void resetSectors(){
+        int i = 0 ;
+        while( i < nSectors ){
+            sectorBalls[i] = sectorMin[i] ;
+            ++ i ;    
+        }
+        while( ! areSectorsValid() ){
+            iterate( sectorBalls , sectorMin , sectorMax );
+        }
+        i = 0 ;
+        while( i < nSectors ){
+            sectorBalls0[i] = sectorBalls[i];
+            resetBalls( i ++ );
+        }
+        sector = 0 ;
+        haveIteratedSectors = false ;
+    }
+    
+    void iterateSectors(){
+        iterate( sectorBalls , sectorMin , sectorMax );
+        while( ! areSectorsValid() ){
+            iterate( sectorBalls , sectorMin , sectorMax );
+        }
+        haveIteratedSectors = true ;
+    }
+    
+    boolean hasMoreSectors(){
+        if( ! haveIteratedSectors ){
+            return true ;
+        }
+        int i = 0 ;
+        while( i < nSectors ){
+            if( sectorBalls[i] != sectorBalls0[i] ){
+                return true ;
+            }
+            ++ i ;
+        }
+        return false ;
+    }
+
+    /**
+     * Generates the next mask. It's (temporarily not) guaranteed that the new mask
      * will not simply be a reflection of an earlier mask. 
      */
     
+    public void iterate(){
+        if( hasMoreBalls( sector ) ){
+            iterateBalls( sector );
+        } else if( hasMoreSectors() ) {
+            iterateSectors();
+        } else {
+            resetSectors();
+        }
+        populateMask();
+    }
+    
+/*    
     void iterate(){
         int i ;
         int[] reflection = new int[nBalls+1];
@@ -231,69 +408,40 @@ public class MaskFactory implements Enumeration {
             return ;
         }
     }
-    
+*/    
     /**
-     * Generates the next set of gaps. NB The new gaps will be rejected
-     * if they are merely a reflection of a set seen before.
+     * Restarts the iterative sequence at a random position. 
      */
     
-    void iterateGaps(){
+    void shuffle(){
+        randomlyAllocate( sectorBalls , sectorMin , sectorMax );   
+        while( ! areSectorsValid() ){
+            iterate( sectorBalls , sectorMin , sectorMax );   
+        }
+        haveIteratedSectors = false ;
         int i , s = 0 ;
-        while( ++ s <= nBalls && g[s] == 0 );
-        if( s <= nBalls ){
-            -- g[s];
-            g[s-1] = 0 ;
-            i = nBalls + 1 ;
-            while( i > s ){
-                g[s-1] -= g[--i];
+        while( s < nSectors ){
+            sectorBalls0[s] = sectorBalls[s];
+            g[s] = new int[1+sectorBalls[s]];
+            g0[s] = new int[1+sectorBalls[s]];
+            randomlyAllocate( g[s] , sectorSlots[s] - sectorBalls[s] );
+            haveIteratedBalls[s] = false ;
+            i = 0 ;
+            while( i < sectorBalls[s] ){
+                g0[s][i] = g[s][i];
+                ++ i ;
             }
-            g[--i] += nSlots - nBalls ;
-            while( i > 0 ){
-                g[--i] = 0 ;
-            }
-        } else {
-            g[nBalls] = nSlots - nBalls ;
-            i = nBalls ;
-            while( i > 0 ){
-                g[--i] = 0 ;
-            }
+            ++ s ;   
         }
+        populateMask();
     }
     
-    /**
-     * Generates a mask from the g[] array.
-     */
-    
-    void generateMask(){    
-        int i , j , k ;
-        i = 0 ;
-        while( i < cellsInRow ){
-            j = 0 ;
-            while( j < cellsInRow ){
-                mask[i][j] = false ;
-                ++ j ;
-            }
-            ++ i ;
-        }
-        i = j = k = 0 ;
-        while( k < nBalls ){
-            j += g[k++];
-            i += j / cellsInRow ;
-            j = j % cellsInRow ;
-            mask[i][j] = mask[cellsInRow-1-i][cellsInRow-1-j] = true ; 
-            ++ j ; 
-        }
-        if( fillCentreCell ){
-            mask[(cellsInRow-1)/2][(cellsInRow-1)/2]= true ;
-        }
-    }
-       
     /**
      * Writes the mask as a string.
      */
     
     public String toString(){
-        StringBuffer sb = new StringBuffer();        
+        StringBuilder sb = new StringBuilder();        
         int i , j ;        
         i = 0 ;
         while( i < cellsInRow ){
@@ -318,17 +466,7 @@ public class MaskFactory implements Enumeration {
      */
     
     public boolean hasMoreElements(){
-        if( ! haveIterated ){
-            return true ;
-        }
-        int i = 0 ;
-        while( i < nBalls + 1 ){
-            if( g[i] != g0[i] ){
-                return true ;
-            }
-            ++ i ;
-        }
-        return false ;
+        return hasMoreSectors() || hasMoreBalls( sector );
     }
     
     /**
@@ -350,7 +488,6 @@ public class MaskFactory implements Enumeration {
                 ++ r ;
             }
             iterate();
-            haveIterated = true ;
             return previousMask ;
         } else {
             throw new NoSuchElementException();
@@ -362,7 +499,7 @@ public class MaskFactory implements Enumeration {
      * represented by the gaps h[] in the iterative sequence.
      * Note that true will be returned if the two masks are equal. 
      */
-
+/*
     boolean precedes( int[] h ){
         int i = g.length ;
         while( --i >= 0 ){
@@ -374,14 +511,14 @@ public class MaskFactory implements Enumeration {
         }
         return true ;
     }
-    
+*/    
     /**
      * Calculates the gaps that characterize the reflection 
      * of the current mask in the line that runs from 
      * grid top to bottom. The array h[] should match g in length
      * and contain zeros.
      */
-    
+/*    
     void reflectTopBottom( int[] h ) {
         int i = 0 , j = 0 , k = 0 , b = 0 ;
         while( b <= nBalls ){
@@ -399,14 +536,14 @@ public class MaskFactory implements Enumeration {
             }
         }
     }
-    
+*/    
     /**
      * Calculates the gaps that characterize the reflection 
      * of the current mask in the line that runs from 
      * grid left to right. The array h[] should match g in length
      * and contain zeros.
      */
-    
+/*    
     void reflectLeftRight( int[] h ) {
         int i = 0 , j = 0 , k = 0 , b = 0 ;
         while( b <= nBalls ){
@@ -424,14 +561,14 @@ public class MaskFactory implements Enumeration {
             }
         }
     }
-    
+*/    
     /**
      * Calculates the gaps that characterize the reflection 
      * of the current mask in the line that runs from 
      * grid top-left to bottom-right. The array h[] should match g in length
      * and contain zeros.
      */
-    
+/*    
     void reflectTopLeftBottomRight( int[] h ) {
         int i = 0 , j = 0 , k = 0 , b = 0 ;
         while( b <= nBalls ){
@@ -449,14 +586,14 @@ public class MaskFactory implements Enumeration {
             }
         }
     }
-    
+*/    
     /**
      * Calculates the gaps that characterize the reflection 
      * of the current mask in the line that runs from 
      * grid top-right to bottom-left. The array h[] should match g in length
      * and contain zeros.
      */
-    
+/*    
     void reflectTopRightBottomLeft( int[] h ) {
         int i = 0 , j = 0 , k = 0 , b = 0 ;
         while( b <= nBalls ){
@@ -474,7 +611,7 @@ public class MaskFactory implements Enumeration {
             }
         }
     }
-    
+*/    
     /**
      * Where necessary, rectify() replaces the current mask with
      * a reflection that appears in the iterative sequence. 
@@ -482,7 +619,7 @@ public class MaskFactory implements Enumeration {
      * on the iterative sequence and it sometimes takes quite a while
      * for the random mask to iterate through to a valid mask). 
      */
-    
+/*    
     void rectify(){
         int i ;
         int[] h = new int[ nBalls + 1 ];    
@@ -536,11 +673,11 @@ public class MaskFactory implements Enumeration {
         }
         generateMask();
     }
-    
+*/    
     /**
      * Starts the iterative sequence at the mask specified by an array of gaps.
      */    
-    
+/*    
     void initiate( int[] h ){
         int i = 0 ;
         while( i < nBalls + 1 ){
@@ -556,11 +693,11 @@ public class MaskFactory implements Enumeration {
         generateMask();
         haveIterated = false ;
     }
-    
+*/    
     /**
      * Starts the iterative sequence at the given mask.
      */    
-    
+/*    
     void initiate( boolean[][] mask ){
         int i , j = 0 , k = 0 , b = 0 ;
         i = 0 ;
@@ -591,16 +728,17 @@ public class MaskFactory implements Enumeration {
         generateMask();
         haveIterated = false ;
     }
-
+*/
     /**
-     * Starts the iterative sequence at the mask specified by
-     * a string in the format produced by <code>toString()</code>.
+     * Popualtes the pre-allocated mask array according to the contents of the string.
      */    
     
-    void initiate( String s ) throws Exception {       
+    public static void populate( boolean[][] mask , String s ) throws Exception {       
         int i , j , p , cellsInRow = s.indexOf('\n') , filledCells = 0 ;
         char c ;
-        boolean[][] mask = new boolean[cellsInRow][cellsInRow];
+        if( mask.length != cellsInRow ){
+            throw new Exception("Mask array should have " + cellsInRow + " rows" );
+        }
         i = p = 0 ;
         while( i < cellsInRow ){
             j = 0 ;
@@ -618,14 +756,12 @@ public class MaskFactory implements Enumeration {
             }
             ++ i ;
         }
-        resize( cellsInRow , filledCells );
-        initiate( mask );
     }
 
     /**
      * Starts the iterative sequence at an optionally random position. 
      */
-    
+/*    
     void initiate( boolean randomize ){
         Random random = null ;    
         if( randomize ){
@@ -653,14 +789,14 @@ public class MaskFactory implements Enumeration {
         generateMask();
         haveIterated = false ;
     }
-    
+*/    
     /**
      * Starts the iterative sequence at a position such that the
      * filled cells will be uniformly distributed with respect to 
      * the grid size.
      * @param boxesAcross
      */
-    
+/*    
     void initiate( int boxesAcross ) throws Exception {
         
         Random generator = new Random();
@@ -733,7 +869,7 @@ public class MaskFactory implements Enumeration {
         }
         initiate( state.mask );
     }        
-    
+*/    
     /**
      * Returns the mask dimension.
      */
@@ -977,8 +1113,9 @@ public class MaskFactory implements Enumeration {
            }
        }
        // Initiate the mask sequence.
-       MaskFactory maskFactory = null ;
-       try {
+/*       
+       try {        
+           MaskFactory maskFactory = null ;
            if( standardInput ){
                String text ;
                StringBuffer maskText = new StringBuffer();
@@ -1007,6 +1144,7 @@ public class MaskFactory implements Enumeration {
            System.err.println( e.getMessage() );
            System.exit( 2 );
        }
+       
        // Iterate through.
        i = 0 ;
        while( maskFactory.hasMoreElements() ){
@@ -1019,5 +1157,6 @@ public class MaskFactory implements Enumeration {
        }
        
        System.out.println( i + " distinct masks found");
+*/
     }
 }

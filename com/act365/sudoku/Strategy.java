@@ -59,35 +59,35 @@ public class Strategy {
      * Creates a new strategy instance to solve the given grid.
      */
 
-    public static IStrategy create( int strategy ){
+    public static IStrategy create( int strategy , boolean explain ){
         
         switch( strategy ){
             case FIRST_AVAILABLE:
             return new FirstAvailable();
             
             case LEAST_CANDIDATES_CELL:
-            return new LeastCandidatesCell( false );
+            return new LeastCandidatesCell( false , explain );
             
             case RANDOM_LEAST_CANDIDATES_CELL :
-            return new LeastCandidatesCell( true );
+            return new LeastCandidatesCell( true , explain );
             
             case LEAST_CANDIDATES_NUMBER:
-            return new LeastCandidatesNumber( false );
+            return new LeastCandidatesNumber( false , explain );
             
             case RANDOM_LEAST_CANDIDATES_NUMBER :
-            return new LeastCandidatesNumber( true );
+            return new LeastCandidatesNumber( true , explain );
             
             case LEAST_CANDIDATES_HYBRID:
-            return new LeastCandidatesHybrid( false , true );
+            return new LeastCandidatesHybrid( false , false , false , false , explain );
             
             case RANDOM_LEAST_CANDIDATES_HYBRID :
-            return new LeastCandidatesHybrid( true , true );
+            return new LeastCandidatesHybrid( true , false , false , false , explain );
             
             case LEAST_CANDIDATES_HYBRID_II:
-            return new LeastCandidatesHybrid( false , true , true , true );
+            return new LeastCandidatesHybrid( false , true , false , true , explain );
             
             case RANDOM_LEAST_CANDIDATES_HYBRID_II :
-            return new LeastCandidatesHybrid( true , true , true , true );
+            return new LeastCandidatesHybrid( true , true , false , true , explain );
             
             case MOST_CANDIDATES :
             return new MostCandidates( null , false );
@@ -100,11 +100,11 @@ public class Strategy {
         }
     }
     
-    public static IStrategy create( String strategy ){
+    public static IStrategy create( String strategy , boolean explain ){
         int i = 0 ;
         while( i < strategyNames.length ){
             if( strategy.equalsIgnoreCase( strategyNames[i] ) ){
-                return create( i );
+                return create( i , explain );
             }
             ++ i ;
         }

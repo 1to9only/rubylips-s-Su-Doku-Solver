@@ -25,6 +25,8 @@
 
 package com.act365.sudoku;
 
+import com.act365.sudoku.masks.*;
+
 import java.awt.*;
 import java.awt.event.*;
 import java.util.Date ;
@@ -47,7 +49,8 @@ public class GridContainer extends com.act365.awt.Container
     int displayedRows ,
         displayedColumns ,
         firstDisplayedRow ,
-        firstDisplayedColumn ;
+        firstDisplayedColumn ,
+        maskType ;
     
     double solveTime ;
     
@@ -68,11 +71,12 @@ public class GridContainer extends com.act365.awt.Container
     
     public GridContainer( Grid grid ) {
         this.grid = grid ;
-        strategy = (LeastCandidatesHybrid) Strategy.create( Strategy.LEAST_CANDIDATES_HYBRID_II );
+        strategy = (LeastCandidatesHybrid) Strategy.create( Strategy.LEAST_CANDIDATES_HYBRID_II , true );
         horizontalScroll = new Scrollbar( Scrollbar.HORIZONTAL );
         horizontalScroll.addAdjustmentListener( this );
         verticalScroll = new Scrollbar();
         verticalScroll.addAdjustmentListener( this );
+        maskType = MaskUtils.ROTATE_2 ;
         setBoxes( grid.boxesAcross , grid.boxesDown );
         write();
     }
@@ -152,7 +156,8 @@ public class GridContainer extends com.act365.awt.Container
         
     public int evaluate(){
     	read();
-        IStrategy strategy = Strategy.create( Strategy.LEAST_CANDIDATES_HYBRID_II );
+        final int strategyType = grid.cellsInRow >= 12 ? Strategy.LEAST_CANDIDATES_HYBRID_II : Strategy.LEAST_CANDIDATES_HYBRID ; 
+        IStrategy strategy = Strategy.create( strategyType , false );
     	int nSolns = grid.solve( strategy , 2 );
     	strategy.reset();
     	
@@ -281,31 +286,56 @@ public class GridContainer extends com.act365.awt.Container
      * @param filledCells - number of filled cells to appear in the puzzle
      */
     
-    public synchronized void startComposer( int filledCells ){
-        read();
+    public synchronized int startComposer( int filledCells ){
+        read();        
         try {
+            boolean[][] userMask = null ;
+            
+            if( maskType == MaskUtils.USER_DEFINED ){
+                userMask = new boolean[grid.cellsInRow][grid.cellsInRow];
+                int i , j ;
+                i = 0 ;
+                while( i < grid.cellsInRow ){
+                    j = 0 ;
+                    while( j < grid.cellsInRow ){
+                        userMask[i][j] = grid.data[i][j] > 0 ;
+                        ++ j ;
+                    }
+                    ++ i ;
+                }
+            }
+            
+            MaskFactory factory = MaskUtils.createMaskFactory( maskType , grid.cellsInRow , grid.boxesAcross , userMask );
+            filledCells = factory.setFilledCells( filledCells );
+            factory.shuffle();
+            
             composer = new Composer( this , 
                                      grid.boxesAcross , 
                                      1 , 
                                      0 ,
                                      50 ,
                                      Integer.MAX_VALUE ,
-                                     new MaskFactory( grid.cellsInRow , filledCells , grid.boxesAcross ) ,
+                                     factory ,
                                      Composer.defaultThreads , 
                                      0 , 
                                      null ,
                                      grid.cellsInRow >= 12 ,
-                                     strategy.useSingleSectorCandidates ? 0 : -1 ,
+                                     strategy.useLockedSectorCandidates ? 0 : -1 ,
                                      strategy.useDisjointSubsets ? 0 : -1 ,
+                                     strategy.useTwoSectorDisjointSubsets ? 0 : -1 ,
                                      strategy.useSingleValuedChains ? 0 : -1 ,
                                      strategy.useManyValuedChains ? 0 : -1 ,
                                      strategy.useNishio ? 0 : -1 ,
                                      strategy.useGuesses ? 0 : -1 ,
+                                     false ,
+                                     true ,
                                      true ,
                                      false );
             composer.start();
         } catch ( Exception e ) {
+            filledCells = 0 ;
         }
+        return filledCells ;
     }
 
     /**
@@ -364,7 +394,7 @@ public class GridContainer extends com.act365.awt.Container
         while( c < grid.cellsInRow ){
             r = 0 ;
             while( r < grid.cellsInRow ){ 
-                textFields[r][c].setText( SuDokuUtils.toString( grid.data[r][c] ) );   
+                textFields[r][c].setText( SuDokuUtils.valueToString( grid.data[r][c] - 1 ) );   
                 ++ r ;
             }
             ++ c ;
@@ -381,7 +411,7 @@ public class GridContainer extends com.act365.awt.Container
         while( r < grid.cellsInRow ){
             c = 0 ;
             while( c < grid.cellsInRow ){ 
-                grid.data[r][c] = SuDokuUtils.parse( textFields[r][c].getText() );      
+                grid.data[r][c] = SuDokuUtils.parse( textFields[r][c].getText().trim() );      
                 ++ c ;
             }
             ++ r ;

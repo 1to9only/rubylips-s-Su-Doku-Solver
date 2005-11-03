@@ -47,7 +47,7 @@ public class Frame extends java.awt.Frame {
     }
 
     class WindowEventHandler extends WindowAdapter {
-        public void windowClosing( WindowEvent we ) {
+        @Override public void windowClosing( WindowEvent we ) {
             dispose();   
         }
     }

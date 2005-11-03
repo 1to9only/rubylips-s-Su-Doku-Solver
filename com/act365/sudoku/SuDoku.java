@@ -100,7 +100,7 @@ public class SuDoku extends Frame {
         Grid grid = null ;
         if( standardInput ){
             String text ;
-            StringBuffer gridText = new StringBuffer();
+            StringBuilder gridText = new StringBuilder();
             BufferedReader standardInputReader = new BufferedReader( new InputStreamReader( System.in ) );
             try {
                 while( ( text = standardInputReader.readLine() ) != null ){
@@ -120,6 +120,6 @@ public class SuDoku extends Frame {
             grid = new Grid( boxesAcross , boxesDown );
         }
         // 
-        new SuDoku( grid ).show();
+        new SuDoku( grid ).setVisible( true );
 	}
 }

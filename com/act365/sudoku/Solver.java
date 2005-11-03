@@ -300,7 +300,7 @@ public class Solver extends Thread {
     
     /**
      * Command-line app to solve Su Doku puzzles.
-     * <br><code>Solver [-m max solutions] [-s strategy] [-v] [-u max unwinds]</code>
+     * <br><code>Solver [-m max solutions] [-s strategy] [-v]</code>
      * <br><code>[-m max solutions]</code> stipulates the maximum number of solutions to be reported. 
      * The default is for all solutions to be reported.
      * <br><code>[-s strategy]</code> stipulates the strategy to be used. the default is Least Candidates Hybrid.
@@ -316,7 +316,7 @@ public class Solver extends Thread {
         boolean debug = false ,
                 profile = false ;
         
-        int i , maxSolns = 0 , maxUnwinds = 0 , maxComplexity = 0 ;
+        int i , maxSolns = 0 ;
         
         String strategyLabel = "Least Candidates Hybrid";
         
@@ -343,7 +343,7 @@ public class Solver extends Thread {
         }
         // Create the strategy.
         IStrategy strategy ;       
-        if( ( strategy = Strategy.create( strategyLabel ) ) == null ){
+        if( ( strategy = Strategy.create( strategyLabel , debug ) ) == null ){
             System.err.println("Unsupported strategy");
             System.exit( 2 );
         }
@@ -351,7 +351,7 @@ public class Solver extends Thread {
         // the read.
         Grid grid = new Grid();
         String text ;
-        StringBuffer gridText = new StringBuffer();
+        StringBuilder gridText = new StringBuilder();
         BufferedReader standardInputReader = new BufferedReader( new InputStreamReader( System.in ) );
         try {
             while( ( text = standardInputReader.readLine() ) != null ){
@@ -391,8 +391,9 @@ public class Solver extends Thread {
                 LeastCandidatesHybrid lch = (LeastCandidatesHybrid) strategy ;
                 if( lch.state instanceof IState ){
                     System.out.println("Single Candidature: " + lch.singleCandidatureCalls + " calls");
-                    System.out.println("Single Sector Candidates: " + lch.singleSectorCandidatesCalls + " calls " + lch.singleSectorCandidatesEliminations + " eliminations");
+                    System.out.println("Locked Sector Candidates: " + lch.lockedSectorCandidatesCalls + " calls " + lch.lockedSectorCandidatesEliminations + " eliminations");
                     System.out.println("Disjoint Subsets: " + lch.disjointSubsetsCalls + " calls " + lch.disjointSubsetsEliminations + " eliminations");
+                    System.out.println("Two-Sector Disjoint Subsets: " + lch.twoSectorDisjointSubsetsCalls + " calls " + lch.twoSectorDisjointSubsetsEliminations + " eliminations");
                     System.out.println("Single-Valued Chains: " + lch.singleValuedChainsCalls + " calls " + lch.singleValuedChainsEliminations + " eliminations");
                     System.out.println("Many-Valued Chains: " + lch.manyValuedChainsCalls + " calls " + lch.manyValuedChainsEliminations + " eliminations");
                     System.out.println("Nishio: " + lch.nishioCalls + " calls " + lch.nishioEliminations + " eliminations");

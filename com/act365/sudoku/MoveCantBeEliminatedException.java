@@ -37,6 +37,6 @@ public class MoveCantBeEliminatedException extends MoveException {
      */
 
     public MoveCantBeEliminatedException( int x , int y , int value ){
-        super("The move (" + ( 1 + x ) + "," + ( 1 + y ) + "):=" + SuDokuUtils.toString( 1 + value ) + " cannot be eliminated" , x , y , value );        
+        super("The move (" + ( 1 + x ) + "," + ( 1 + y ) + "):=" + SuDokuUtils.valueToString( value ) + " cannot be eliminated" , x , y , value );        
     }
 }

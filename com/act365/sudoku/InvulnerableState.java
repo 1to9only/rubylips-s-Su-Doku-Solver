@@ -377,16 +377,16 @@ public class InvulnerableState implements IState {
      * Produces a string representation of the state grid.
      */
     
-    public String toString() {
+    @Override public String toString() {
         
-        StringBuffer sb = new StringBuffer();
+        StringBuilder sb = new StringBuilder();
         
         int v = 0 ;
         while( v < cellsInRow ){
             sb.append("Value ");
-            sb.append( SuDokuUtils.toString( v + 1 ) );
+            SuDokuUtils.appendValue( sb , v );
             sb.append(":\n\n");
-            sb.append( SuDokuUtils.toString( nInvulnerable[v] , boxesAcross , (int) maxScore ) );
+            sb.append( SuDokuUtils.toString( nInvulnerable[v] , boxesAcross , maxScore , SuDokuUtils.ValueFormat.NUMERIC ) );
             sb.append("\n");
             ++ v ;
         }
