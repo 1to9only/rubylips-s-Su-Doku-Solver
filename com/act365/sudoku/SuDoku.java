@@ -42,6 +42,13 @@ public class SuDoku extends Frame {
         SuDokuContainer suDoku = new SuDokuContainer( gc , control );
         add( suDoku );
         setSize( suDoku.getBestSize() );
+        java.awt.Dimension screenSize = this.getToolkit().getScreenSize();
+        java.awt.Insets insets = this.getToolkit().getScreenInsets(this.getGraphicsConfiguration());
+        java.awt.Dimension windowSize = this.getSize();
+        int screenWidth = screenSize.width - insets.left - insets.right;
+        int screenHeight = screenSize.height - insets.top - insets.bottom;
+        this.setLocation((screenWidth - windowSize.width) / 2 + insets.left,
+                         (screenHeight - windowSize.height) / 2 + insets.top);
     }
  
     /**
