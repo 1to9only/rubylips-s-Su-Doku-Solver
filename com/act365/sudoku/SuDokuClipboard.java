@@ -34,7 +34,7 @@ import java.awt.* ;
  */
 
 public class SuDokuClipboard extends com.act365.awt.Frame {
-
+    private static final long serialVersionUID = 1169535151130896450L;
     TextArea textArea ;
     
     /**

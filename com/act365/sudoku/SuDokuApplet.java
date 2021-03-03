@@ -35,7 +35,7 @@ import java.applet.Applet;
  */
 
 public class SuDokuApplet extends Applet {
-
+    private static final long serialVersionUID = 5646922098208826368L;
     int boxesAcross = 3 ,
         boxesDown = 3 ;
         

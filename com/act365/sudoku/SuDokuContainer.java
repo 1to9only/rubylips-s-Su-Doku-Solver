@@ -35,7 +35,7 @@ import java.awt.event.* ;
 
 public class SuDokuContainer extends com.act365.awt.Container 
                              implements ComponentListener {
-
+    private static final long serialVersionUID = 5706326752170688784L;
     GridContainer grid ;
     
     ControlContainer control ;

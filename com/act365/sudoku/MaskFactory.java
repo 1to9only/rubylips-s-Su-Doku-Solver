@@ -35,7 +35,7 @@ import java.util.* ;
  * symmetry of order two, as demanded by the Su Doku puzzle. No mask 
  * will be a reflection of a mask that appeared earlier in the sequence.
  */
-
+@SuppressWarnings("rawtypes")
 public abstract class MaskFactory implements Enumeration {
 
     int sector ;

@@ -31,7 +31,7 @@ package com.act365.sudoku;
  */
 
 public abstract class MoveException extends Exception {
-    
+    private static final long serialVersionUID = 7778323538740022076L;
     int x , y , value ;
     
     protected MoveException( String s , int x , int y , int value ) {

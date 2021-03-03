@@ -38,13 +38,13 @@ import java.util.StringTokenizer ;
  * fields that sit underneath the Su Doku grid and control
  * its operation. 
  */
-
+@SuppressWarnings("rawtypes")
 public class ControlContainer extends com.act365.awt.Container 
                               implements ActionListener ,
                                          ItemListener ,
                                          MouseListener ,
                                          ClipboardOwner {
-
+    private static final long serialVersionUID = 2253302941461853939L;
     final static int defaultMinFilledCellsValue = 32 ;
      
 	int boxesAcross ,

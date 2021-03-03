@@ -34,7 +34,7 @@ import java.io.* ;
  */
 
 public class SuDoku extends Frame {
-
+    private static final long serialVersionUID = 6998609052010119110L;
     SuDoku( Grid grid ){
         super("Su Doku Solver");        
         GridContainer gc = new GridContainer( grid );

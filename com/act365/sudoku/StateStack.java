@@ -33,9 +33,9 @@ import java.util.Vector ;
  * are rarely references (so that performance isn't critical), such
  * as LinearSystemState.
  */
-
+@SuppressWarnings({"rawtypes","unchecked"})
 public class StateStack extends Vector {
-
+    private static final long serialVersionUID = 5297799952523765422L;
     int nMovesStored ;
     
     int[] moves ;

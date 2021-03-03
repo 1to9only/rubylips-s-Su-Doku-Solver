@@ -37,7 +37,7 @@ import java.awt.*;
  */
 
 public abstract class Container extends java.awt.Container {
-
+    private static final long serialVersionUID = 2414083297828008929L;
     /**
      * Creates a new Container instance.
      */

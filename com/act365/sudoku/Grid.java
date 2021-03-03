@@ -31,9 +31,9 @@ import java.util.* ;
 /**
  * A Grid object represents a partially-filled Su Doku grid.
  */
-
+@SuppressWarnings({"rawtypes","unchecked","overrides"})
 public class Grid implements Cloneable , Serializable {
-
+    private static final long serialVersionUID = 1222737722622307627L;
     // Constants that define the grid size. The nomenclature is taken from
     // the Sudoku XML schema.
     

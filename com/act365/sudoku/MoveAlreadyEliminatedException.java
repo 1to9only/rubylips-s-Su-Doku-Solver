@@ -31,7 +31,7 @@ package com.act365.sudoku;
  */
 
 public class MoveAlreadyEliminatedException extends MoveException {
-    
+    private static final long serialVersionUID = 1257743138097296148L;
     /**
      * Creates a new exception for the move (x,y):=v.
      */

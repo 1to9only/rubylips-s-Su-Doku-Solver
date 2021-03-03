@@ -37,7 +37,7 @@ import java.util.Date ;
 
 public class GridContainer extends com.act365.awt.Container 
                            implements AdjustmentListener {
-
+    private static final long serialVersionUID = 5807527246418682683L;
     final static int insetSize = 1 ,
                      displayHeight = 600 ,
                      displayWidth = 600 ,

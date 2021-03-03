@@ -36,7 +36,7 @@ import java.util.* ;
  * MostCandidates strategy. It runs as a thread because composition is
  * a lengthy process that the caller might well choose to terminate.
  */
-
+@SuppressWarnings({"rawtypes","unchecked"})
 public class Composer extends Thread {
 
     Vector puzzles ;

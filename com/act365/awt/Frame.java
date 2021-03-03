@@ -36,7 +36,7 @@ import java.awt.event.*;
  */
 
 public class Frame extends java.awt.Frame {
-    
+    private static final long serialVersionUID = 5695533907505492948L;
     /**
      * Constructs a Frame with the chosen text as a title.
      */
